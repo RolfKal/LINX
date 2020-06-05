@@ -237,7 +237,7 @@ extern "C" int LinxAoGetChansRef(LinxDevice *dev, unsigned char numChans, unsign
 
 extern "C" int LinxAoGetChans(unsigned char numChans, unsigned char* channels)
 {
-	return LinxAoGetChansRef(LinxDev, numChans, channels)
+	return LinxAoGetChansRef(LinxDev, numChans, channels);
 }
 
 extern "C" int LinxAnalogReadRef(LinxDevice *dev, unsigned char numChans, unsigned char* channels, unsigned char* values)
