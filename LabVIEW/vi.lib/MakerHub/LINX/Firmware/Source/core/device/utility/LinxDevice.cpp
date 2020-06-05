@@ -44,7 +44,6 @@ unsigned char LinxDevice::ReverseBits(unsigned char b)
 	return b;
 }
 
-
 void LinxDevice::EnableDebug(unsigned char channel)
 {	
 	unsigned long actualBaud = 0;
@@ -62,7 +61,7 @@ void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* 
 {
 	#if DEBUG_ENABLED >= 0
 		if(direction == RX)
-		{		
+		{
 			DebugPrint("Received :: ");
 		}
 		else if(direction == TX)
@@ -71,17 +70,17 @@ void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* 
 		}
 		
 		for(int i=0; i<packetBuffer[1]; i++)
-		{		
-			DebugPrint("[");	
+		{
+			DebugPrint("[");
 			DebugPrint(packetBuffer[i], HEX);
-			DebugPrint("]");	
-		}		
-		DebugPrintln();		
+			DebugPrint("]");
+		}
+		DebugPrintln();
 		
 		if(direction == TX)
 		{
 			//Add Second New Line After TX
-			DebugPrintln();		
+			DebugPrintln();
 		}
 	#endif
 }
@@ -107,6 +106,12 @@ int LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* chan
 
 // ---------------- PWM Functions ------------------ 
 int LinxDevice::PwmSetFrequency(unsigned char numChans, unsigned char* channels, unsigned long* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+// ---------------- SPI Functions ------------------ 
+int LinxDevice::SpiCloseMaster(unsigned char channel)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
