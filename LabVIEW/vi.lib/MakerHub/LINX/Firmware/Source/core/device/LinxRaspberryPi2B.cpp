@@ -14,6 +14,8 @@
 ****************************************************************************************/		
 #include <termios.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
 #include "utility/LinxDevice.h"
 #include "utility/LinxRaspberryPi.h"
@@ -42,8 +44,8 @@ const unsigned char LinxRaspberryPi2B::m_gpioChan[NUM_DIGITAL_CHANS] =     {4, 1
 //None
 
 //SPI
-const unsigned char LinxRaspberryPi2B::m_SpiChans[NUM_SPI_CHANS] = {0};
-string m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.1"};
+unsigned char LinxRaspberryPi2B::m_SpiChans[NUM_SPI_CHANS];
+string m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
 unsigned long LinxRaspberryPi2B::m_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 int LinxRaspberryPi2B::m_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 
@@ -67,20 +69,17 @@ unsigned long LinxRaspberryPi2B::m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {
 ****************************************************************************************/
 LinxRaspberryPi2B::LinxRaspberryPi2B()
 {
-	DeviceFamily = 0x04;	//Raspberry Pi Family Code
-	DeviceId = 0x03;			//Raspberry Pi 2 Model B
-	DeviceNameLen = DEVICE_NAME_LEN;	 
-	DeviceName =  m_DeviceName;
+	LinxRapberryPi::LinxRaspberryPi();
 
 	//LINX API Version
 	LinxApiMajor = 2;
 	LinxApiMinor = 2;
 	LinxApiSubminor = 0;
-	
+
 	//DIGITAL
-	NumDigitalChans = NUM_DIGITAL_CHANS;			
+	NumDigitalChans = NUM_DIGITAL_CHANS;
 	DigitalChans = m_DigitalChans;
-		
+
 	//AI
 	NumAiChans = NUM_AI_CHANS;
 	AiChans = 0;
@@ -96,53 +95,62 @@ LinxRaspberryPi2B::LinxRaspberryPi2B()
 	
 	AiRefExtMin = 0;
 	AiRefExtMax = 0;
-	
+
 	//AO
 	NumAoChans = 0;
 	AoChans = 0;
 	AoResolution = 0;
-    AoRefDefault = 0;
+	AoRefDefault = 0;
 	AoRefSet = 0;
-	
+
 	//PWM
 	NumPwmChans = NUM_PWM_CHANS;
 	PwmChans = 0;
-	
+
 	//QE
 	NumQeChans = 0;
 	QeChans = 0;
-		
+
 	//UART
 	NumUartChans = NUM_UART_CHANS;
-	UartChans = m_UartChans;	
+	UartChans = m_UartChans;
 	UartMaxBaud = m_UartSupportedSpeeds[NUM_UART_SPEEDS - 1];
 	NumUartSpeeds = NUM_UART_SPEEDS;
 	UartSupportedSpeeds = m_UartSupportedSpeeds;
 	UartSupportedSpeedsCodes = m_UartSupportedSpeedsCodes;
-	
+
 	//I2C
-	NumI2cChans = NUM_I2C_CHANS;	
+	NumI2cChans = NUM_I2C_CHANS;
 	I2cChans = m_I2cChans;
 	I2cRefCount = m_I2cRefCount;
-		
+
 	//SPI
-	NumSpiChans = NUM_SPI_CHANS;	
-	SpiChans = m_SpiChans;		
+	NumSpiChans = 0;
+	SpiChans = m_SpiChans;
+	for (int i = 0; i < NUM_SPI_CHANS; i++)
+	{
+		struct stat sb;
+		if (stat(m_SpiPaths[i], &sb) == 0)
+		{
+			SpiChans[NumSpiChans] = i;
+			NumSpiChans++;
+		}
+	}
 	NumSpiSpeeds = NUM_SPI_SPEEDS;
 	SpiSupportedSpeeds = m_SpiSupportedSpeeds;
 	SpiSpeedCodes = m_SpiSpeedCodes;
-		
+
 	//CAN
 	NumCanChans = NUM_CAN_CHANS;
 	CanChans = 0;
-	
+
 	//Servo 
 	NumServoChans = NUM_SERVO_CHANS;
 	ServoChans = 0;
-			
+
 	//------------------------------------- Digital -------------------------------------
 	//Export GPIO - Set All Digital Handles To NULL
-	for(int i=0; i<NUM_DIGITAL_CHANS; i++)
+	for (int i = 0; i < NumDigitalChans; i++)
 	{
 		FILE* digitalExportHandle = fopen("/sys/class/gpio/export", "w");
 		fprintf(digitalExportHandle, "%d", m_gpioChan[i]);
@@ -153,31 +161,31 @@ LinxRaspberryPi2B::LinxRaspberryPi2B()
 		DigitalChannels[m_DigitalChans[i]] = m_gpioChan[i];
 		DigitalDirs[m_DigitalChans[i]] = INPUT;
 	}
-	
+
 	//------------------------------------- I2C -------------------------------------
 	//Store I2C Master Paths In Map
-	for(int i=0; i<NUM_I2C_CHANS; i++)
-	{	
+	for (int i=0; i < NumI2cChans; i++)
+	{
 		I2cPaths[I2cChans[i]] = m_I2cPaths[i];
 	}
 	
 	//------------------------------------- SPI -------------------------------------
-	//Load SPI Paths And Configure SPI Master Default Values	
+	//Load SPI Paths And Configure SPI Master Default Values
 	SpiDefaultSpeed = 3900000;
-	for(int i=0; i<NUM_SPI_CHANS; i++)
-	{				
+	for (int i = 0; i < NumSpiChans; i++)
+	{
 		SpiBitOrders[SpiChans[i]] = MSBFIRST;		//MSB First
 		SpiSetSpeeds[SpiChans[i]] = SpiDefaultSpeed;
 		SpiPaths[SpiChans[i]] = m_SpiPaths[i];
 	}
-	
+
 	//------------------------------------- UART -------------------------------------
-	for(int i=0; i<NUM_UART_CHANS; i++)
+	for (int i = 0; i < NumUartChans; i++)
 	{
 		UartPaths[m_UartChans[i]] = m_UartPaths[i];
 		UartHandles[m_UartChans[i]] = 0;
-	}	
-	
+	}
+
 	//If Debuging Is Enabled Call EnableDebug()
 	#if DEBUG_ENABLED > -1
 		EnableDebug(DEBUG_ENABLED);
@@ -186,46 +194,49 @@ LinxRaspberryPi2B::LinxRaspberryPi2B()
 
 //Destructor
 LinxRaspberryPi2B::~LinxRaspberryPi2B()
-{	
+{
+	if (DeviceName !=  m_DeviceName)
+		free(DeviceName);
+	
 	//Close GPIO Handles If They Are Open
-	for(int i=0; i<NUM_DIGITAL_CHANS; i++)
+	for (int i = 0; i < NumDigitalChans; i++)
 	{
 		if(DigitalDirHandles[m_DigitalChans[i]] != NULL)
-		{			
+		{
 			fclose(DigitalDirHandles[m_DigitalChans[i]]);
 		}
 		if(DigitalValueHandles[m_DigitalChans[i]] != NULL)
-		{			
+		{
 			fclose(DigitalValueHandles[m_DigitalChans[i]]);
 		}
 	}
-	
+
 	//Close I2C Handles
-	for(int i=0; i<NUM_I2C_CHANS; i++)
+	for (int i = 0; i < NumI2cChans; i++)
 	{
 		if(I2cHandles[m_I2cChans[i]] != 0)
-		{	
+		{
 			close(I2cHandles[m_I2cChans[i]]);
 		}
 	}
-	
+
 	//Close SPI Handles
-	for(int i=0; i<NUM_SPI_CHANS; i++)
+	for (int i = 0; i < NumSpiChans; i++)
 	{
 		if(SpiHandles[m_SpiChans[i]] != 0)
-		{	
+		{
 			close(SpiHandles[m_SpiChans[i]]);
 		}
 	}
-	
+
 	//Close UART Handles
-	for(int i=0; i<NUM_UART_CHANS; i++)
+	for (int i = 0; i < NumUartChans; i++)
 	{
-		if(UartHandles[m_UartChans[i]] != 0)
-		{	
+		if (UartHandles[m_UartChans[i]] != 0)
+		{
 			close(UartHandles[m_UartChans[i]]);
 		}
-	}	
+	}
 }
 
 /****************************************************************************************
