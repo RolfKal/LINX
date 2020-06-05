@@ -3,19 +3,19 @@
 **
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
-**  
+**
 **  Written By Sam Kristoff
-** 
+**
 ** BSD2 License.
-****************************************************************************************/	
+****************************************************************************************/
 
 /****************************************************************************************
 **  Defines
-****************************************************************************************/		
+****************************************************************************************/
 
 /****************************************************************************************
 **  Includes
-****************************************************************************************/	
+****************************************************************************************/
 #include "LinxDevice.h"
 #include "LinxRaspberryPi.h"
 
@@ -27,7 +27,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <sys/stat.h>
-#include <termios.h>	
+#include <termios.h>
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 #include <linux/spi/spidev.h>
@@ -38,10 +38,10 @@ using namespace std;
 
 /****************************************************************************************
 **  Variables
-****************************************************************************************/		
+****************************************************************************************/
 
 /****************************************************************************************
-**  Constructors / Destructors 
+**  Constructors / Destructors
 ****************************************************************************************/
 LinxRaspberryPi::LinxRaspberryPi()
 {
@@ -49,15 +49,91 @@ LinxRaspberryPi::LinxRaspberryPi()
 	LinxApiMajor = 2;
 	LinxApiMinor = 0;
 	LinxApiSubminor = 0;
-	
+
+	DeviceFamily = 0x04;	//Raspberry Pi Family Code
+	DeviceName = NULL;
+
+	int fd = open("/sys/firmware/devicetree/base/model", O_RDONLY);
+	if (fd != -1)
+	{
+		struct stat sb;
+		if (fstat(fd, &sb) == 0)
+		{
+			DeviceName = malloc(sb.st_size + 1);
+			if (DeviceName)
+			{
+				DeviceNameLen = read(fd, DeviceName, sb.st_size);
+				if (DeviceNameLen > 0)
+				{
+					DeviceName[DeviceNameLen] = 0;
+					if (!strcmp(DeviceName, "Raspberry Pi ") && DeviceNameLen >= 14)
+					{
+						char *ptr = DeviceName + 13;
+						switch (*ptr)
+						{
+							case 'A':
+								// Raspberry Pi A
+								DeviceId = 0;
+								break;
+							case 'B':
+								if (DeviceNameLen >= 14 && *(DeviceName + 14) == '+')
+								{
+									// Raspberry Pi B+
+									DeviceId = 2;
+								}
+								else
+								{
+									// Raspberry Pi B
+									DeviceId = 1;
+								}
+								break;
+							case '2':
+								// Raspberry Pi 2 Model B
+								DeviceId = 3;
+								break;
+							case '3':
+								if (DeviceNameLen >= 23 && *(DeviceName + 23) == '+')
+								{
+									// Raspberry Pi 3 Model B+ (with Wifi)
+									DeviceId = 5;
+								}
+								else
+								{
+									// Raspberry Pi 3 Model B
+									DeviceId = 4;
+								}
+								break;
+							case '4':	// Raspberry Pi 4 Model B (with Wifi)
+								DeviceId = 6;
+								break;
+							default:
+								DeviceNameLen = 0;
+								break;
+					}
+					else
+						DeviceNameLen = 0;
+				}
+				if (DeviceNameLen <= 0)
+					free(DeviceName);
+			}
+		}
+		close(fd);
+	}
+	if (DeviceNameLen == 0)
+	{
+		// Fall back on default setting
+		DeviceNameLen = DEVICE_NAME_LEN;
+		DeviceName =  m_DeviceName;
+		DeviceId = 0x03;		// Raspberry Pi 2 Model B
+	}
+
 	// TODO Load User Config Data From Non Volatile Storage
 	//userId = NonVolatileRead(NVS_USERID) << 8 | NonVolatileRead(NVS_USERID + 1);
-	
 }
 
 LinxRaspberryPi::~LinxRaspberryPi()
 {
-		
+
 }
 
 /****************************************************************************************
@@ -66,8 +142,8 @@ LinxRaspberryPi::~LinxRaspberryPi()
 int LinxRaspberryPi::digitalSmartOpen(unsigned char numChans, unsigned char* channels)
 {
 	for(int i=0; i<numChans; i++)
-	{		
-		//Open Direction Handle If It Is Not Already		
+	{
+		//Open Direction Handle If It Is Not Already
 		if(DigitalDirHandles[channels[i]] == NULL)
 		{
 			DebugPrint("Opening Digital Direction Handle For LINX DIO ");
@@ -75,26 +151,26 @@ int LinxRaspberryPi::digitalSmartOpen(unsigned char numChans, unsigned char* cha
 			DebugPrint("(GPIO ");
 			DebugPrint(DigitalChannels[channels[i]], DEC);
 			DebugPrintln(")");
-			
+
 			char dirPath[64];
 			sprintf(dirPath, "/sys/class/gpio/gpio%d/direction", DigitalChannels[channels[i]]);
 			DigitalDirHandles[channels[i]] = fopen(dirPath, "r+w+");
-			
+
 			if(DigitalDirHandles[channels[i]] == NULL)
 			{
 				DebugPrintln("Digital Fail - Unable To Open Direction File Handles");
 				return L_UNKNOWN_ERROR;
 			}
 		}
-		
-		//Open Value Handle If It Is Not Already		
+
+		//Open Value Handle If It Is Not Already
 		if(DigitalValueHandles[channels[i]] == NULL)
 		{
 			DebugPrintln("Opening Digital Value Handle");
 			char valuePath[64];
 			sprintf(valuePath, "/sys/class/gpio/gpio%d/value", DigitalChannels[channels[i]]);
 			DigitalValueHandles[channels[i]] = fopen(valuePath, "r+w+");
-			
+
 			if(DigitalValueHandles[channels[i]] == NULL)
 			{
 				DebugPrintln("Digital Fail - Unable To Open Value File Handles");
@@ -107,29 +183,29 @@ int LinxRaspberryPi::digitalSmartOpen(unsigned char numChans, unsigned char* cha
 int LinxRaspberryPi::pwmSmartOpen(unsigned char numChans, unsigned char* channels)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
-}	
+}
 
 //Return True If File Specified By path Exists.
 bool LinxRaspberryPi::fileExists(const char* path)
 {
-	struct stat buffer;   
-	return (stat(path, &buffer) == 0); 
+	struct stat buffer;
+	return (stat(path, &buffer) == 0);
 }
 
 bool LinxRaspberryPi::fileExists(const char* directory, const char* fileName)
 {
 	char fullPath[128];
-	sprintf(fullPath, "%s%s", directory, fileName);				
+	sprintf(fullPath, "%s%s", directory, fileName);
 	struct stat buffer;
-	return (stat(fullPath, &buffer) == 0);  
+	return (stat(fullPath, &buffer) == 0);
 }
 
 bool LinxRaspberryPi::fileExists(const char* directory, const char* fileName, unsigned long timeout)
 {
 	char fullPath[128];
-	sprintf(fullPath, "%s%s", directory, fileName);				
+	sprintf(fullPath, "%s%s", directory, fileName);
 	struct stat buffer;
-	
+
 	unsigned long startTime = GetMilliSeconds();
 	while(GetMilliSeconds()-startTime < timeout)
 	{
@@ -159,70 +235,69 @@ int LinxRaspberryPi::AnalogSetRef(unsigned char mode, unsigned long voltage)
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-		
 //------------------------------------- Digital -------------------------------------
 int LinxRaspberryPi::DigitalSetDirection(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	if(digitalSmartOpen(numChans, channels) != L_OK)
 	{
 		DebugPrintln("Smart Open Failed");
-		return L_UNKNOWN_ERROR;			
+		return L_UNKNOWN_ERROR;
 	}
-	
+
 	//Set Direction Only If Necessary
 	//Avoid Divide By Zero By Doing First Iteration
 	if( (values[0] & 0x01) == OUTPUT && DigitalDirs[channels[0]] != OUTPUT)
 	{
 		//Set As Output
-		fprintf(DigitalDirHandles[channels[0]], "out");		
+		fprintf(DigitalDirHandles[channels[0]], "out");
 		fflush(DigitalDirHandles[channels[0]]);
-		DigitalDirs[channels[0]] = OUTPUT;		
+		DigitalDirs[channels[0]] = OUTPUT;
 	}
 	else if((values[0] & 0x01) == INPUT && DigitalDirs[channels[0]] != INPUT)
 	{
 		//Set As Input
-		fprintf(DigitalDirHandles[channels[0]], "in");	
+		fprintf(DigitalDirHandles[channels[0]], "in");
 		fflush(DigitalDirHandles[channels[0]]);
 		DigitalDirs[channels[0]] = INPUT;
 	}
-		
+
 	//Set Directions
 	for(int i=1; i<numChans; i++)
-	{		
+	{
 		if( ((values[i/8] >> i%8) & 0x01) == OUTPUT && DigitalDirs[channels[i]] != OUTPUT)
 		{
 			//Set As Output
-			fprintf(DigitalDirHandles[channels[i]], "out");		
+			fprintf(DigitalDirHandles[channels[i]], "out");
 			fflush(DigitalDirHandles[channels[i]]);
-			DigitalDirs[channels[i]] = OUTPUT;				
+			DigitalDirs[channels[i]] = OUTPUT;
 		}
 		else if( (values[i] & 0x01) == INPUT && DigitalDirs[channels[i]] != INPUT)
 		{
 			//Set As Input
-			fprintf(DigitalDirHandles[channels[i]], "in");	
+			fprintf(DigitalDirHandles[channels[i]], "in");
 			fflush(DigitalDirHandles[channels[i]]);
 			DigitalDirs[channels[i]] = INPUT;
 		}
 	}
-	
+
 	return L_OK;
 }
 
 int LinxRaspberryPi::DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Output Direction Array
-	int numDirBytes = (int)ceil(numChans/8.0);		
+	int numDirBytes = (int)ceil(numChans/8.0);
 	unsigned char directions[numDirBytes];
 	for(int i=0; i< numDirBytes; i++)
 	{
 		directions[i] = 0xFF;
-	}	
-	
+	}
+
 	if(DigitalSetDirection(numChans, channels, directions) != L_OK)
 	{
 		DebugPrintln("Digital Write Fail - Set Direction Failed");
 	}
-			
+
 	for(int i=0; i<numChans; i++)
 	{
 		//Set Value
@@ -237,7 +312,7 @@ int LinxRaspberryPi::DigitalWrite(unsigned char numChans, unsigned char* channel
 			fflush(DigitalValueHandles[channels[i]]);
 		}
 	}
-		
+
 	return L_OK;
 }
 
@@ -250,17 +325,17 @@ int LinxRaspberryPi::DigitalWriteNoPacking(unsigned char numChans, unsigned char
 {
 	//Generate Directions Array (waste some memory, save some CPU)
 	unsigned char directions[numChans];
-	
+
 	for(int i=0; i< numChans; i++)
 	{
 		directions[i] = 0xFF;
 	}
-	
+
 	if(DigitalSetDirection(numChans, channels, directions) != L_OK)
 	{
 		DebugPrintln("Digital Write Fail - Set Direction Failed");
 	}
-			
+
 	for(int i=0; i<numChans; i++)
 	{
 		//Set Value
@@ -275,35 +350,35 @@ int LinxRaspberryPi::DigitalWriteNoPacking(unsigned char numChans, unsigned char
 			fflush(DigitalValueHandles[channels[i]]);
 		}
 	}
-		
+
 	return L_OK;
 }
 
 int LinxRaspberryPi::DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Input Direction Array
-	int numDirBytes = (int)ceil(numChans/8.0);		
+	int numDirBytes = (int)ceil(numChans/8.0);
 	unsigned char directions[numDirBytes];
 	for(int i=0; i< numDirBytes; i++)
 	{
 		directions[i] = 0x00;
 	}
-	
-	//Set Directions To Inputs		
+
+	//Set Directions To Inputs
 	if(DigitalSetDirection(numChans, channels, directions) != L_OK)
 	{
 		DebugPrintln("Digital Write Fail - Set Direction Failed");
 	}
-	
+
 	unsigned char bitOffset = 8;
 	unsigned char byteOffset = 0;
 	unsigned char retVal = 0;
 	int diVal = 0;
-	
+
 	//Loop Over channels To Read
 	for(int i=0; i<numChans; i++)
 	{
-		
+
 		//If bitOffset Is 0 We Have To Start A New Byte, Store Old Byte And Increment OFfsets
 		if(bitOffset == 0)
 		{
@@ -311,27 +386,27 @@ int LinxRaspberryPi::DigitalRead(unsigned char numChans, unsigned char* channels
 			values[byteOffset] = retVal;
 			retVal = 0x00;
 			byteOffset++;
-			bitOffset = 7;      
+			bitOffset = 7;
 		}
 		else
 		{
 			bitOffset--;
 		}
-		
+
 		//Reopen Value Handle
 		char valPath[64];
 		sprintf(valPath, "/sys/class/gpio/gpio%d/value", DigitalChannels[channels[i]]);
 		DigitalValueHandles[channels[i]] = freopen(valPath, "r+w+", DigitalValueHandles[channels[i]]);
-		
+
 		//Read From Next Pin
-		fscanf(DigitalValueHandles[channels[i]], "%u", &diVal);		
-					
+		fscanf(DigitalValueHandles[channels[i]], "%u", &diVal);
+
 		retVal = retVal | ((unsigned char)diVal << bitOffset);	//Read Pin And Insert Value Into retVal
 	}
 
 	//Store Last Byte
 	values[byteOffset] = retVal;
-		
+
 	return L_OK;
 }
 
@@ -406,17 +481,17 @@ int LinxRaspberryPi::SpiOpenMaster(unsigned char channel)
 		{
 			DebugPrint("SPI Fail - Failed To Set SPI Mode - ");
 			DebugPrintln(spi_Mode, BIN);
-			
+
 			//fprintf(stdout, "SPI OPEN FAIL");
 			return LSPI_OPEN_FAIL;
 		}
-		
+
 		//Open With Default Clock Speed
 		if (ioctl(SpiHandles[channel], SPI_IOC_WR_MAX_SPEED_HZ, &SpiDefaultSpeed) < 0)
 		{
 			DebugPrint("SPI Fail - Failed To Set SPI Max Speed - ");
 			DebugPrintln(SpiDefaultSpeed, DEC);
-			
+
 			//fprintf(stdout, "SPI OPEN FAIL");
 			return LSPI_OPEN_FAIL;
 		}
@@ -447,7 +522,7 @@ int LinxRaspberryPi::SpiSetSpeed(unsigned char channel, unsigned long speed, uns
 	int index = 0;
 	//Loop Over All Supported SPI Speeds
 	for(index=0; index < NumSpiSpeeds; index++)
-	{			
+	{
 		if(speed < *(SpiSupportedSpeeds+index))
 		{
 			index = index - 1; //Use Fastest Speed Below Target Speed
@@ -460,7 +535,7 @@ int LinxRaspberryPi::SpiSetSpeed(unsigned char channel, unsigned long speed, uns
 	else if (index >= NumSpiSpeeds)
 		index = NumSpiSpeeds-1;
 	SpiSetSpeeds[channel] = *(SpiSupportedSpeeds + index);
-	*actualSpeed = *(SpiSupportedSpeeds + index); 
+	*actualSpeed = *(SpiSupportedSpeeds + index);
 
 	return L_OK;
 }
@@ -528,7 +603,7 @@ int LinxRaspberryPi::SpiCloseMaster(unsigned char channel)
 
 //------------------------------------- I2C -------------------------------------
 int LinxRaspberryPi::I2cOpenMaster(unsigned char channel)
-{	
+{
 	int handle = open(I2cPaths[channel].c_str(), O_RDWR);
 	if (handle < 0)
 	{
@@ -557,7 +632,7 @@ int LinxRaspberryPi::I2cWrite(unsigned char channel, unsigned char slaveAddress,
 	}
 
 	//Set Slave Address
-	if(ioctl(I2cHandles[channel], I2C_SLAVE, slaveAddress) < 0) 
+	if(ioctl(I2cHandles[channel], I2C_SLAVE, slaveAddress) < 0)
 	{
 		//Failed To Set Slave Address
 		DebugPrintln("I2C Fail - Failed To Set Slave Address");
@@ -583,7 +658,7 @@ int LinxRaspberryPi::I2cRead(unsigned char channel, unsigned char slaveAddress, 
 	}
 
 	//Set Slave Address
-	if (ioctl(I2cHandles[channel], I2C_SLAVE, slaveAddress) < 0) 
+	if (ioctl(I2cHandles[channel], I2C_SLAVE, slaveAddress) < 0)
 	{
 		//Failed To Set Slave Address
 		return LI2C_SADDR;
@@ -608,7 +683,7 @@ int LinxRaspberryPi::I2cClose(unsigned char channel)
 	return L_OK;
 }
 
-		
+
 //------------------------------------- UART -------------------------------------
 int LinxRaspberryPi::UartOpen(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud)
 {
@@ -663,7 +738,7 @@ int LinxRaspberryPi::UartSetBaudRate(unsigned char channel, unsigned long baudRa
 	*actualBaud = (unsigned long) *(UartSupportedSpeeds+index);
 
 	//Set Baud Rate
-	struct termios options;	
+	struct termios options;
 	tcgetattr(UartHandles[channel], &options);
 
 	options.c_cflag = *(UartSupportedSpeedsCodes+index) | CS8 | CLOCAL | CREAD;
@@ -705,7 +780,7 @@ int LinxRaspberryPi::UartRead(unsigned char channel, unsigned char numBytes, uns
 		//Read Bytes From Input Buffer
 		int bytesRead = read(UartHandles[channel], recBuffer, numBytes);
 		*numBytesRead = (unsigned char) bytesRead;
-		
+
 		if(bytesRead != numBytes)
 		{
 			return LUART_READ_FAIL;
@@ -767,7 +842,7 @@ unsigned long LinxRaspberryPi::GetMilliSeconds()
 unsigned long LinxRaspberryPi::GetSeconds()
 {
 	timespec mTime;
-	clock_gettime(CLOCK_MONOTONIC, &mTime);	
+	clock_gettime(CLOCK_MONOTONIC, &mTime);
 	return mTime.tv_sec;
 }
 
@@ -778,7 +853,7 @@ void LinxRaspberryPi::DelayMs(unsigned long ms)
 
 void LinxRaspberryPi::NonVolatileWrite(int address, unsigned char data)
 {
-	
+
 }
 
 unsigned char LinxRaspberryPi::NonVolatileRead(int address)
