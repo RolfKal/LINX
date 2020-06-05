@@ -210,6 +210,7 @@ extern "C" int LinxAiGetChansRef(LinxDevice *dev, unsigned char numChans, unsign
 		//Copy As Many Channels As Possible With Given Space
 		memcpy(channels, dev->AiChans, numChans);
 		return numChans;
+	}
 	return 0;
 }
 
