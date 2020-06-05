@@ -96,7 +96,8 @@ typedef enum LinxStatus
 	L_FUNCTION_NOT_SUPPORTED,
 	L_REQUEST_RESEND,
 	L_UNKNOWN_ERROR, 
-	L_DISCONNECT
+	L_DISCONNECT,
+	L_BADPARAM
 }LinxStatus;
 
 typedef enum AioStatus
