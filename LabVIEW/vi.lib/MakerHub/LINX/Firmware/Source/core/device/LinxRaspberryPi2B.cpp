@@ -67,8 +67,6 @@ unsigned long LinxRaspberryPi2B::m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {
 ****************************************************************************************/
 LinxRaspberryPi2B::LinxRaspberryPi2B()
 {
-	LinxRaspberryPi::LinxRaspberryPi();
-
 	//LINX API Version
 	LinxApiMajor = 2;
 	LinxApiMinor = 2;
@@ -192,9 +190,6 @@ LinxRaspberryPi2B::LinxRaspberryPi2B()
 //Destructor
 LinxRaspberryPi2B::~LinxRaspberryPi2B()
 {
-	if (DeviceName !=  m_DeviceName)
-		free(DeviceName);
-	
 	//Close GPIO Handles If They Are Open
 	for (int i = 0; i < NumDigitalChans; i++)
 	{

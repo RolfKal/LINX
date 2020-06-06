@@ -20,7 +20,8 @@
 #include "LinxRaspberryPi.h"
 
 #include <map>
-#inclide <stdlib.h>
+#include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
 #include <time.h>
 #include <math.h>
@@ -40,8 +41,8 @@ using namespace std;
 /****************************************************************************************
 **  Variables
 ****************************************************************************************/
-const unsigned char LinxRaspberryPi2B::m_DeviceName[] = "Raspberry Pi Unknown";
-
+unsigned char LinxRaspberryPi::m_DeviceName[] = "Raspberry Pu Unknown";
+ 
 /****************************************************************************************
 **  Constructors / Destructors
 ****************************************************************************************/
@@ -55,22 +56,22 @@ LinxRaspberryPi::LinxRaspberryPi()
 	DeviceFamily = 0x04;	//Raspberry Pi Family Code
 	DeviceName = NULL;
 
-	int fd = open("/sys/firmware/devicetree/base/model", O_RDONLY);
+	int fd = open("/proc/device-tree/model", O_RDONLY);
 	if (fd != -1)
 	{
 		struct stat sb;
 		if (fstat(fd, &sb) == 0)
 		{
-			DeviceName = malloc(sb.st_size + 1);
+			DeviceName = (unsigned char*)malloc(sb.st_size + 1);
 			if (DeviceName)
 			{
 				DeviceNameLen = read(fd, DeviceName, sb.st_size);
 				if (DeviceNameLen > 0)
 				{
 					DeviceName[DeviceNameLen] = 0;
-					if (!strcmp(DeviceName, "Raspberry Pi ") && DeviceNameLen >= 14)
+					if (!strcmp((char*)DeviceName, "Raspberry Pi ") && DeviceNameLen >= 14)
 					{
-						char *ptr = DeviceName + 13;
+						unsigned char *ptr = DeviceName + 13;
 						switch (*ptr)
 						{
 							case 'A':
@@ -126,7 +127,7 @@ LinxRaspberryPi::LinxRaspberryPi()
 	{
 		// Fall back on default setting
 		DeviceName = m_DeviceName;
-		DeviceNameLen = strlen(DeviceName);
+		DeviceNameLen = strlen((char*)DeviceName);
 		DeviceId = 0x03;		// Raspberry Pi 2 Model B
 	}
 
