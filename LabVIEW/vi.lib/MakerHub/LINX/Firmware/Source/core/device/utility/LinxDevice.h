@@ -255,7 +255,7 @@ class LinxDevice
 		virtual int SpiSetMode(unsigned char channel, unsigned char mode) = 0;
 		virtual int SpiSetSpeed(unsigned char channel, unsigned long speed, unsigned long* actualSpeed) = 0;
 		virtual int SpiWriteRead(unsigned char channel, unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer) = 0;
-		virtual int SpiCloseMaster(unsigned char channel) = 0;
+		virtual int SpiCloseMaster(unsigned char channel);
 
 		//I2C
 		virtual int I2cOpenMaster(unsigned char channel) = 0;

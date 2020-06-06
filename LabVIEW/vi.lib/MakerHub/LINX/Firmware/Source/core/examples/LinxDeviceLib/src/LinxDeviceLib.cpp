@@ -99,7 +99,7 @@ extern "C" int LinxGetDeviceNameRef(LinxDevice *dev, unsigned char *name, int le
 {
 	if (dev)
 	{
-		memcpy(name, dev->DeviceName, min(dev->DeviceNameLen, len - 1);
+		memcpy(name, dev->DeviceName, min((int)dev->DeviceNameLen, len - 1));
 		name[len - 1] = '\0';
 		return L_OK;
 	}
