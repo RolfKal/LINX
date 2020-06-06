@@ -252,7 +252,6 @@ int LinxDevice::Ws2812Close()
 }
 
 
-
 //----------------- DEBUG Functions -----------------------------
 void  LinxDevice::DebugPrint(char c)
 {

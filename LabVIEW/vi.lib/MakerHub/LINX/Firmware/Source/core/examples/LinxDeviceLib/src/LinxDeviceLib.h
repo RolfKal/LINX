@@ -23,7 +23,7 @@ extern "C" int LinxClose();
 //------------------------------------- Enumeration -------------------------------------
 extern "C" unsigned char LinxGetDeviceFamily();
 extern "C" unsigned char LinxGetDeviceId();
-extern "C" int LinxGetDeviceName(string* name);
+extern "C" int LinxGetDeviceName(unsigned char *name);
 
 
 //------------------------------------- General -------------------------------------

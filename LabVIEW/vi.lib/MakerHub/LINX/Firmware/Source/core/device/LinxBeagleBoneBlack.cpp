@@ -13,14 +13,16 @@
 **  Includes
 ****************************************************************************************/		
 #include <iostream>
-#include <unistd.h>
 #include <fstream>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <termios.h>	
 #include <map>
 #include <string.h>
+#ifndef _MSC_VER
+#include <unistd.h>
 #include <dirent.h>
+#include <termios.h>	
+#endif
 
 #include "utility/LinxDevice.h"
 #include "utility/LinxBeagleBone.h"

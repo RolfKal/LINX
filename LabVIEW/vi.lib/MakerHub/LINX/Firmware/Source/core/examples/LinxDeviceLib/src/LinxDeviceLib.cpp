@@ -95,20 +95,20 @@ extern "C" int LinxGetDeviceId()
 	return LinxDev->DeviceId;
 }
 
-extern "C" int LinxGetDeviceNameRef(LinxDevice *dev, string* name)
+extern "C" int LinxGetDeviceNameRef(LinxDevice *dev, unsigned char *name, int len)
 {
 	if (dev)
 	{
-		memcpy(name, dev->DeviceName, dev->DeviceNameLen);
+		memcpy(name, dev->DeviceName, min(dev->DeviceNameLen, len - 1);
+		name[len - 1] = '\0';
 		return L_OK;
 	}
 	return L_BADPARAM;
 }
 
-extern "C" int LinxGetDeviceName(string* name)
+extern "C" int LinxGetDeviceName(unsigned char *name)
 {
-	memcpy(name, LinxDev->DeviceName, LinxDev->DeviceNameLen);
-	return L_OK;
+	return LinxGetDeviceNameRef(LinxDev, name, 64);
 }
 
 //------------------------------------- General -------------------------------------
@@ -123,7 +123,6 @@ extern "C" unsigned long LinxGetMilliSeconds()
 {
 	return LinxDev->GetMilliSeconds();
 }
-
 
 //------------------------------------- Analog -------------------------------------
 extern "C" unsigned long LinxAiGetRefSetVoltageRef(LinxDevice *dev)

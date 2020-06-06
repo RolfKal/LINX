@@ -41,7 +41,7 @@ using namespace std;
 /****************************************************************************************
 **  Variables
 ****************************************************************************************/
-unsigned char LinxRaspberryPi::m_DeviceName[] = "Raspberry Pu Unknown";
+unsigned char LinxRaspberryPi::m_DeviceName[] = "Raspberry Pi Unknown";
  
 /****************************************************************************************
 **  Constructors / Destructors
