@@ -25,7 +25,6 @@
 **  Member Variables
 ****************************************************************************************/
 //System
-const unsigned char LinxRaspberryPi2B::m_DeviceName[DEVICE_NAME_LEN] = "Raspberry Pi 2 Model B";
 
 //AI
 //None 
@@ -44,7 +43,6 @@ const unsigned char LinxRaspberryPi2B::m_gpioChan[NUM_DIGITAL_CHANS] =     {4, 1
 //None
 
 //SPI
-unsigned char LinxRaspberryPi2B::m_SpiChans[NUM_SPI_CHANS];
 string m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
 unsigned long LinxRaspberryPi2B::m_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 int LinxRaspberryPi2B::m_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
@@ -69,7 +67,7 @@ unsigned long LinxRaspberryPi2B::m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {
 ****************************************************************************************/
 LinxRaspberryPi2B::LinxRaspberryPi2B()
 {
-	LinxRapberryPi::LinxRaspberryPi();
+	LinxRaspberryPi::LinxRaspberryPi();
 
 	//LINX API Version
 	LinxApiMajor = 2;
@@ -126,13 +124,13 @@ LinxRaspberryPi2B::LinxRaspberryPi2B()
 
 	//SPI
 	NumSpiChans = 0;
-	SpiChans = m_SpiChans;
 	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
 		struct stat sb;
 		if (stat(m_SpiPaths[i], &sb) == 0)
 		{
-			SpiChans[NumSpiChans] = i;
+			SpiChans[i] = m_SpiChans[i];
+			SpiPaths[i] = m_SpiPaths[i];
 			NumSpiChans++;
 		}
 	}
@@ -176,7 +174,6 @@ LinxRaspberryPi2B::LinxRaspberryPi2B()
 	{
 		SpiBitOrders[SpiChans[i]] = MSBFIRST;		//MSB First
 		SpiSetSpeeds[SpiChans[i]] = SpiDefaultSpeed;
-		SpiPaths[SpiChans[i]] = m_SpiPaths[i];
 	}
 
 	//------------------------------------- UART -------------------------------------
@@ -223,7 +220,7 @@ LinxRaspberryPi2B::~LinxRaspberryPi2B()
 	//Close SPI Handles
 	for (int i = 0; i < NumSpiChans; i++)
 	{
-		if(SpiHandles[m_SpiChans[i]] != 0)
+		if (SpiHandles[m_SpiChans[i]] != 0)
 		{
 			close(SpiHandles[m_SpiChans[i]]);
 		}

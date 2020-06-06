@@ -20,6 +20,7 @@
 #include "LinxRaspberryPi.h"
 
 #include <map>
+#inclide <stdlib.h>
 #include <fcntl.h>
 #include <time.h>
 #include <math.h>
@@ -39,6 +40,7 @@ using namespace std;
 /****************************************************************************************
 **  Variables
 ****************************************************************************************/
+const unsigned char LinxRaspberryPi2B::m_DeviceName[] = "Raspberry Pi Unknown";
 
 /****************************************************************************************
 **  Constructors / Destructors
@@ -109,6 +111,7 @@ LinxRaspberryPi::LinxRaspberryPi()
 							default:
 								DeviceNameLen = 0;
 								break;
+						}
 					}
 					else
 						DeviceNameLen = 0;
@@ -122,8 +125,8 @@ LinxRaspberryPi::LinxRaspberryPi()
 	if (DeviceNameLen == 0)
 	{
 		// Fall back on default setting
-		DeviceNameLen = DEVICE_NAME_LEN;
-		DeviceName =  m_DeviceName;
+		DeviceName = m_DeviceName;
+		DeviceNameLen = strlen(DeviceName);
 		DeviceId = 0x03;		// Raspberry Pi 2 Model B
 	}
 
@@ -133,7 +136,8 @@ LinxRaspberryPi::LinxRaspberryPi()
 
 LinxRaspberryPi::~LinxRaspberryPi()
 {
-
+	if (DeviceName != m_DeviceName)
+		free(DeviceName);
 }
 
 /****************************************************************************************
@@ -542,63 +546,63 @@ int LinxRaspberryPi::SpiSetSpeed(unsigned char channel, unsigned long speed, uns
 
 int LinxRaspberryPi::SpiWriteRead(unsigned char channel, unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer)
 {
-		unsigned char nextByte = 0;	//First Byte Of Next SPI Frame
+	unsigned char nextByte = 0;	//First Byte Of Next SPI Frame
 
-		//SPI Hardware Only Supports MSb First Transfer. If Configured for LSb First Reverse Bits In Software
-		if( SpiBitOrders[channel] == LSBFIRST )
+	//SPI Hardware Only Supports MSb First Transfer. If Configured for LSb First Reverse Bits In Software
+	if( SpiBitOrders[channel] == LSBFIRST )
+	{
+		for(int i=0; i< frameSize*numFrames; i++)
 		{
-			for(int i=0; i< frameSize*numFrames; i++)
-			{
-				sendBuffer[i] = ReverseBits(sendBuffer[i]);
-			}
+			sendBuffer[i] = ReverseBits(sendBuffer[i]);
 		}
+	}
 
-		struct spi_ioc_transfer transfer = {};
+	struct spi_ioc_transfer transfer = {};
 
-		//Set CS As Output And Make Sure CS Starts Idle
+	//Set CS As Output And Make Sure CS Starts Idle
+	if (csChan)
+		DigitalWrite(csChan, (~csLL & 0x01));
+
+	for(int i=0; i< numFrames; i++)
+	{
+		//Setup Transfer
+		transfer.tx_buf = (unsigned long)(sendBuffer+nextByte);
+		transfer.rx_buf = (unsigned long)(recBuffer+nextByte);
+		transfer.len = frameSize;
+		transfer.delay_usecs = 0;
+		transfer.speed_hz = SpiSetSpeeds[channel];
+		//transfer.speed_hz = 25000;
+		transfer.bits_per_word = 8;
+		transfer.pad = 0;
+
+		//CS Active
+		if (csChan)
+			DigitalWrite(csChan, csLL);
+
+		//Transfer Data
+		int retVal = ioctl(SpiHandles[channel], SPI_IOC_MESSAGE(1), &transfer);
+
+			//CS Idle
 		if (csChan)
 			DigitalWrite(csChan, (~csLL & 0x01));
 
-		for(int i=0; i< numFrames; i++)
+		if (retVal < 0)
 		{
-			//Setup Transfer
-			transfer.tx_buf = (unsigned long)(sendBuffer+nextByte);
-			transfer.rx_buf = (unsigned long)(recBuffer+nextByte);
-			transfer.len = frameSize;
-			transfer.delay_usecs = 0;
-			transfer.speed_hz = SpiSetSpeeds[channel];
-			//transfer.speed_hz = 25000;
-			transfer.bits_per_word = 8;
-			transfer.pad = 0;
-
-			//CS Active
-			if (csChan)
-				DigitalWrite(csChan, csLL);
-
-			//Transfer Data
-			int retVal = ioctl(SpiHandles[channel], SPI_IOC_MESSAGE(1), &transfer);
-
-			//CS Idle
-			if (csChan)
-				DigitalWrite(csChan, (~csLL & 0x01));
-
-			if (retVal < 0)
-			{
-				DebugPrintln("SPI Fail - Failed To Transfer Data");
-				return  LSPI_TRANSFER_FAIL;
-			}
-
-			nextByte += frameSize;
+			DebugPrintln("SPI Fail - Failed To Transfer Data");
+			return  LSPI_TRANSFER_FAIL;
 		}
-
-		return L_OK;
+		nextByte += frameSize;
 	}
+
+	return L_OK;
+}
 
 int LinxRaspberryPi::SpiCloseMaster(unsigned char channel)
 {
 	if (SpiHandles[channel] != 0)
 		close(SpiHandles[channel]);
 	SpiHandles[channel] = 0;
+	return L_OK;
 }
 
 //------------------------------------- I2C -------------------------------------

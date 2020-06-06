@@ -15,8 +15,6 @@
 /****************************************************************************************
 **  Defines
 ****************************************************************************************/
-#define DEVICE_NAME_LEN 23
-
 #define NUM_AI_CHANS 0
 #define AI_RES_BITS 0
 #define AI_REFV 0
@@ -55,7 +53,6 @@ class LinxRaspberryPi2B : public LinxRaspberryPi
 		**  Variables
 		****************************************************************************************/
 		//System
-		static const unsigned char m_DeviceName[DEVICE_NAME_LEN];
 
 		//AI
 		//None
