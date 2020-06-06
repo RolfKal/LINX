@@ -70,12 +70,6 @@ class LinxRaspberryPi2B : public LinxRaspberryPi
 		//PWM
 		//None
 
-		//SPI
-		static const unsigned char m_SpiChans[NUM_SPI_CHANS];
-		static int m_SpiHandles[NUM_SPI_CHANS];
-		static unsigned long m_SpiSupportedSpeeds[NUM_SPI_SPEEDS];
-		static int m_SpiSpeedCodes[NUM_SPI_SPEEDS];
-
 		//I2C
 		static unsigned char m_I2cChans[NUM_I2C_CHANS];
 		static unsigned char m_I2cRefCount[NUM_I2C_CHANS];
@@ -104,7 +98,12 @@ class LinxRaspberryPi2B : public LinxRaspberryPi
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-
+                //SPI
+                unsigned char m_SpiChanBuf[NUM_SPI_CHANS];
+                static unsigned char m_SpiChans[NUM_SPI_CHANS];
+                static const char *m_SpiPaths[NUM_SPI_CHANS];
+                static unsigned long m_SpiSupportedSpeeds[NUM_SPI_SPEEDS];
+                static int m_SpiSpeedCodes[NUM_SPI_SPEEDS];
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/

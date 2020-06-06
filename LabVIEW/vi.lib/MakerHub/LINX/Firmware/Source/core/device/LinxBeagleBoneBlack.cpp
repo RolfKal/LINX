@@ -13,16 +13,14 @@
 **  Includes
 ****************************************************************************************/		
 #include <iostream>
+#include <unistd.h>
 #include <fstream>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <termios.h>	
 #include <map>
 #include <string.h>
-#ifndef _MSC_VER
-#include <unistd.h>
 #include <dirent.h>
-#include <termios.h>	
-#endif
 
 #include "utility/LinxDevice.h"
 #include "utility/LinxBeagleBone.h"
@@ -34,7 +32,7 @@ using namespace std;
 **  Member Variables
 ****************************************************************************************/
 //System
-const unsigned char LinxBeagleBoneBlack::m_DeviceName[DEVICE_NAME_LEN] = "BeagleBone Black";
+unsigned char LinxBeagleBoneBlack::m_DeviceName[DEVICE_NAME_LEN] = "BeagleBone Black";
 
 //AI
 const unsigned char LinxBeagleBoneBlack::m_AiChans[NUM_AI_CHANS] = {0, 1, 2, 3, 4, 5, 6};

@@ -43,7 +43,8 @@ const unsigned char LinxRaspberryPi2B::m_gpioChan[NUM_DIGITAL_CHANS] =     {4, 1
 //None
 
 //SPI
-string m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
+const char * LinxRaspberryPi2B::m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
+unsigned char LinxRaspberryPi2B::m_SpiChans[NUM_SPI_CHANS] = {0, 1};
 unsigned long LinxRaspberryPi2B::m_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 int LinxRaspberryPi2B::m_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 
@@ -124,14 +125,14 @@ LinxRaspberryPi2B::LinxRaspberryPi2B()
 	NumSpiChans = 0;
 	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
-		struct stat sb;
-		if (stat(m_SpiPaths[i], &sb) == 0)
+		if (fileExists(m_SpiPaths[i]))
 		{
-			SpiChans[i] = m_SpiChans[i];
+			m_SpiChanBuf[NumSpiChans] = m_SpiChans[i];
 			SpiPaths[i] = m_SpiPaths[i];
 			NumSpiChans++;
 		}
 	}
+	SpiChans= m_SpiChanBuf;
 	NumSpiSpeeds = NUM_SPI_SPEEDS;
 	SpiSupportedSpeeds = m_SpiSupportedSpeeds;
 	SpiSpeedCodes = m_SpiSpeedCodes;
