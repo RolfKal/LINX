@@ -4,28 +4,29 @@ INC=-I../core/device/utility -I../core/device/ -I../core/listener
 
 CORE_LINX=../core/device/utility/LinxDevice.cpp
 CORE_LISTENER=../core/listener/utility/LinxListener.cpp
-CORE_RPI2=$(CORE_LINX) ../core/device/utility/LinxRaspberryPi.cpp ../core/device/LinxRaspberryPi2B.cpp
-CORE_BBB=$(CORE_LINX) ../core/device/utility/LinxBeagleBone.cpp ../core/device/LinxBeagleBoneBlack.cpp
+CORE_LINUX=../core/device/utility/LinxLinuxDevice.cpp
+CORE_RPI=$(CORE_LINX) $(CORE_LINUX) ../core/device/LinxRaspberryPi.cpp
+CORE_BBB=$(CORE_LINX) $(CORE_LINUX) ../core/device/LinxBeagleBoneBlack.cpp
 
 LISTENER_SERIAL=$(CORE_LISTENER) ../core/listener/LinxSerialListener.cpp
 LISTENER_TCP=$(CORE_LISTENER) ../core/listener/LinxLinuxTcpListener.cpp
 LISTENER_CONFIG=$(CORE_LISTENER) ../core/listener/LinxSerialListener.cpp ../core/listener/LinxLinuxTcpListener.cpp
 
-HW_RPI2B = -DLINX_DEVICE_FAMILY=4 -DLINX_DEVICE_ID=3
+HW_RPI = -DLINX_DEVICE_FAMILY=4 -DLINX_DEVICE_ID=3
 HW_BBB = -DLINX_DEVICE_FAMILY=6 -DLINX_DEVICE_ID=1
 
 
-libs: raspberryPi2BLib beagleBoneBlackLib
+libs: raspberryPiLib beagleBoneBlackLib
 
-allio: beagleBoneBlackAll raspberryPi2BAll
+allio: beagleBoneBlackAll raspberryPiAll
 
 beagleBoneBlackAll: beagleBoneBlackSerial beagleBoneBlackTcp beagleBoneBlackConfigurable
 
-raspberryPi2BAll: raspberryPi2BSerial raspberryPi2BTcp raspberryPi2BConfigurable
+raspberryPiAll: raspberryPiSerial raspberryPiTcp raspberryPiConfigurable
 	
 #----------------------- Shared Objects -----------------------
-raspberryPi2BLib:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_rpi2.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_RPI2) $(HW_RPI2B) -DLINXCONFIG -DDEBUG_ENABLED=-1 -g
+raspberryPiLib:
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_rpi.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_RPI) $(HW_RPI2) -DLINXCONFIG -DDEBUG_ENABLED=-1 -g
 
 beagleBoneBlackLib:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_bbb.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_BBB) $(HW_BBB) -DLINXCONFIG -DDEBUG_ENABLED=-1 -g
@@ -40,14 +41,14 @@ beagleBoneBlackTcp:
 beagleBoneBlackConfigurable:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../core/examples/Beagle_Bone_Black_Configurable/src/Beagle_Bone_Black_Configurable.cpp $(CORE_BBB) $(LISTENER_CONFIG) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../core/examples/Beagle_Bone_Black_Configurable/bin/beagleBoneBlackConfigurable.out
 	
-raspberryPi2BSerial:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../core/examples/RaspberryPi_2_B_Serial/src/RaspberryPi_2_B_Serial.cpp $(CORE_RPI2) $(LISTENER_SERIAL) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../core/examples/RaspberryPi_2_B_Serial/bin/raspberryPi2BSerial.out
+raspberryPiSerial:
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../core/examples/RaspberryPi_2_B_Serial/src/RaspberryPi_2_B_Serial.cpp $(CORE_RPI) $(LISTENER_SERIAL) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../core/examples/RaspberryPi_2_B_Serial/bin/raspberryPiSerial.out
 	
-raspberryPi2BTcp:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../core/examples/RaspberryPi_2_B_Tcp/src/RaspberryPi_2_B_Tcp.cpp $(CORE_RPI2) $(LISTENER_TCP) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../core/examples/RaspberryPi_2_B_Tcp/bin/raspberryPi2BTcp.out
+raspberryPiTcp:
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../core/examples/RaspberryPi_2_B_Tcp/src/RaspberryPi_2_B_Tcp.cpp $(CORE_RPI) $(LISTENER_TCP) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../core/examples/RaspberryPi_2_B_Tcp/bin/raspberryPiTcp.out
 
-raspberryPi2BConfigurable:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../core/examples/RaspberryPi_2_B_Configurable/src/RaspberryPi_2_B_Configurable.cpp $(CORE_RPI2) $(LISTENER_CONFIG) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../core/examples/RaspberryPi_2_B_Configurable/bin/raspberryPi2BConfigurable.out
+raspberryPiConfigurable:
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../core/examples/RaspberryPi_2_B_Configurable/src/RaspberryPi_2_B_Configurable.cpp $(CORE_RPI) $(LISTENER_CONFIG) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../core/examples/RaspberryPi_2_B_Configurable/bin/raspberryPi2BConfigurable.out
 	
 #----------------------- Tests -----------------------
 tests: dio-test i2c-test spi-test
@@ -55,13 +56,13 @@ tests: dio-test i2c-test spi-test
 dio-test:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/dio-test.cpp $(CORE_BBB) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/diotest.out
 
-rpi2DioTest:
+rpiDioTest:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/rpi2/rpi2DioTest.cpp $(CORE_RPI2) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/rpi2/dioTest.out
 	
-rpi2UartTest:
+rpiUartTest:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/rpi2/rpi2UartTest.cpp $(CORE_RPI2) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../tests/bin/rpi2/uartTest.out
 	
-rpi2SpiTest:
+rpiSpiTest:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) -g $(INC) ../tests/src/rpi2/rpi2SpiTest.cpp $(CORE_RPI2) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/rpi2/spiTest.out
 	
 i2c-test:

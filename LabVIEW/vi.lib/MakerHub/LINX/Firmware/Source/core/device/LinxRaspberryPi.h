@@ -9,8 +9,8 @@
 ** BSD2 License.
 ****************************************************************************************/
 
-#ifndef LINX_RASPBERRYPI2B_H
-#define LINX_RASPBERRYPI2B_H
+#ifndef LINX_RASPBERRYPI_H
+#define LINX_RASPBERRYPI_H
 
 /****************************************************************************************
 **  Defines
@@ -19,6 +19,8 @@
 #define AI_RES_BITS 0
 #define AI_REFV 0
 #define NUM_AI_INT_REFS 0
+
+#define NUM_AO_CHANS 0
 
 #define NUM_CAN_CHANS 0
 
@@ -39,20 +41,37 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
-#include "utility/LinxDevice.h"
-#include "utility/LinxRaspberryPi.h"
 #include <string>
 #include <map>
+#include "utility/LinxDevice.h"
+#include "utility/LinxLinuxDevice.h"
+#include "LinxRaspberryPi.h"
 
 using namespace std;
 
-class LinxRaspberryPi2B : public LinxRaspberryPi
+class LinxRaspberryPi : public LinxLinuxDevice
 {
 	public:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
+
+		/****************************************************************************************
+		**  Constructors /  Destructor
+		****************************************************************************************/
+		LinxRaspberryPi();
+		virtual ~LinxRaspberryPi();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
 		//System
+		static unsigned char LinxRaspberryPi::m_DeviceName[];
 
 		//AI
 		//None
@@ -70,40 +89,26 @@ class LinxRaspberryPi2B : public LinxRaspberryPi
 		//PWM
 		//None
 
+		//SPI
+		unsigned char m_SpiChanBuf[NUM_SPI_CHANS];
+		static unsigned char m_SpiChans[NUM_SPI_CHANS];
+		static const char *m_SpiPaths[NUM_SPI_CHANS];
+		static unsigned long m_SpiSupportedSpeeds[NUM_SPI_SPEEDS];
+		static int m_SpiSpeedCodes[NUM_SPI_SPEEDS];
+
 		//I2C
 		static unsigned char m_I2cChans[NUM_I2C_CHANS];
-		static unsigned char m_I2cRefCount[NUM_I2C_CHANS];
+		static string LinxRaspberryPi::m_I2cPaths[NUM_I2C_CHANS];
 
 		//UART
 		static unsigned char m_UartChans[NUM_UART_CHANS];
 		static unsigned long m_UartSupportedSpeeds[NUM_UART_SPEEDS];
 		static unsigned long m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS];
-		static int m_UartHandles[NUM_UART_CHANS];
 		static string m_UartPaths[NUM_UART_CHANS];
 
 		//Servo
 		//None
 
-		/****************************************************************************************
-		**  Constructors /  Destructor
-		****************************************************************************************/
-		LinxRaspberryPi2B();
-		virtual ~LinxRaspberryPi2B();
-
-		/****************************************************************************************
-		**  Functions
-		****************************************************************************************/
-
-	private:
-		/****************************************************************************************
-		**  Variables
-		****************************************************************************************/
-                //SPI
-                unsigned char m_SpiChanBuf[NUM_SPI_CHANS];
-                static unsigned char m_SpiChans[NUM_SPI_CHANS];
-                static const char *m_SpiPaths[NUM_SPI_CHANS];
-                static unsigned long m_SpiSupportedSpeeds[NUM_SPI_SPEEDS];
-                static int m_SpiSpeedCodes[NUM_SPI_SPEEDS];
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/

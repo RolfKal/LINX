@@ -96,12 +96,30 @@ int LinxDevice::AnalogReadNoPacking(unsigned char numChans, unsigned char* chann
 //--------------------------------------------------------Digital-------------------------------------------------------
 int LinxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	//Generate Bit Packed Data Array
+	int numBytes = ((numChans + 7) / 8);
+	unsigned char packValues[numBytes] = {0};
+	for (int i = 0; i < numChans; i++)
+	{
+		packValues[i / 8] |= ((values[i] & 0x01) << (i % 8));
+	}
+	return DigitalWrite(numChans, channels, &packValues);
 }
 
 int LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	//Generate Bit Packed Data Array
+	int numBytes = ((numChans + 7) / 8);
+	unsigned char packValues[numBytes] = {0};
+	int ret = DigitalRead(numChans, channels, packValues);
+	if (!ret)
+	{
+		for (int i = 0; i < numChans; i++)
+		{
+			values[i] = (packValues[i / 8] >> (i % 8)) && 0x01;
+		}
+	}
+	return ret;
 }
 
 // ---------------- PWM Functions ------------------ 

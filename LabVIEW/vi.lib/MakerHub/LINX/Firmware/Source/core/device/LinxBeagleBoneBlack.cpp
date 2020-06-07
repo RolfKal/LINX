@@ -23,7 +23,7 @@
 #include <dirent.h>
 
 #include "utility/LinxDevice.h"
-#include "utility/LinxBeagleBone.h"
+#include "utility/LinxLinuxDevice.h"
 #include "LinxBeagleBoneBlack.h"
 
 using namespace std;
@@ -37,7 +37,6 @@ unsigned char LinxBeagleBoneBlack::m_DeviceName[DEVICE_NAME_LEN] = "BeagleBone B
 //AI
 const unsigned char LinxBeagleBoneBlack::m_AiChans[NUM_AI_CHANS] = {0, 1, 2, 3, 4, 5, 6};
 const string LinxBeagleBoneBlack::m_AiValuePaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:device0/in_voltage0_raw", "/sys/bus/iio/devices/iio:device0/in_voltage1_raw", "/sys/bus/iio/devices/iio:device0/in_voltage2_raw", "/sys/bus/iio/devices/iio:device0/in_voltage3_raw", "/sys/bus/iio/devices/iio:device0/in_voltage4_raw", "/sys/bus/iio/devices/iio:device0/in_voltage5_raw", "/sys/bus/iio/devices/iio:device0/in_voltage6_raw"};
-//int LinxBeagleBoneBlack::m_AiHandles[NUM_AI_CHANS];
 const unsigned long LinxBeagleBoneBlack::m_AiRefIntVals[NUM_AI_INT_REFS] = {};
 const int LinxBeagleBoneBlack::m_AiRefCodes[NUM_AI_INT_REFS] = {};
 
@@ -45,8 +44,8 @@ const int LinxBeagleBoneBlack::m_AiRefCodes[NUM_AI_INT_REFS] = {};
 //None
 
 //DIGITAL
-const unsigned char LinxBeagleBoneBlack::m_DigitalChans[NUM_DIGITAL_CHANS] = { 7, 8, 9, 10, 11, 12, 15, 16, 17, 18, 26,          58, 61, 69, 73, 76};
-const unsigned char LinxBeagleBoneBlack::m_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61,      60, 48, 49, 115, 112};
+const unsigned char LinxBeagleBoneBlack::m_DigitalChans[NUM_DIGITAL_CHANS] = { 7,  8,  9, 10, 11, 12, 15, 16, 17, 18, 26, 58, 61, 69,  73,  76};
+const unsigned char LinxBeagleBoneBlack::m_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61, 60, 48, 49, 115, 112};
 
 //PWM - Default to 7.x Layout, Updated B
 unsigned char LinxBeagleBoneBlack::m_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
@@ -61,22 +60,21 @@ unsigned char LinxBeagleBoneBlack::m_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
 //None
 
 //SPI
+unsigned char LinxBeagleBoneBlack::m_SpiChans[NUM_SPI_CHANS] = {0};
 string m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev1.1"};
 string m_SpiDtoNames[NUM_SPI_CHANS] = { "BB-SPIDEV0"};
-unsigned char LinxBeagleBoneBlack::m_SpiChans[NUM_SPI_CHANS] = {0};
 unsigned long LinxBeagleBoneBlack::m_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 int LinxBeagleBoneBlack::m_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 
 //I2C
 unsigned char LinxBeagleBoneBlack::m_I2cChans[NUM_I2C_CHANS] = {2};
-unsigned char LinxBeagleBoneBlack::m_I2cRefCount[NUM_I2C_CHANS];
 string m_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1" };		//Out of order numbering is correct for BBB 7.x!!
 string m_I2cDtoNames[NUM_I2C_CHANS] = {"BB-I2C2"};
 
 //UART
-string m_UartDtoNames[NUM_UART_CHANS] = {"BB-UART0", "BB-UART1", "BB-UART4"};
 unsigned char LinxBeagleBoneBlack::m_UartChans[NUM_UART_CHANS] = {0, 1, 4};
 string LinxBeagleBoneBlack::m_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
+string m_UartDtoNames[NUM_UART_CHANS] = {"BB-UART0", "BB-UART1", "BB-UART4"};
 unsigned long LinxBeagleBoneBlack::m_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
 unsigned long LinxBeagleBoneBlack::m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
 
@@ -88,6 +86,7 @@ unsigned long LinxBeagleBoneBlack::m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] =
 ****************************************************************************************/
 LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 {
+	//LINX Device Information
 	DeviceFamily = 0x06;	//TI Family Code
 	DeviceId = 0x01;			//BeagleBone Black
 	DeviceNameLen = DEVICE_NAME_LEN;	 
@@ -97,6 +96,26 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	LinxApiMajor = 2;
 	LinxApiMinor = 2;
 	LinxApiSubminor = 0;
+
+	//Check file system layout
+	if (fileExists("/sys/devices/bone_capemgr.9/slots"))
+	{
+		//7.x Layout
+		FilePathLayout = 7;
+		DtoSlotsPath = "/sys/devices/bone_capemgr.9/slots";
+	}
+	else if (fileExists("/sys/devices/platform/bone_capemgr/slots"))
+	{
+		//8.x Layout
+		FilePathLayout = 8;
+		DtoSlotsPath = "/sys/devices/platform/bone_capemgr/slots";
+	}
+	else
+	{
+		//Assume 9.x Layout
+		DtoSlotsPath = "";
+		FilePathLayout = 9;
+	}
 		
 	//DIGITAL
 	NumDigitalChans = NUM_DIGITAL_CHANS;			
@@ -280,7 +299,6 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//I2C
 	NumI2cChans = NUM_I2C_CHANS;	
 	I2cChans = m_I2cChans;
-	I2cRefCount = m_I2cRefCount;	
 		
 	//SPI
 	NumSpiChans = NUM_SPI_CHANS;	
@@ -301,7 +319,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	bool dtoLoaded = false;
 	if(!fileExists("/sys/bus/iio/devices/iio:device0"))
 	{
-		if(loadDto("BB-ADC"))
+		if (loadDto("BB-ADC"))
 		{
 			dtoLoaded = true;			
 		}
@@ -316,7 +334,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		dtoLoaded = true;
 	}
 	
-	if(dtoLoaded)
+	if (dtoLoaded)
 	{
 		//Open AI Handles		
 		for(int i=0; i<NUM_AI_CHANS; i++)
@@ -650,6 +668,184 @@ LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 }
 
 /****************************************************************************************
-**  Functions
+**  Private Functions
+****************************************************************************************/
+//Load Device Tree Overlay
+bool LinxLinuxDevice::loadDto(const char* dtoName)
+{
+	if (DtoSlotsPath == "")
+		return true;
+
+	FILE* slotsHandle = fopen(DtoSlotsPath.c_str(), "r+w+");
+	if (slotsHandle != NULL)
+	{
+		fprintf(slotsHandle, "%s", dtoName);
+		fclose(slotsHandle);
+		return true;
+	}
+	else
+	{
+		DebugPrintln("Unable To Open slotsHandle");
+	}
+	return false;
+}
+
+/****************************************************************************************
+**  Public Functions
 ****************************************************************************************/
 
+//--------------------------------------------------------ANALOG-------------------------------------------------------
+int LinxBeagleBone::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+
+	//unsigned int analogValue = 0;
+	unsigned char responseByteOffset = 0;
+	unsigned char responseBitsRemaining = 8;
+	unsigned char dataBitsRemaining = AiResolution;
+	fstream fs;	//AI File Handle
+
+	values[responseByteOffset] = 0x00;    //Clear First	Response Byte
+
+	//Loop Over All AI channels In Command Packet
+	for (int i = 0; i<numChans; i++)
+	{
+		//Acquire AI Sample
+		int aiVal = 0;
+		AiValueHandles[channels[i]] = freopen(AiValuePaths[channels[i]].c_str(), "r+", AiValueHandles[channels[i]]);
+		fscanf(AiValueHandles[channels[i]], "%u", &aiVal);
+
+		/*
+		fs.open(AiPaths[channels[i]], fstream::in);
+		fs >> analogValue;
+		fs.close();
+		*/
+
+		dataBitsRemaining = AiResolution;
+
+		//Byte Packet AI Values In Response Packet
+		while (dataBitsRemaining > 0)
+		{
+			*(values + responseByteOffset) |= ( ((unsigned int)aiVal >> (AiResolution - dataBitsRemaining)) << (8 - responseBitsRemaining));
+			//*(values+responseByteOffset) = 69;
+
+			if (responseBitsRemaining > dataBitsRemaining)
+			{
+				//Current Byte Still Has Empty Bits
+				responseBitsRemaining -= dataBitsRemaining;
+				dataBitsRemaining = 0;
+			}
+			else
+			{
+				//Current Byte Full
+				dataBitsRemaining = dataBitsRemaining - responseBitsRemaining;
+				responseByteOffset++;
+				responseBitsRemaining = 8;
+				values[responseByteOffset] = 0x00;    //Clear Next Response Byte
+			}
+		}
+	}
+	return L_OK;
+}
+
+int LinxBeagleBone::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values)
+{
+	//Loop Over All AI channels In Command Packet
+	for (int i = 0; i < numChans; i++)
+	{
+		AiValueHandles[channels[i]] = freopen(AiValuePaths[channels[i]].c_str(), "r+", AiValueHandles[channels[i]]);
+		fscanf(AiValueHandles[channels[i]], "%lu", values+i);
+	}
+	return L_OK;
+}
+
+//--------------------------------------------------------PWM-------------------------------------------------------
+int LinxBeagleBone::PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	//unsigned long period = 500000;		//Period Defaults To 500,000 nS. To Do Update This When Support For Changing Period / Frequency Is Added
+	unsigned long dutyCycle = 0;
+
+	//Smart Open PWM Channels
+	pwmSmartOpen(numChans, channels);
+
+	for (int i = 0; i < numChans; i++)
+	{
+		if (values[i] == 0)
+		{
+			dutyCycle = 0;
+		}
+		else if (values[i] == 255)
+		{
+			dutyCycle = PwmPeriods[channels[i]];
+		}
+		else
+		{
+			dutyCycle = PwmPeriods[channels[i]]*(values[i] / 255.0);
+		}
+
+		//Update Output
+		DebugPrint("Setting Duty Cycle = ");
+		DebugPrint(dutyCycle, DEC);
+		fprintf(PwmDutyCycleHandles[channels[i]], "%lu", dutyCycle);
+		DebugPrint(" ... Duty Cycle Set ... ");
+		fflush(PwmDutyCycleHandles[channels[i]]);
+		DebugPrintln("Flushing.");
+	}
+	return L_OK;
+}
+
+
+//--------------------------------------------------------SPI-------------------------------------------------------
+int LinxBeagleBone::SpiOpenMaster(unsigned char channel)
+{
+	//Load SPI DTO If Necessary
+	if (!fileExists(SpiPaths[channel].c_str()))
+	{
+		if (!loadDto(SpiDtoNames[channel].c_str()))
+		{
+			DebugPrint("SPI Fail - Failed To Load SPI DTO");
+			return  LSPI_OPEN_FAIL;
+		}
+	}
+	return LinxLinuxSupport::SpiOpenMaster(channel);
+}
+
+//--------------------------------------------------------I2C-------------------------------------------------------
+int LinxBeagleBone::I2cOpenMaster(unsigned char channel)
+{
+	//Export Dev Tree Overlay If Device does not exist
+	if (!fileExists(I2cPaths[channel].c_str()))
+	{
+		DebugPrint("I2C - Loading DTO ");
+		DebugPrintln(I2cDtoNames[channel].c_str());
+		if (FilePathLayout == 7)
+		{
+			if (!loadDto(I2cDtoNames[channel].c_str()))
+			{
+				DebugPrintln("I2C Fail - Failed To Load I2C DTO");
+				return  LI2C_OPEN_FAIL;
+			}
+		}
+	}
+	return LinxLinuxSupport(channel);
+}
+
+
+//--------------------------------------------------------UART-------------------------------------------------------
+int LinxBeagleBone::UartOpen(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud)
+{
+	DebugPrintln("UART Open");
+
+	//Load DTO If Needed
+	if (!fileExists(UartPaths[channel].c_str()))
+	{
+		if (!loadDto(UartDtoNames[channel].c_str()))
+		{
+			DebugPrint("UART Fail - Failed To Load ");
+			DebugPrint(UartDtoNames[channel].c_str());
+			DebugPrintln(" DTO");
+			return  LUART_OPEN_FAIL;
+		}
+	}
+
+	return LinxLinuxDevice::UartOpen(channel, baudrate, actualBaud);
+}

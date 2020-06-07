@@ -40,13 +40,13 @@
 **  Includes
 ****************************************************************************************/	
 #include "utility/LinxDevice.h"
-#include "utility/LinxBeagleBone.h"
+#include "utility/LinxLinuxDevice.h"
 #include <map>
 #include <string>
 
 using namespace std;
 	
-class LinxBeagleBoneBlack : public LinxBeagleBone
+class LinxBeagleBoneBlack : public LinxLinuxDevice
 {
 	public:	
 		/****************************************************************************************
@@ -85,13 +85,11 @@ class LinxBeagleBoneBlack : public LinxBeagleBone
 				
 		//I2C
 		static unsigned char m_I2cChans[NUM_I2C_CHANS];
-		static unsigned char m_I2cRefCount[NUM_I2C_CHANS];
 		
 		//UART
 		static unsigned char m_UartChans[NUM_UART_CHANS];
 		static unsigned long m_UartSupportedSpeeds[NUM_UART_SPEEDS];
 		static unsigned long m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS];
-		static int m_UartHandles[NUM_UART_CHANS];
 		static string m_UartPaths[NUM_UART_CHANS];
 		
 		//Servo		
@@ -116,7 +114,7 @@ class LinxBeagleBoneBlack : public LinxBeagleBone
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-				
+		bool loadDto(const char* dtoName);				
 };
 
 #endif //LINX_BEAGLEBONEBLACK_H

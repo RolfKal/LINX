@@ -98,35 +98,37 @@ typedef enum LinxStatus
 	L_UNKNOWN_ERROR, 
 	L_DISCONNECT,
 	L_BADPARAM
-}LinxStatus;
+} LinxStatus;
 
 typedef enum AioStatus
 {
-	LANALOG_REF_MODE_ERROR=129,
-	LANALOG_REF_VAL_ERROR=130
-}AioStatus;
+	LANALOG_REF_MODE_ERROR = 129,
+	LANALOG_REF_VAL_ERROR = 130
+} AioStatus;
 
 typedef enum DioStatus
 {
-	LDIGITAL_PIN_DNE=128,
-}DioStatus;
+	LDIGITAL_PIN_DNE = 128,
+} DioStatus;
 
 
 typedef enum SPIStatus
 {
 	LSPI_OPEN_FAIL = 128,
-	LSPI_TRANSFER_FAIL
-}SPIStatus;
+	LSPI_TRANSFER_FAIL,
+	LSPI_CLOSE_FAIL,
+	LSPI_DEVICE_NOT_OPEN,
+} SPIStatus;
 
 typedef enum I2CStatus
 {
-	LI2C_SADDR=128,
+	LI2C_SADDR = 128,
 	LI2C_EOF,
 	LI2C_WRITE_FAIL,
 	LI2C_READ_FAIL,
 	LI2C_CLOSE_FAIL,
 	LI2C_OPEN_FAIL
-}I2CStatus;
+} I2CStatus;
 
 typedef enum UartStatus
 {
@@ -136,7 +138,7 @@ typedef enum UartStatus
 	LUART_READ_FAIL,
 	LUART_WRITE_FAIL,
 	LUART_CLOSE_FAIL
-}UartStatus;
+} UartStatus;
 
 class LinxDevice
 {
@@ -238,7 +240,7 @@ class LinxDevice
 		virtual int AnalogSetRef(unsigned char mode, unsigned long voltage) = 0;
 
 		//DIGITAL
-		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values) = 0;				//Values Are Bit Packed
+		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values) = 0;			//Values Are Bit Packed
 		virtual int DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Values Are Not Bit Packed
 		virtual int DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values) = 0;
 		virtual int DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Response Not Bit Packed
