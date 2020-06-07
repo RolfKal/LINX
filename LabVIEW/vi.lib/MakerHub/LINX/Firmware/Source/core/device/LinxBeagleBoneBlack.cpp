@@ -804,7 +804,7 @@ int LinxBeagleBoneBlack::SpiOpenMaster(unsigned char channel)
 			return  LSPI_OPEN_FAIL;
 		}
 	}
-	return LinxLinuxSupport::SpiOpenMaster(channel);
+	return LinxLinuxDevice::SpiOpenMaster(channel);
 }
 
 //--------------------------------------------------------I2C-------------------------------------------------------
@@ -824,7 +824,7 @@ int LinxBeagleBoneBlack::I2cOpenMaster(unsigned char channel)
 			}
 		}
 	}
-	return LinxLinuxSupport(channel);
+	return LinxLinuxDevice::I2cOpenMaster(channel);
 }
 
 
@@ -845,5 +845,5 @@ int LinxBeagleBoneBlack::UartOpen(unsigned char channel, unsigned long baudRate,
 		}
 	}
 
-	return LinxLinuxDevice::UartOpen(channel, baudrate, actualBaud);
+	return LinxLinuxDevice::UartOpen(channel, baudRate, actualBaud);
 }
