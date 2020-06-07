@@ -26,7 +26,7 @@ raspberryPiAll: raspberryPiSerial raspberryPiTcp raspberryPiConfigurable
 	
 #----------------------- Shared Objects -----------------------
 raspberryPiLib:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_rpi.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_RPI) $(HW_RPI2) -DLINXCONFIG -DDEBUG_ENABLED=-1 -g
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_rpi.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_RPI) $(HW_RPI) -DLINXCONFIG -DDEBUG_ENABLED=-1 -g
 
 beagleBoneBlackLib:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_bbb.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_BBB) $(HW_BBB) -DLINXCONFIG -DDEBUG_ENABLED=-1 -g
@@ -57,13 +57,13 @@ dio-test:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/dio-test.cpp $(CORE_BBB) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/diotest.out
 
 rpiDioTest:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/rpi2/rpi2DioTest.cpp $(CORE_RPI2) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/rpi2/dioTest.out
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/rpi2/rpi2DioTest.cpp $(CORE_RPI) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/rpi2/dioTest.out
 	
 rpiUartTest:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/rpi2/rpi2UartTest.cpp $(CORE_RPI2) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../tests/bin/rpi2/uartTest.out
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/rpi2/rpi2UartTest.cpp $(CORE_RPI) -lrt -DLINXCONFIG -DDEBUG_ENABLED=-1 -o ../tests/bin/rpi2/uartTest.out
 	
 rpiSpiTest:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) -g $(INC) ../tests/src/rpi2/rpi2SpiTest.cpp $(CORE_RPI2) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/rpi2/spiTest.out
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) -g $(INC) ../tests/src/rpi2/rpi2SpiTest.cpp $(CORE_RPI) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/rpi2/spiTest.out
 	
 i2c-test:
 	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) ../tests/src/i2c-test.cpp $(CORE_BBB) -lrt -DLINXCONFIG -DDEBUG_ENABLED=0 -o ../tests/bin/i2ctest.out
