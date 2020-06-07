@@ -52,6 +52,33 @@ class LinxBeagleBoneBlack : public LinxLinuxDevice
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/		
+		
+		/****************************************************************************************
+		**  Constructors /  Destructor
+		****************************************************************************************/
+		LinxBeagleBoneBlack();
+		~LinxBeagleBoneBlack();
+		
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
+		virtual int AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values);
+
+		virtual int PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values);
+
+		virtual int SpiOpenMaster(unsigned char channel);
+
+		virtual int I2cOpenMaster(unsigned char channel);
+
+		virtual int UartOpen(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud);
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/		
+		const char* overlaySlotsPath;		//The overlay slot export path
+		
 		//System
 		static unsigned char m_DeviceName[DEVICE_NAME_LEN];
 		
@@ -94,23 +121,7 @@ class LinxBeagleBoneBlack : public LinxLinuxDevice
 		
 		//Servo		
 		//none
-		
-		/****************************************************************************************
-		**  Constructors /  Destructor
-		****************************************************************************************/
-		LinxBeagleBoneBlack();
-		~LinxBeagleBoneBlack();
-		
-		/****************************************************************************************
-		**  Functions
-		****************************************************************************************/
-				
-	private:
-		/****************************************************************************************
-		**  Variables
-		****************************************************************************************/		
-		const char* overlaySlotsPath;		//The overlay slot export path
-		
+
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/

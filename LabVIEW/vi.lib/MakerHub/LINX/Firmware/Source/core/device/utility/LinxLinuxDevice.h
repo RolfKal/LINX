@@ -159,6 +159,7 @@ class LinxLinuxDevice : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+		virtual int DigitalWrite(unsigned char channel, unsigned char value);
 		virtual int digitalSmartOpen(unsigned char numChans, unsigned char* channels);
 		virtual int pwmSmartOpen(unsigned char numChans, unsigned char* channels);
 		bool fileExists(const char* path);

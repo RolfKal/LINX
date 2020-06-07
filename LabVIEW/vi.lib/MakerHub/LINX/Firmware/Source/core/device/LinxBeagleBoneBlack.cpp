@@ -511,14 +511,14 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	
 	//------------------------------------- I2C -------------------------------------
 	//Store I2C Master Paths In Map
-	for(int i=0; i<NUM_I2C_CHANS; i++)
+	for (int i=0; i<NUM_I2C_CHANS; i++)
 	{	
 		I2cPaths[I2cChans[i]] = m_I2cPaths[i];
 		I2cDtoNames[I2cChans[i]] = m_I2cDtoNames[i];
 	}
 	
 	//------------------------------------- UART ------------------------------------
-	if(FilePathLayout >= 8)
+	if (FilePathLayout >= 8)
 	{
 		//Set Mux to UART
 		for(int i=0; i<4; i++)
@@ -532,7 +532,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		}
 	}
 	
-	for(int i=0; i<NUM_UART_CHANS; i++)
+	for (int i = 0; i < NUM_UART_CHANS; i++)
 	{
 		UartPaths[m_UartChans[i]] = m_UartPaths[i];
 		UartHandles[m_UartChans[i]] = 0;
@@ -541,13 +541,13 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	
 	
 	//------------------------------------- SPI ------------------------------------
-	if(FilePathLayout >= 8)
+	if (FilePathLayout >= 8)
 	{
 		//Set Mux to SPI
-		for(int i=0; i<3; i++)
+		for (int i = 0; i < 3; i++)
 		{
 			FILE* spiMuxHandle = fopen(m_SpiMuxPaths[i].c_str(), "r+w+");
-			if(spiMuxHandle != NULL)
+			if (spiMuxHandle != NULL)
 			{
 				// in later debian versions the state value for the clk line changed
 				if (FilePathLayout == 8)
@@ -566,7 +566,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	
 	//Load SPI Paths and DTO Names, Configure SPI Master Default Values	
 	SpiDefaultSpeed = 3900000;
-	for(int i=0; i<NUM_SPI_CHANS; i++)
+	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
 		SpiDtoNames[SpiChans[i]] = m_SpiDtoNames[i];
 				
@@ -574,8 +574,6 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		SpiSetSpeeds[SpiChans[i]] = SpiDefaultSpeed;
 		SpiPaths[SpiChans[i]] = m_SpiPaths[i];
 	}
-	
-	
 	
 	//If Debugging Is Enabled Call EnableDebug()
 	#if DEBUG_ENABLED >= 0
@@ -671,7 +669,7 @@ LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 **  Private Functions
 ****************************************************************************************/
 //Load Device Tree Overlay
-bool LinxLinuxDevice::loadDto(const char* dtoName)
+bool LinxBeagleBoneBlack::loadDto(const char* dtoName)
 {
 	if (DtoSlotsPath == "")
 		return true;
@@ -695,7 +693,7 @@ bool LinxLinuxDevice::loadDto(const char* dtoName)
 ****************************************************************************************/
 
 //--------------------------------------------------------ANALOG-------------------------------------------------------
-int LinxBeagleBone::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int LinxBeagleBoneBlack::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 
 	//unsigned int analogValue = 0;
@@ -747,7 +745,7 @@ int LinxBeagleBone::AnalogRead(unsigned char numChans, unsigned char* channels, 
 	return L_OK;
 }
 
-int LinxBeagleBone::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values)
+int LinxBeagleBoneBlack::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values)
 {
 	//Loop Over All AI channels In Command Packet
 	for (int i = 0; i < numChans; i++)
@@ -759,7 +757,7 @@ int LinxBeagleBone::AnalogReadNoPacking(unsigned char numChans, unsigned char* c
 }
 
 //--------------------------------------------------------PWM-------------------------------------------------------
-int LinxBeagleBone::PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int LinxBeagleBoneBlack::PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//unsigned long period = 500000;		//Period Defaults To 500,000 nS. To Do Update This When Support For Changing Period / Frequency Is Added
 	unsigned long dutyCycle = 0;
@@ -795,7 +793,7 @@ int LinxBeagleBone::PwmSetDutyCycle(unsigned char numChans, unsigned char* chann
 
 
 //--------------------------------------------------------SPI-------------------------------------------------------
-int LinxBeagleBone::SpiOpenMaster(unsigned char channel)
+int LinxBeagleBoneBlack::SpiOpenMaster(unsigned char channel)
 {
 	//Load SPI DTO If Necessary
 	if (!fileExists(SpiPaths[channel].c_str()))
@@ -810,7 +808,7 @@ int LinxBeagleBone::SpiOpenMaster(unsigned char channel)
 }
 
 //--------------------------------------------------------I2C-------------------------------------------------------
-int LinxBeagleBone::I2cOpenMaster(unsigned char channel)
+int LinxBeagleBoneBlack::I2cOpenMaster(unsigned char channel)
 {
 	//Export Dev Tree Overlay If Device does not exist
 	if (!fileExists(I2cPaths[channel].c_str()))
@@ -831,7 +829,7 @@ int LinxBeagleBone::I2cOpenMaster(unsigned char channel)
 
 
 //--------------------------------------------------------UART-------------------------------------------------------
-int LinxBeagleBone::UartOpen(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud)
+int LinxBeagleBoneBlack::UartOpen(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud)
 {
 	DebugPrintln("UART Open");
 

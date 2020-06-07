@@ -444,7 +444,7 @@ int LinxLinuxDevice::I2cOpenMaster(unsigned char channel)
 		}
 		else
 		{
-			I2cHandles[channel] = handle;
+			I2cHandles[channel] = fd;
 		}
 	}
 	return L_OK;

@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <termios.h>
 
 #include "utility/LinxDevice.h"
 #include "utility/LinxLinuxDevice.h"
@@ -221,8 +222,8 @@ LinxRaspberryPi::LinxRaspberryPi()
 			m_SpiChanBuf[NumSpiChans] = m_SpiChans[i];
 			SpiPaths[m_SpiChans[i]] = m_SpiPaths[i];
 			SpiHandles[m_SpiChans[i]] = -1;
-			SpiBitOrders[m_SpiChans[i] = MSBFIRST;		//MSB First
-			SpiSetSpeeds[m_SpiChans[i] = SpiDefaultSpeed;
+			SpiBitOrders[m_SpiChans[i]] = MSBFIRST;		//MSB First
+			SpiSetSpeeds[m_SpiChans[i]] = SpiDefaultSpeed;
 			NumSpiChans++;
 		}
 	}
