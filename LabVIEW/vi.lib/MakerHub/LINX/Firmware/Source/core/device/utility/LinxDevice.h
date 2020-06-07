@@ -127,7 +127,8 @@ typedef enum I2CStatus
 	LI2C_WRITE_FAIL,
 	LI2C_READ_FAIL,
 	LI2C_CLOSE_FAIL,
-	LI2C_OPEN_FAIL
+	LI2C_OPEN_FAIL,
+	LI2C_DEVICE_NOT_OPEN,
 } I2CStatus;
 
 typedef enum UartStatus
@@ -150,7 +151,7 @@ class LinxDevice
 		//Device ID
 		unsigned char DeviceFamily;
 		unsigned char DeviceId;
-		unsigned char DeviceNameLen;
+		signed int DeviceNameLen;
 		unsigned char* DeviceName;
 		unsigned char ListenerBufferSize;
 

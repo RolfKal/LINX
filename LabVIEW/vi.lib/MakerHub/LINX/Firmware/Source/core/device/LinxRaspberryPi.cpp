@@ -12,10 +12,12 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/		
-#include <termios.h>
-#include <unistd.h>
 #include <stdio.h>
-#include <sys/ioctl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include "utility/LinxDevice.h"
 #include "utility/LinxLinuxDevice.h"
@@ -25,7 +27,7 @@
 **  Member Variables
 ****************************************************************************************/
 //System
-static unsigned char LinxRaspberryPi::m_DeviceName[] = "Raspberry Pi Unknown";
+unsigned char LinxRaspberryPi::m_DeviceName[] = "Raspberry Pi Unknown";
 
 //AI
 //None 
@@ -76,66 +78,72 @@ LinxRaspberryPi::LinxRaspberryPi()
 	DeviceFamily = 0x04;	//Raspberry Pi Family Code
 	DeviceName = NULL;
 
-	if (fileExist("/proc/device-tree/model", &DeviceNameLen) == 0)
+	int fd = open("/proc/device-tree/model", O_RDONLY);
+	if (fd >= 0)
 	{
-		DeviceName = (unsigned char*)malloc(DeviceNameLen + 1);
-		if (DeviceName)
+		struct stat buf;
+		if (fstat(fd, &buf) == 0)
 		{
-			DeviceNameLen = read(fd, DeviceName, sb.st_size);
-			if (DeviceNameLen > 0)
+			DeviceName = (unsigned char*)malloc(buf.st_size + 1);
+			if (DeviceName)
 			{
-				DeviceName[DeviceNameLen] = 0;
-				if (!strcmp((char*)DeviceName, "Raspberry Pi ") && DeviceNameLen >= 14)
+				DeviceNameLen = read(fd, DeviceName, buf.st_size);
+				if (DeviceNameLen > 0)
 				{
-					unsigned char *ptr = DeviceName + 13;
-					switch (*ptr)
+					DeviceName[DeviceNameLen] = 0;
+					if (!strcmp((char*)DeviceName, "Raspberry Pi ") && DeviceNameLen >= 14)
 					{
-						case 'A':
-							// Raspberry Pi A
-							DeviceId = 0;
-							break;
-						case 'B':
-							if (DeviceNameLen >= 14 && *(DeviceName + 14) == '+')
-							{
-								// Raspberry Pi B+
-								DeviceId = 2;
-							}
-							else
-							{
-								// Raspberry Pi B
-								DeviceId = 1;
-							}
-							break;
-						case '2':
-							// Raspberry Pi 2 Model B
-							DeviceId = 3;
-							break;
-						case '3':
-							if (DeviceNameLen >= 23 && *(DeviceName + 23) == '+')
-							{
-								// Raspberry Pi 3 Model B+ (with Wifi)
-								DeviceId = 5;
-							}
-							else
-							{
-								// Raspberry Pi 3 Model B
-								DeviceId = 4;
-							}
-							break;
-						case '4':	// Raspberry Pi 4 Model B (with Wifi)
-							DeviceId = 6;
-							break;
-						default:
-							DeviceNameLen = 0;
-							break;
+						unsigned char *ptr = DeviceName + 13;
+						switch (*ptr)
+						{
+							case 'A':
+								// Raspberry Pi A
+								DeviceId = 0;
+								break;
+							case 'B':
+								if (DeviceNameLen >= 14 && *(DeviceName + 14) == '+')
+								{
+									// Raspberry Pi B+
+									DeviceId = 2;
+								}
+								else
+								{
+									// Raspberry Pi B
+									DeviceId = 1;
+								}
+								break;
+							case '2':
+								// Raspberry Pi 2 Model B
+								DeviceId = 3;
+								break;
+							case '3':
+								if (DeviceNameLen >= 23 && *(DeviceName + 23) == '+')
+								{
+									// Raspberry Pi 3 Model B+ (with Wifi)
+									DeviceId = 5;
+								}
+								else
+								{
+									// Raspberry Pi 3 Model B
+									DeviceId = 4;
+								}
+								break;
+							case '4':	// Raspberry Pi 4 Model B (with Wifi)
+								DeviceId = 6;
+								break;
+							default:
+								DeviceNameLen = 0;
+								break;
+						}
 					}
+					else
+						DeviceNameLen = 0;
 				}
-				else
-					DeviceNameLen = 0;
+				if (DeviceNameLen <= 0)
+					free(DeviceName);
 			}
-			if (DeviceNameLen <= 0)
-				free(DeviceName);
 		}
+		close(fd);
 	}
 	if (!DeviceNameLen)
 	{

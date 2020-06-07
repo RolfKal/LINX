@@ -14,19 +14,18 @@
 #include <string.h>
 
 #include "LinxDevice.h"
+#include "LinxLinuxDevice.h"
 
 //------------------------------------- Raspberry Pi -------------------------------------
 #if LINX_DEVICE_FAMILY == 4 
-	#if LINX_DEVICE_ID == 3	//RPI 2 B
-			#define LINXDEVICETYPE LinxRaspberryPi2B
+	#if LINX_DEVICE_ID >= 3	//RPI 2 B
+			#define LINXDEVICETYPE LinxRaspberryPi
 			#include "LinxRaspberryPi.h"
-			#include "LinxRaspberryPi2B.h"
 	#endif
 //------------------------------------- Beagle Bone -------------------------------------
 #elif LINX_DEVICE_FAMILY == 6
 	#if LINX_DEVICE_ID == 1
 			#define LINXDEVICETYPE LinxBeagleBoneBlack
-			#include "LinxBeagleBone.h"
 			#include "LinxBeagleBoneBlack.h"
 	#endif
 #endif

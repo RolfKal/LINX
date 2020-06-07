@@ -94,6 +94,11 @@ int LinxDevice::AnalogReadNoPacking(unsigned char numChans, unsigned char* chann
 
 
 //--------------------------------------------------------Digital-------------------------------------------------------
+int LinxDevice::DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
 int LinxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Data Array
@@ -103,7 +108,7 @@ int LinxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* cha
 	{
 		packValues[i / 8] |= ((values[i] & 0x01) << (i % 8));
 	}
-	return DigitalWrite(numChans, channels, &packValues);
+	return DigitalWrite(numChans, channels, packValues);
 }
 
 int LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)

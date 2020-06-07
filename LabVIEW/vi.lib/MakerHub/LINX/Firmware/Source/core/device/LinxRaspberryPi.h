@@ -71,7 +71,7 @@ class LinxRaspberryPi : public LinxLinuxDevice
 		**  Variables
 		****************************************************************************************/
 		//System
-		static unsigned char LinxRaspberryPi::m_DeviceName[];
+		static unsigned char m_DeviceName[];
 
 		//AI
 		//None
@@ -98,7 +98,7 @@ class LinxRaspberryPi : public LinxLinuxDevice
 
 		//I2C
 		static unsigned char m_I2cChans[NUM_I2C_CHANS];
-		static string LinxRaspberryPi::m_I2cPaths[NUM_I2C_CHANS];
+		static string m_I2cPaths[NUM_I2C_CHANS];
 
 		//UART
 		static unsigned char m_UartChans[NUM_UART_CHANS];

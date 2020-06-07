@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <linux/i2c-dev.h>
 #include <linux/spi/spidev.h>
@@ -46,6 +47,13 @@ LinxLinuxDevice::LinxLinuxDevice()
 LinxLinuxDevice::~LinxLinuxDevice()
 {
 
+}
+/****************************************************************************************
+**  Public Functions
+****************************************************************************************/
+int LinxLinuxDevice::DigitalWrite(unsigned char channel, unsigned char value)
+{
+	return DigitalWrite(1, &channel, &value);
 }
 
 /****************************************************************************************
@@ -75,14 +83,14 @@ int LinxLinuxDevice::DigitalSetDirection(unsigned char numChans, unsigned char* 
 	//Set Directions
 	for (int i = 0; i < numChans; i++)
 	{
-		if (((values[i / 8] >> i % 8) & 0x01) == OUTPUT && DigitalDirs[channels[i]] != OUTPUT)
+		if (((values[i / 8] >> (i % 8)) & 0x01) == OUTPUT && DigitalDirs[channels[i]] != OUTPUT)
 		{
 			//Set As Output
 			fprintf(DigitalDirHandles[channels[i]], "out");
 			fflush(DigitalDirHandles[channels[i]]);
 			DigitalDirs[channels[i]] = OUTPUT;
 		}
-		else if ((values[i / 8] >> i % 8) & 0x01) == INPUT && DigitalDirs[channels[i]] != INPUT)
+		else if (((values[i / 8] >> (i % 8)) & 0x01) == INPUT && DigitalDirs[channels[i]] != INPUT)
 		{
 			//Set As Input
 			fprintf(DigitalDirHandles[channels[i]], "in");
@@ -125,17 +133,12 @@ int LinxLinuxDevice::DigitalWrite(unsigned char numChans, unsigned char* channel
 	return L_OK;
 }
 
-int LinxLinuxDevice::DigitalWrite(unsigned char channel, unsigned char value)
-{
-	return DigitalWrite(1, &channel, &value);
-}
-
 int LinxLinuxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Output Direction Array
 	int numDirBytes = ((numChans + 7) / 8);
 	unsigned char directions[numDirBytes];
-	for (int i = 0; i < numDirChans; i++)
+	for (int i = 0; i < numDirBytes; i++)
 	{
 		directions[i] = 0xFF;
 	}
@@ -218,11 +221,6 @@ int LinxLinuxDevice::DigitalRead(unsigned char numChans, unsigned char* channels
 	return L_OK;
 }
 
-int LinxLinuxDevice::DigitalRead(unsigned char channel, unsigned char* value)
-{
-	return DigitalRead(1, &channel, value);
-}
-
 int LinxLinuxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Input Direction Array
@@ -278,16 +276,6 @@ int LinxLinuxDevice::SpiOpenMaster(unsigned char channel)
 	int fd = SpiHandles[channel];
 	if (fd < 0)
 	{
-		//Load SPI DTO If Necessary
-		if (!fileExists(SpiPaths[channel].c_str()))
-		{
-			if (!loadDto(SpiDtoNames[channel].c_str()))
-			{
-				DebugPrint("SPI Fail - Failed To Load SPI DTO");
-				return  LSPI_OPEN_FAIL;
-			}
-		}
-
 		fd = open(SpiPaths[channel].c_str(), O_RDWR);
 		if (fd < 0)
 		{
@@ -296,7 +284,7 @@ int LinxLinuxDevice::SpiOpenMaster(unsigned char channel)
 		else
 		{
 			//Default To Mode 0 With No CS (LINX Uses GPIO When Performing Write)
-			unsigned char spi_mode = SPI_MODE0 | SPI_NO_CS;
+			unsigned char spi_mode = SPI_MODE_0 | SPI_NO_CS;
 			if (ioctl(fd, SPI_IOC_WR_MODE, &spi_mode) < 0)
 			{
 				DebugPrintln("Failed To Set SPI Mode");
@@ -435,7 +423,7 @@ int LinxLinuxDevice::SpiCloseMaster(unsigned char channel)
 	int fd = SpiHandles[channel];
 	SpiHandles[channel] = -1;
 	// Close SPI handle
-	if ((fd >= 0) && (close(fd) < 0)
+	if ((fd >= 0) && (close(fd) < 0))
 		return LSPI_CLOSE_FAIL;
 
 	return L_OK;
@@ -755,7 +743,7 @@ int LinxLinuxDevice::digitalSmartOpen(unsigned char numChans, unsigned char* cha
 
 //Open Direction And Value Handles If They Are Not Already Open And Set Direction
 //Open Direction And Value Handles If They Are Not Already Open And Set Direction
-int LinxBeagleBone::pwmSmartOpen(unsigned char numChans, unsigned char* channels)
+int LinxLinuxDevice::pwmSmartOpen(unsigned char numChans, unsigned char* channels)
 {
 	for (int i = 0; i < numChans; i++)
 	{

@@ -53,7 +53,6 @@ class LinxLinuxDevice : public LinxDevice
 		//DIGITAL
 		virtual int DigitalSetDirection(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int DigitalWrite(unsigned char channel, unsigned char value);
 		virtual int DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Values Not Bit Packed
 		virtual int DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Response Not Bit Packed
@@ -69,6 +68,7 @@ class LinxLinuxDevice : public LinxDevice
 		virtual int SpiSetMode(unsigned char channel, unsigned char mode);
 		virtual int SpiSetSpeed(unsigned char channel, unsigned long speed, unsigned long* actualSpeed);
 		virtual int SpiWriteRead(unsigned char channel, unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer);
+		virtual int SpiCloseMaster(unsigned char channel);
 
 		//I2C
 		virtual int I2cOpenMaster(unsigned char channel);
