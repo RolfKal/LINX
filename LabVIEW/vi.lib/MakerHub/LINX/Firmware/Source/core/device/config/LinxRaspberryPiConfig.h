@@ -19,11 +19,10 @@
 
 	#define DEBUG_ENABLED 0
 	#define NUM_I2C_CHANS 1
-	#define NUM_SPI_CHANS 1
+	#define NUM_SPI_CHANS 2
 	#define NUM_UART_CHANS 0
 	#define DEVICE_FAMILY 4
 
 	#define ARDUINO_VERSION 0
 
-	
 #endif //LINXCONFIG
