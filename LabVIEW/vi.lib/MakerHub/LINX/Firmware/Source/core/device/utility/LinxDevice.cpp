@@ -14,7 +14,7 @@
 ****************************************************************************************/
 #include <stdio.h>
 #include <string.h>
-#include <malloc.h>
+#include <alloca.h>
 #include "LinxDevice.h"
 
 static unsigned char m_DeviceName[] = "Unknown Device";
@@ -256,7 +256,7 @@ int LinxDevice::SpiCloseMaster(unsigned char channel)
 
 // ---------------- UART Functions ------------------ 
 
-int LinxDevice::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud, unsigned char bits, unsigned char parity)
+int LinxDevice::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }

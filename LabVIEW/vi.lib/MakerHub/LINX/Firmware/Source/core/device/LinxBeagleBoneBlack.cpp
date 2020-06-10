@@ -423,7 +423,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			FILE* pwmPeriodleHandle = fopen(periodPath, "r+w+");
 			if (pwmPeriodleHandle != NULL)
 			{
-				fprintf(pwmPeriodleHandle, "%lu", m_PwmDefaultPeriod);
+				fprintf(pwmPeriodleHandle, "%u", m_PwmDefaultPeriod);
 				fclose(pwmPeriodleHandle);							
 			}
 			else
@@ -780,7 +780,7 @@ int LinxBeagleBoneBlack::PwmSetDutyCycle(unsigned char numChans, unsigned char* 
 		//Update Output
 		DebugPrint("Setting Duty Cycle = ");
 		DebugPrint(dutyCycle, DEC);
-		fprintf(PwmDutyCycleHandles[channels[i]], "%lu", dutyCycle);
+		fprintf(PwmDutyCycleHandles[channels[i]], "%u", dutyCycle);
 		DebugPrint(" ... Duty Cycle Set ... ");
 		fflush(PwmDutyCycleHandles[channels[i]]);
 		DebugPrintln("Flushing.");

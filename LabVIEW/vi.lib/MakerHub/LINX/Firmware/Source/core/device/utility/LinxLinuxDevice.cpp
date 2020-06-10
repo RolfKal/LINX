@@ -28,13 +28,276 @@
 #include <fstream>
 #include <sys/stat.h>
 #ifndef _MSC_VER
-#include <sys/ioctl.h>
+#include <alloca.h>
 #include <unistd.h>
-#include <asm/termios.h>
+#include <sys/ioctl.h>
+#include <asm/ioctls.h>
+#include <asm/termbits.h>
 #include <linux/i2c-dev.h>
 #include <linux/spi/spidev.h>
 #else
 #include <io.h>
+#include <malloc.h>
+/* c_cc characters */
+#define VINTR 0
+#define VQUIT 1
+#define VERASE 2
+#define VKILL 3
+#define VEOF 4
+#define VTIME 5
+#define VMIN 6
+#define VSWTC 7
+#define VSTART 8
+#define VSTOP 9
+#define VSUSP 10
+#define VEOL 11
+#define VREPRINT 12
+#define VDISCARD 13
+#define VWERASE 14
+#define VLNEXT 15
+#define VEOL2 16
+
+/* c_iflag bits */
+#define IGNBRK	0000001
+#define BRKINT	0000002
+#define IGNPAR	0000004
+#define PARMRK	0000010
+#define INPCK	0000020
+#define ISTRIP	0000040
+#define INLCR	0000100
+#define IGNCR	0000200
+#define ICRNL	0000400
+#define IUCLC	0001000
+#define IXON	0002000
+#define IXANY	0004000
+#define IXOFF	0010000
+#define IMAXBEL	0020000
+#define IUTF8	0040000
+
+/* c_oflag bits */
+#define OPOST	0000001
+#define OLCUC	0000002
+#define ONLCR	0000004
+#define OCRNL	0000010
+#define ONOCR	0000020
+#define ONLRET	0000040
+#define OFILL	0000100
+#define OFDEL	0000200
+#define NLDLY	0000400
+#define   NL0	0000000
+#define   NL1	0000400
+#define CRDLY	0003000
+#define   CR0	0000000
+#define   CR1	0001000
+#define   CR2	0002000
+#define   CR3	0003000
+#define TABDLY	0014000
+#define   TAB0	0000000
+#define   TAB1	0004000
+#define   TAB2	0010000
+#define   TAB3	0014000
+#define   XTABS	0014000
+#define BSDLY	0020000
+#define   BS0	0000000
+#define   BS1	0020000
+#define VTDLY	0040000
+#define   VT0	0000000
+#define   VT1	0040000
+#define FFDLY	0100000
+#define   FF0	0000000
+#define   FF1	0100000
+
+/* c_cflag bit meaning */
+#define CBAUD	0010017
+#define  B0	0000000		/* hang up */
+#define  B50	0000001
+#define  B75	0000002
+#define  B110	0000003
+#define  B134	0000004
+#define  B150	0000005
+#define  B200	0000006
+#define  B300	0000007
+#define  B600	0000010
+#define  B1200	0000011
+#define  B1800	0000012
+#define  B2400	0000013
+#define  B4800	0000014
+#define  B9600	0000015
+#define  B19200	0000016
+#define  B38400	0000017
+#define EXTA B19200
+#define EXTB B38400
+#define CSIZE	0000060
+#define   CS5	0000000
+#define   CS6	0000020
+#define   CS7	0000040
+#define   CS8	0000060
+#define CSTOPB	0000100
+#define CREAD	0000200
+#define PARENB	0000400
+#define PARODD	0001000
+#define HUPCL	0002000
+#define CLOCAL	0004000
+#define CBAUDEX 0010000
+#define    BOTHER 0010000
+#define    B57600 0010001
+#define   B115200 0010002
+#define   B230400 0010003
+#define   B460800 0010004
+#define   B500000 0010005
+#define   B576000 0010006
+#define   B921600 0010007
+#define  B1000000 0010010
+#define  B1152000 0010011
+#define  B1500000 0010012
+#define  B2000000 0010013
+#define  B2500000 0010014
+#define  B3000000 0010015
+#define  B3500000 0010016
+#define  B4000000 0010017
+#define CIBAUD	  002003600000	/* input baud rate */
+#define CMSPAR	  010000000000	/* mark or space (stick) parity */
+#define CRTSCTS	  020000000000	/* flow control */
+
+#define IBSHIFT	  16		/* Shift from CBAUD to CIBAUD */
+
+/* c_lflag bits */
+#define ISIG	0000001
+#define ICANON	0000002
+#define XCASE	0000004
+#define ECHO	0000010
+#define ECHOE	0000020
+#define ECHOK	0000040
+#define ECHONL	0000100
+#define NOFLSH	0000200
+#define TOSTOP	0000400
+#define ECHOCTL	0001000
+#define ECHOPRT	0002000
+#define ECHOKE	0004000
+#define FLUSHO	0010000
+#define PENDIN	0040000
+#define IEXTEN	0100000
+#define EXTPROC	0200000
+
+/* tcflow() and TCXONC use these */
+#define	TCOOFF		0
+#define	TCOON		1
+#define	TCIOFF		2
+#define	TCION		3
+
+/* tcflush() and TCFLSH use these */
+#define	TCIFLUSH	0
+#define	TCOFLUSH	1
+#define	TCIOFLUSH	2
+
+/* tcsetattr uses these */
+#define	TCSANOW		0
+#define	TCSADRAIN	1
+#define	TCSAFLUSH	2
+typedef unsigned char	cc_t;
+typedef unsigned int	speed_t;
+typedef unsigned int	tcflag_t;
+#define NCCS 19
+struct termios {
+	tcflag_t c_iflag;		/* input mode flags */
+	tcflag_t c_oflag;		/* output mode flags */
+	tcflag_t c_cflag;		/* control mode flags */
+	tcflag_t c_lflag;		/* local mode flags */
+	cc_t c_line;			/* line discipline */
+	cc_t c_cc[NCCS];		/* control characters */
+};
+
+struct termios2 {
+	tcflag_t c_iflag;		/* input mode flags */
+	tcflag_t c_oflag;		/* output mode flags */
+	tcflag_t c_cflag;		/* control mode flags */
+	tcflag_t c_lflag;		/* local mode flags */
+	cc_t c_line;			/* line discipline */
+	cc_t c_cc[NCCS];		/* control characters */
+	speed_t c_ispeed;		/* input speed */
+	speed_t c_ospeed;		/* output speed */
+};
+
+#define FIONREAD 0
+#define TCFLSH 0
+#define TCSETS 0
+#define TCGETS 0
+#define TCSETS2 0
+#define TCGETS2 0
+
+int ioctl(int, int, void*);
+
+#define SPI_CPHA		0x01
+#define SPI_CPOL		0x02
+
+#define SPI_MODE_0		(0|0)
+#define SPI_MODE_1		(0|SPI_CPHA)
+#define SPI_MODE_2		(SPI_CPOL|0)
+#define SPI_MODE_3		(SPI_CPOL|SPI_CPHA)
+
+#define SPI_CS_HIGH		0x04
+#define SPI_LSB_FIRST		0x08
+#define SPI_3WIRE		0x10
+#define SPI_LOOP		0x20
+#define SPI_NO_CS		0x40
+#define SPI_READY		0x80
+#define SPI_TX_DUAL		0x100
+#define SPI_TX_QUAD		0x200
+#define SPI_RX_DUAL		0x400
+#define SPI_RX_QUAD		0x800
+
+#define SPI_IOC_MAGIC			'k'
+
+struct spi_ioc_transfer {
+	unsigned long		tx_buf;
+	unsigned long		rx_buf;
+
+	unsigned int		len;
+	unsigned int		speed_hz;
+
+	unsigned short		delay_usecs;
+	unsigned char		bits_per_word;
+	unsigned char		cs_change;
+	unsigned char		tx_nbits;
+	unsigned char		rx_nbits;
+	unsigned char		pad;
+
+	/* If the contents of 'struct spi_ioc_transfer' ever change
+	 * incompatibly, then the ioctl number (currently 0) must change;
+	 * ioctls with constant size fields get a bit more in the way of
+	 * error checking than ones (like this) where that field varies.
+	 *
+	 * NOTE: struct layout is the same in 64bit and 32bit userspace.
+	 */
+};
+
+/* not all platforms use <asm-generic/ioctl.h> or _IOC_TYPECHECK() ... */
+#define SPI_IOC_MESSAGE(N) 0
+
+
+/* Read / Write of SPI mode (SPI_MODE_0..SPI_MODE_3) (limited to 8 bits) */
+#define SPI_IOC_RD_MODE		0
+#define SPI_IOC_WR_MODE		0
+
+/* Read / Write SPI bit justification */
+#define SPI_IOC_RD_LSB_FIRST	0
+#define SPI_IOC_WR_LSB_FIRST	0
+
+/* Read / Write SPI device word length (1..N) */
+#define SPI_IOC_RD_BITS_PER_WORD	0
+#define SPI_IOC_WR_BITS_PER_WORD	0
+
+/* Read / Write SPI device default max speed hz */
+#define SPI_IOC_RD_MAX_SPEED_HZ		0
+#define SPI_IOC_WR_MAX_SPEED_HZ		0
+
+/* Read / Write of the SPI mode field */
+#define SPI_IOC_RD_MODE32		0
+#define SPI_IOC_WR_MODE32		0
+
+
+
+
 #endif
 
 using namespace std;
@@ -536,8 +799,8 @@ int LinxLinuxDevice::SpiWriteRead(unsigned char channel, unsigned char frameSize
 	for (int i = 0; i < numFrames; i++)
 	{
 		//Setup Transfer
-		transfer.tx_buf = (sendBuffer + nextByte);
-		transfer.rx_buf = (recBuffer + nextByte);
+		transfer.tx_buf = (unsigned long)(sendBuffer + nextByte);
+		transfer.rx_buf = (unsigned long)(recBuffer + nextByte);
 		transfer.len = frameSize;
 		transfer.delay_usecs = 0;
 		transfer.speed_hz = SpiSetSpeeds[channel];
@@ -729,10 +992,10 @@ int LinxLinuxDevice::UartSetBaudRate(int fd, unsigned int baudRate, unsigned int
 {
 	int temp;
 	struct termios2 options;
-	int ioctrlval = TCSETS2;
-	if (ioctrl(fd, TCGETS2 &options) < 0)
+	int ioctlval = TCSETS2;
+	if (ioctl(fd, TCGETS2, &options) < 0)
 	{
-		if (ioctrl(fd, TCGETS &options) < 0)
+		if (ioctl(fd, TCGETS, &options) < 0)
 			return LERR_IO;
 
 		//Get Closest Support Baud Rate Without Going Over
@@ -753,7 +1016,7 @@ int LinxLinuxDevice::UartSetBaudRate(int fd, unsigned int baudRate, unsigned int
 		//Store Actual Baud Used
 		*actualBaud = (unsigned int) *(UartSupportedSpeeds + temp);
 		temp = (options.c_cflag & ~(CBAUD | CIBAUD)) | UartSupportedSpeedsCodes[temp] | UartSupportedSpeedsCodes[temp] << IBSHIFT;
-		ioctrlval = TCSETS;
+		ioctlval = TCSETS;
 	}
 	else
 	{
@@ -775,8 +1038,8 @@ int LinxLinuxDevice::UartSetBaudRate(int fd, unsigned int baudRate, unsigned int
 	{
 		options.c_iflag |= IGNPAR; // Ignore parity errors
 	}
-	ioctrl(fd, TCFLSH, TCIFLUSH);
-	if (ioctrl(fd, ioctrlval, &options) < 0)
+	ioctl(fd, TCFLSH, TCIFLUSH);
+	if (ioctl(fd, ioctlval, &options) < 0)
 		return LERR_IO;
 
 	return  L_OK;
@@ -799,7 +1062,7 @@ int LinxLinuxDevice::UartSetBitSize(int fd, unsigned char dataBits, unsigned cha
 		return L_OK;
 
 	struct termios options;
-	if (ioctrl(fd, TCGETS &options) >= 0)
+	if (ioctl(fd, TCGETS, &options) >= 0)
 	{
 		if (dataBits)
 			options.c_cflag = (options.c_cflag & ~CSIZE) | BitSizes[dataBits - BIT_SIZE_OFFSET];
@@ -808,7 +1071,7 @@ int LinxLinuxDevice::UartSetBitSize(int fd, unsigned char dataBits, unsigned cha
 		if (stopBits == 2)
 			options.c_cflag |= CSTOPB;
 
-		if (ioctrl(fd, TCSETS, &options) >= 0)
+		if (ioctl(fd, TCSETS, &options) >= 0)
 			return  L_OK;
 	}
 	return LERR_IO;
@@ -824,10 +1087,10 @@ int LinxLinuxDevice::UartSetParity(int fd, unsigned char parity)
 		return LERR_BADPARAM;
 
 	struct termios options;
-	if (ioctrl(fd, TCGETS &options) >= 0)
+	if (ioctl(fd, TCGETS, &options) >= 0)
 	{
-		options.c_cflag = (options.c_cflag & ~(PARENB | PARODD) | Parity[parity];
-		if (ioctrl(fd, TCSETS, &options) >= 0)
+		options.c_cflag = (options.c_cflag & ~(PARENB | PARODD)) | Parity[parity];
+		if (ioctl(fd, TCSETS, &options) >= 0)
 			return  L_OK;
 	}
 	return LERR_IO;
@@ -988,7 +1251,6 @@ int LinxLinuxDevice::digitalSmartOpen(unsigned char numChans, unsigned char* cha
 }
 
 //Open Direction And Value Handles If They Are Not Already Open And Set Direction
-//Open Direction And Value Handles If They Are Not Already Open And Set Direction
 int LinxLinuxDevice::pwmSmartOpen(unsigned char numChans, unsigned char* channels)
 {
 	for (int i = 0; i < numChans; i++)
@@ -1003,7 +1265,7 @@ int LinxLinuxDevice::pwmSmartOpen(unsigned char numChans, unsigned char* channel
 			PwmPeriodHandles[channels[i]] = fopen(periodPath, "r+w+");
 
 			//Initialize PWM Period
-			fprintf(PwmPeriodHandles[channels[i]], "%lu", PwmDefaultPeriod);
+			fprintf(PwmPeriodHandles[channels[i]], "%u", PwmDefaultPeriod);
 			PwmPeriods[channels[i]] = PwmDefaultPeriod;
 			fflush(PwmPeriodHandles[channels[i]]);
 		}
@@ -1023,6 +1285,7 @@ int LinxLinuxDevice::pwmSmartOpen(unsigned char numChans, unsigned char* channel
 
 bool LinxLinuxDevice::uartSupportsVarBaudrate(const char* path, int baudrate)
 {
+	return false;
 }
 
 //Return True If File Specified By path Exists.
