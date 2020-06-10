@@ -13,17 +13,53 @@
 **  Includes
 ****************************************************************************************/
 #include <stdio.h>
+#include <string.h>
+#include <malloc.h>
 #include "LinxDevice.h"
 
+static unsigned char m_DeviceName[] = "Unknown Device";
 
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
 LinxDevice::LinxDevice()
 {
+	//LINX API Version
+	LinxApiMajor = 0;
+	LinxApiMinor = 0;
+	LinxApiSubminor = 0;
+
 	DeviceFamily = 0xFE;
 	DeviceId = 0x00;	
-	ListenerBufferSize = 128;
+
+	//----Peripherals----
+
+	//DIO
+
+	//AI
+	AiResolution = 0;
+	AiRefDefault = 0;
+	AiRefSet = 0;
+
+	//AO
+	AoResolution = 0;
+	AoRefDefault = 0;
+	AoRefSet = 0;
+
+	//PWM
+
+	//QE
+
+	//UART
+	UartMaxBaud = 0;
+
+	//I2C
+
+	//SPI
+
+	//CAN
+
+	//Servo
 }
 
 LinxDevice::~LinxDevice()
@@ -34,6 +70,83 @@ LinxDevice::~LinxDevice()
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
+unsigned char LinxDevice::GetDeviceName(unsigned char *buffer, unsigned char length)
+{
+	unsigned char slen = (unsigned char)strlen((const char*)m_DeviceName);
+	if (buffer)
+	{
+		if (length < slen)
+			slen = length - 1;
+
+		memcpy(buffer, m_DeviceName, slen);
+		if (length > slen)
+			buffer[slen] = 0;
+	}
+	return 12;
+}
+
+
+//----Peripherals----
+
+//DIO
+unsigned char LinxDevice::GetDioChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//AI
+unsigned char LinxDevice::GetAiChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//AO
+unsigned char LinxDevice::GetAoChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//PWM
+unsigned char LinxDevice::GetPwmChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//QE
+unsigned char LinxDevice::GetQeChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//UART
+unsigned char LinxDevice::GetUartChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//I2C
+unsigned char LinxDevice::GetI2cChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//SPI
+unsigned char LinxDevice::GetSpiChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//CAN
+unsigned char LinxDevice::GetCanChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
+
+//Servo
+unsigned char LinxDevice::GetServoChans(unsigned char *buffer, unsigned char length)
+{
+	return 0;
+}
 
 //Reverse The Order Of Bits In A Byte.  This Is Useful For SPI Hardware That Does Not Support Bit Order
 unsigned char LinxDevice::ReverseBits(unsigned char b) 
@@ -46,13 +159,13 @@ unsigned char LinxDevice::ReverseBits(unsigned char b)
 
 void LinxDevice::EnableDebug(unsigned char channel)
 {	
-	unsigned long actualBaud = 0;
+	unsigned int actualBaud = 0;
 	
 	UartOpen(channel, 115200, &actualBaud);
 	DebugPrintln("Debugging Enabled");
 }
 
-void LinxDevice::DelayMs(unsigned long ms)
+void LinxDevice::DelayMs(unsigned int ms)
 {
 
 }
@@ -87,7 +200,7 @@ void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* 
 
 
 //--------------------------------------------------------Analog-------------------------------------------------------
-int LinxDevice::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values)
+int LinxDevice::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
@@ -102,8 +215,9 @@ int LinxDevice::DigitalWrite(unsigned char numChans, unsigned char* channels, un
 int LinxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Data Array
-	int numBytes = ((numChans + 7) / 8);
-	unsigned char packValues[numBytes] = {0};
+	int numBytes = ((numChans + 7) >> 3);
+	unsigned char *packValues = (unsigned char *)alloca(numBytes);
+	memset(packValues, 0, numBytes);
 	for (int i = 0; i < numChans; i++)
 	{
 		packValues[i / 8] |= ((values[i] & 0x01) << (i % 8));
@@ -114,8 +228,9 @@ int LinxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* cha
 int LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Data Array
-	int numBytes = ((numChans + 7) / 8);
-	unsigned char packValues[numBytes] = {0};
+	int numBytes = ((numChans + 7) >> 3);
+	unsigned char *packValues = (unsigned char *)alloca(numBytes);
+	memset(packValues, 0, numBytes);
 	int ret = DigitalRead(numChans, channels, packValues);
 	if (!ret)
 	{
@@ -128,7 +243,7 @@ int LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* chan
 }
 
 // ---------------- PWM Functions ------------------ 
-int LinxDevice::PwmSetFrequency(unsigned char numChans, unsigned char* channels, unsigned long* values)
+int LinxDevice::PwmSetFrequency(unsigned char numChans, unsigned char* channels, unsigned int* values)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
@@ -140,6 +255,11 @@ int LinxDevice::SpiCloseMaster(unsigned char channel)
 }
 
 // ---------------- UART Functions ------------------ 
+
+int LinxDevice::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud, unsigned char bits, unsigned char parity)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
 
 void LinxDevice::UartWrite(unsigned char channel, unsigned char b)
 {
@@ -406,7 +526,7 @@ void LinxDevice::UartWriteNumber(unsigned char channel, unsigned long n, unsigne
 
 	while (n > 0) 
 	{
-		buf[i++] = n % base;
+		buf[i++] = (unsigned char)(n % base);
 		n /= base;
 	}
 

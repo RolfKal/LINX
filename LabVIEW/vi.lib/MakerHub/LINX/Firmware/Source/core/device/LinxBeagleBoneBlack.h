@@ -39,8 +39,8 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/	
-#include "utility/LinxDevice.h"
-#include "utility/LinxLinuxDevice.h"
+#include "LinxDevice.h"
+#include "LinxLinuxDevice.h"
 #include <map>
 #include <string>
 
@@ -62,6 +62,8 @@ class LinxBeagleBoneBlack : public LinxLinuxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
+
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values);
 
@@ -71,57 +73,16 @@ class LinxBeagleBoneBlack : public LinxLinuxDevice
 
 		virtual int I2cOpenMaster(unsigned char channel);
 
-		virtual int UartOpen(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud);
+		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/		
-		const char* overlaySlotsPath;		//The overlay slot export path
+		const char* overlaySlotsPath;		// The overlay slot export path
+		string DtoSlotsPath;				// Path to device tree overlay slots file.  Varies by OS version.
+		int FilePathLayout;					// Used to indicate the file path layout 7 for 7.x and 8 for 8.x
 		
-		//System
-		static unsigned char m_DeviceName[DEVICE_NAME_LEN];
-		
-		//AI
-		static const unsigned char m_AiChans[NUM_AI_CHANS];
-		static const unsigned long m_AiRefIntVals[NUM_AI_INT_REFS];
-		static const int m_AiRefCodes[NUM_AI_INT_REFS];		
-		static FILE* m_AiValueHandles[NUM_AI_CHANS];		
-		static const string m_AiValuePaths[NUM_AI_CHANS];
-		
-		//AO
-		//None
-		
-		//DIGITAL
-		static const unsigned char m_DigitalChans[NUM_DIGITAL_CHANS];
-		static const unsigned char m_gpioChan[NUM_DIGITAL_CHANS];
-		
-		//PWM
-		static unsigned char m_PwmChans[NUM_PWM_CHANS];
-		string m_PwmDirPaths[NUM_PWM_CHANS];
-		static string m_PwmDtoNames[NUM_PWM_CHANS];
-		static string m_PwmMuxPaths[NUM_PWM_CHANS];
-		string m_EnableFileName;
-		unsigned char m_PwmPeriods[NUM_PWM_CHANS];
-		
-		//SPI
-		static unsigned char m_SpiChans[NUM_SPI_CHANS];
-		static int m_SpiHandles[NUM_SPI_CHANS];
-		static unsigned long m_SpiSupportedSpeeds[NUM_SPI_SPEEDS];
-		static int m_SpiSpeedCodes[NUM_SPI_SPEEDS];
-				
-		//I2C
-		static unsigned char m_I2cChans[NUM_I2C_CHANS];
-		
-		//UART
-		static unsigned char m_UartChans[NUM_UART_CHANS];
-		static unsigned long m_UartSupportedSpeeds[NUM_UART_SPEEDS];
-		static unsigned long m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS];
-		static string m_UartPaths[NUM_UART_CHANS];
-		
-		//Servo		
-		//none
-
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/

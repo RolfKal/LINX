@@ -8,15 +8,15 @@
 **
 ** BSD2 License.
 ****************************************************************************************/
-#ifndef LINXLISTENER_H
-#define LINXLISTENER_H
 
 /****************************************************************************************
 ** Includes
 ****************************************************************************************/
 #include <stdio.h>
 #include "LinxListener.h"
+#include "LinxCommand.h"
 #include "LinxDevice.h"
+#include "LinxUtilities.h"
 
 /****************************************************************************************
 **  Constructors
@@ -102,7 +102,7 @@ unsigned char LinxListener::ComputeChecksum(unsigned char* packetBuffer)
 
 bool LinxListener::ChecksumPassed(unsigned char* packetBuffer)
 {
-	return (ComputeChecksum(packetBuffer) == packetBuffer[packetBuffer[1]-1]);
+	return (ComputeChecksum(packetBuffer) == packetBuffer[packetBuffer[1] - 1]);
 }
 
 
@@ -115,9 +115,22 @@ void LinxListener::StatusResponse(unsigned char* commandPacketBuffer, unsigned c
 int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer)
 {
 	//Store Some Local Values For Convenience
-	unsigned int command = commandPacketBuffer[4] << 8 | commandPacketBuffer[5];
-
 	int status = L_OK;
+	unsigned short command;
+	unsigned int length, offset;
+	if (commandPacketBuffer[0] == 0xFF)
+	{
+		offset = 4;
+		length = commandPacketBuffer[1];
+	}
+	else if (commandPacketBuffer[0] == 0xFE)
+	{
+		offset = 7;
+		ReadU32FromBuff(commandPacketBuffer, 1, &length);
+	}
+	length -= 1;      // Remove Checksum byte
+	offset = ReadU16FromBuff(commandPacketBuffer, offset, &command);
+	length -= offset; // Remove header
 
 	/****************************************************************************************
 	** User Commands
@@ -125,7 +138,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 	if (command >= 0xFC00)
 	{
 		unsigned char numResponseBytes = 0;
-		status = customCommands[command - 0xFC00](commandPacketBuffer[1] - 7, commandPacketBuffer + 6, &numResponseBytes, responsePacketBuffer + 5);
+		status = customCommands[command - 0xFC00]((unsigned char)length, commandPacketBuffer + offset, &numResponseBytes, responsePacketBuffer + offset - 1);
 		PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, numResponseBytes, status);
 	}
 	else
@@ -137,251 +150,329 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		/************************************************************************************
 		* SYSTEM COMMANDS
 		************************************************************************************/
-		case 0x0000: // Sync Packet
+		case LCMD_SYNC: // Sync Packet
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
 			break;
 
 		//case 0x0001: //TODO Flush Linx Connection Buffer
 		//case 0x0002: //TODO Reset
 
-		case 0x0003: // Get Device ID
-			responsePacketBuffer[5] = LinxDev->DeviceFamily;
-			responsePacketBuffer[6] = LinxDev->DeviceId;
+		case LCMD_GET_DEV_ID: // Get Device ID
+			offset = WriteU8ToBuff(responsePacketBuffer, offset - 1, LinxDev->DeviceFamily);
+			offset = WriteU8ToBuff(responsePacketBuffer, offset, LinxDev->DeviceId);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 2, L_OK);
 			break;
 
-		case 0x0004: //Get LINX API Version
-			responsePacketBuffer[5] = LinxDev->LinxApiMajor;
-			responsePacketBuffer[6] = LinxDev->LinxApiMinor;
-			responsePacketBuffer[7] = LinxDev->LinxApiSubminor;
+		case LCMD_GET_API_VER: //Get LINX API Version
+			offset = WriteU8ToBuff(responsePacketBuffer, offset - 1, LinxDev->LinxApiMajor);
+			offset = WriteU8ToBuff(responsePacketBuffer, offset, LinxDev->LinxApiMinor);
+			offset = WriteU8ToBuff(responsePacketBuffer, offset, LinxDev->LinxApiSubminor);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 3, L_OK);
 			break;
 
-		case 0x0005: //Get UART Max Baud
-			responsePacketBuffer[5] = (LinxDev->UartMaxBaud >> 24) & 0xFF;
-			responsePacketBuffer[6] = (LinxDev->UartMaxBaud >> 16) & 0xFF;
-			responsePacketBuffer[7] = (LinxDev->UartMaxBaud >> 8) & 0xFF;
-			responsePacketBuffer[8] = LinxDev->UartMaxBaud & 0xFF;
+		case LCMD_GET_UART_MAX_BAUD: //Get UART Listener Interface Max Baud
+			WriteU32ToBuff(responsePacketBuffer, offset - 1, LinxDev->UartMaxBaud);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, L_OK);
 			break;
 
-		case 0x0006: //Set UART Listener Interface Max Baud
+		case LCMD_SET_UART_MAX_BAUD: //Set UART Listener Interface Max Baud
+			if (length >= 4)
+			{
+				unsigned int actualBaud = 0;
+				status = LinxDev->UartSetBaudRate(ListenerChan, GetU32FromBuff(commandPacketBuffer, offset), &actualBaud);
+				LinxDev->DelayMs(1000);
+				WriteU32ToBuff(responsePacketBuffer, offset - 1, actualBaud);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			}
+			else
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			break;
+
+		case LCMD_GET_MAX_PACK_SIZE: // Get Max Packet Size
+			WriteU32ToBuff(responsePacketBuffer, offset - 1, ListenerBufferSize);
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, L_OK);
+			break;
+
+		case LCMD_GET_DIO_CHANS: // Get DIO Channels
 		{
-			unsigned long targetBaud = (unsigned long)((unsigned long)(commandPacketBuffer[6] << 24) | (unsigned long)(commandPacketBuffer[7] << 16) | (unsigned long)(commandPacketBuffer[8] << 8) | (unsigned long)commandPacketBuffer[9]);
-			unsigned long actualBaud = 0;
-			status = LinxDev->UartSetBaudRate(ListenerChan, targetBaud, &actualBaud);
-			LinxDev->DelayMs(1000);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
+			length = LinxDev->GetDioChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 		}
-
-		//case 0x0007: //TODO Get Max Packet Size
-
-		case 0x0008: // Get DIO Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->DigitalChans, LinxDev->NumDigitalChans, L_OK);
+		case LCMD_GET_AI_CHANS: // Get AI Channels
+			length = LinxDev->GetAiChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
-		case 0x0009: // Get AI Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->AiChans, LinxDev->NumAiChans, L_OK);
+		case LCMD_GET_AO_CHANS: // Get AO Channels
+			length = LinxDev->GetAoChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
-		case 0x000A: // Get AO Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->AoChans, LinxDev->NumAoChans, L_OK);
+		case LCMD_GET_PWM_CHANS: // Get PWM Channels
+			length = LinxDev->GetPwmChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
-		case 0x000B: // Get PWM Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->PwmChans, LinxDev->NumPwmChans, L_OK);
+		case LCMD_GET_QE_CHANS: // Get QE Channels
+			length = LinxDev->GetQeChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
-		case 0x000C: // Get QE Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->QeChans, LinxDev->NumQeChans, L_OK);
+		case LCMD_GET_UART_CHANS: // Get UART Channels
+			length = LinxDev->GetUartChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
-		case 0x000D: // Get UART Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->UartChans, LinxDev->NumUartChans, L_OK);
+		case LCMD_GET_I2C_CHANS: // Get I2C Channels
+			length = LinxDev->GetI2cChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
-		case 0x000E: // Get I2C Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->I2cChans, LinxDev->NumI2cChans, L_OK);
+		case LCMD_GET_SPI_CHANS: // Get SPI Channels
+			length = LinxDev->GetSpiChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
-		case 0x000F: // Get SPI Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->SpiChans, LinxDev->NumSpiChans, L_OK);
+		case LCMD_GET_CAN_CHANS: // Get CAN Channels
+			length = LinxDev->GetCanChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
-		case 0x0010: // Get CAN Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->CanChans, LinxDev->NumCanChans, L_OK);
-			break;
-
-		case 0x0011: // Disconnect
+		case LCMD_DISCONNECT: // Disconnect
 			LinxDev->DebugPrintln("Close Command");
 			status = L_DISCONNECT;
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
 			break;
 
-		case 0x0012: //Set Device User Id
-			LinxDev->userId = commandPacketBuffer[6] << 8 | commandPacketBuffer[7];
-			LinxDev->NonVolatileWrite(NVS_USERID, commandPacketBuffer[6]);
-			LinxDev->NonVolatileWrite(NVS_USERID + 1, commandPacketBuffer[7]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+		case LCMD_SET_DEVICE_USER_ID: //Set Device User Id
+			if (length >= 2)
+			{
+				LinxDev->userId = GetU16FromBuff(commandPacketBuffer, offset);
+				LinxDev->NonVolatileWrite(NVS_USERID, commandPacketBuffer[offset]);
+				LinxDev->NonVolatileWrite(NVS_USERID + 1, commandPacketBuffer[offset + 1]);
+				status = L_OK;
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
-		case 0x0013: //Get Device User Id
-			responsePacketBuffer[5] = (LinxDev->userId >> 8) & 0xFF;
-			responsePacketBuffer[6] = LinxDev->userId & 0xFF;
+		case LCMD_GET_DEVICE_USER_ID: //Get Device User Id
+			WriteU16ToBuff(responsePacketBuffer, offset - 1, LinxDev->userId);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 2, L_OK);
 			break;
 
 
-		case 0x0014: //Set Device Ethernet IP
-			LinxDev->ethernetIp = (commandPacketBuffer[6] << 24) | (commandPacketBuffer[7] << 16) | (commandPacketBuffer[8] << 8) | (commandPacketBuffer[9]);
-			LinxDev->NonVolatileWrite(NVS_ETHERNET_IP, commandPacketBuffer[6]);
-			LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 1, commandPacketBuffer[7]);
-			LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 2, commandPacketBuffer[8]);
-			LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 3, commandPacketBuffer[9]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+		case LCMD_SET_ETH_ADDR: //Set Device Ethernet IP
+			if (length >= 4)
+			{
+				LinxDev->ethernetIp = GetU32FromBuff(commandPacketBuffer, offset);
+				LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 0, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 1, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 2, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 3, commandPacketBuffer[offset++]);
+				status = L_OK;
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
-		case 0x0015: //Get Device Ethernet IP
-			responsePacketBuffer[5] = ((LinxDev->ethernetIp >> 24) & 0xFF);					//Ethernet IP MSB
-			responsePacketBuffer[6] = ((LinxDev->ethernetIp >> 16) & 0xFF);					//Ethernet IP ...
-			responsePacketBuffer[7] = ((LinxDev->ethernetIp >> 8) & 0xFF);					//Ethernet IP ...
-			responsePacketBuffer[8] = ((LinxDev->ethernetIp) & 0xFF);						//Ethernet IP LSB
+		case LCMD_GET_ETH_ADDR: //Get Device Ethernet IP
+			WriteU32ToBuff(responsePacketBuffer, offset - 1, LinxDev->ethernetIp);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, L_OK);
 			break;
 
-		case 0x0016: //Set Device Ethernet Port
-			LinxDev->ethernetPort = ((commandPacketBuffer[6] << 8) | (commandPacketBuffer[7]));
-			LinxDev->NonVolatileWrite(NVS_ETHERNET_PORT, commandPacketBuffer[6]);
-			LinxDev->NonVolatileWrite(NVS_ETHERNET_PORT + 1, commandPacketBuffer[7]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+		case LCMD_SET_ETH_PORT: //Set Device Ethernet Port
+			if (length >= 2)
+			{
+				LinxDev->ethernetPort = GetU16FromBuff(commandPacketBuffer, offset);
+				LinxDev->NonVolatileWrite(NVS_ETHERNET_PORT + 0, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_ETHERNET_PORT + 1, commandPacketBuffer[offset++]);
+				status = L_OK;
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
-		case 0x0017: //Get Device Ethernet Port
-			responsePacketBuffer[5] = ((LinxDev->ethernetPort >> 8) & 0xFF);				//Ethernet PORT MSB
-			responsePacketBuffer[6] = (LinxDev->ethernetPort & 0xFF);						//Ethernet PORT LSB
+		case LCMD_GET_ETH_PORT: //Get Device Ethernet Port
+			WriteU16ToBuff(responsePacketBuffer, offset - 1, LinxDev->ethernetPort);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 2, L_OK);
 			break;
 
 		case 0x0018: //Set Device WIFI IP
-			LinxDev->WifiIp = (commandPacketBuffer[6] << 24) | (commandPacketBuffer[7] << 16) | (commandPacketBuffer[8] << 8) | (commandPacketBuffer[9]);
-			LinxDev->NonVolatileWrite(NVS_WIFI_IP, commandPacketBuffer[6]);
-			LinxDev->NonVolatileWrite(NVS_WIFI_IP + 1, commandPacketBuffer[7]);
-			LinxDev->NonVolatileWrite(NVS_WIFI_IP + 2, commandPacketBuffer[8]);
-			LinxDev->NonVolatileWrite(NVS_WIFI_IP + 3, commandPacketBuffer[9]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			if (length >= 4)
+			{
+				LinxDev->WifiIp = GetU32FromBuff(commandPacketBuffer, offset);
+				LinxDev->NonVolatileWrite(NVS_WIFI_IP + 0, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_WIFI_IP + 1, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_WIFI_IP + 2, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_WIFI_IP + 3, commandPacketBuffer[offset++]);
+				status = L_OK;
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
 		case 0x0019: //Get Device WIFI IP
-			responsePacketBuffer[5] = ((LinxDev->WifiIp >> 24) & 0xFF);						//WIFI IP MSB
-			responsePacketBuffer[6] = ((LinxDev->WifiIp >> 16) & 0xFF);						//WIFI IP ...
-			responsePacketBuffer[7] = ((LinxDev->WifiIp >> 8) & 0xFF);						//WIFI IP ...
-			responsePacketBuffer[8] = ((LinxDev->WifiIp) & 0xFF);							//WIFI IP LSB
+			WriteU32ToBuff(responsePacketBuffer, offset - 1, LinxDev->WifiIp);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, L_OK);
 			break;
 
 		case 0x001A: //Set Device WIFI Port
-			LinxDev->WifiPort = ((commandPacketBuffer[6]<<8) | (commandPacketBuffer[7]));
-			LinxDev->NonVolatileWrite(NVS_WIFI_PORT, commandPacketBuffer[6]);
-			LinxDev->NonVolatileWrite(NVS_WIFI_PORT+1, commandPacketBuffer[7]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			if (length >= 2)
+			{
+				LinxDev->WifiPort = GetU16FromBuff(commandPacketBuffer, offset);
+				LinxDev->NonVolatileWrite(NVS_WIFI_PORT + 0, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_WIFI_PORT + 1, commandPacketBuffer[offset++]);
+				status = L_OK;
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
 		case 0x001B: //Get Device WIFI Port
-			responsePacketBuffer[5] = ((LinxDev->WifiPort >> 8) & 0xFF);					//WIFI PORT MSB
-			responsePacketBuffer[6] = (LinxDev->WifiPort & 0xFF);							//WIFI PORT LSB
+			WriteU16ToBuff(responsePacketBuffer, offset - 1, LinxDev->WifiPort);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 2, L_OK);
 			break;
 
 		case 0x001C: //Set Device WIFI SSID
-			 //Update Ssid Size In RAM And NVS
-			if(commandPacketBuffer[6] > 32)
+			if (length > commandPacketBuffer[offset])
 			{
-				LinxDev->WifiSsidSize = 32;
-				LinxDev->NonVolatileWrite(NVS_WIFI_SSID_SIZE, 32);
+				unsigned char len = commandPacketBuffer[offset],
+				              *ptr = commandPacketBuffer + offset + 1;
+				//Update Ssid Size In RAM And NVS
+				if (len > 32)
+				{
+					LinxDev->WifiSsidSize = 32;
+					LinxDev->NonVolatileWrite(NVS_WIFI_SSID_SIZE, 32);
+				}
+				else
+				{
+					LinxDev->WifiSsidSize = len;
+					LinxDev->NonVolatileWrite(NVS_WIFI_SSID_SIZE, len);
+				}
+
+				//Update SSID Value In RAM And NVS
+				for (int i = 0; i < LinxDev->WifiSsidSize; i++)
+				{
+					LinxDev->WifiSsid[i] = ptr[i];
+					LinxDev->NonVolatileWrite(NVS_WIFI_SSID + i, ptr[i]);
+				}
+				status = L_OK;
 			}
 			else
 			{
-				LinxDev->WifiSsidSize = commandPacketBuffer[6];
-				LinxDev->NonVolatileWrite(NVS_WIFI_SSID_SIZE, commandPacketBuffer[6]);
+				status = LERR_BADPARAM;
 			}
-
-			//Update SSID Value In RAM And NVS
-			for (int i = 0; i < LinxDev->WifiSsidSize; i++)
-			{
-				LinxDev->WifiSsid[i] = commandPacketBuffer[7 + i];
-				LinxDev->NonVolatileWrite(NVS_WIFI_SSID+i, commandPacketBuffer[7 + i]);
-			}
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
 		case 0x001D: //Get Device WIFI SSID
-			responsePacketBuffer[5] = LinxDev->WifiSsidSize;	//SSID SIZE
-
-			for(int i=0; i<LinxDev->WifiSsidSize; i++)
+			responsePacketBuffer[offset - 1] = LinxDev->WifiSsidSize;	//SSID SIZE
+			for (int i = 0; i < LinxDev->WifiSsidSize; i++)
 			{
-				responsePacketBuffer[6 + i] = LinxDev->WifiSsid[i];
+				responsePacketBuffer[offset + i] = LinxDev->WifiSsid[i];
 			}
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, LinxDev->WifiSsidSize, L_OK);
 			break;
 
 		case 0x001E: //Set Device WIFI Security Type
-			LinxDev->WifiSecurity = commandPacketBuffer[6];
-			LinxDev->NonVolatileWrite(NVS_WIFI_SECURITY_TYPE, commandPacketBuffer[6]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			if (length)
+			{
+				LinxDev->WifiSecurity = commandPacketBuffer[offset];
+				LinxDev->NonVolatileWrite(NVS_WIFI_SECURITY_TYPE, commandPacketBuffer[offset]);
+				status = L_OK;
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
 		case 0x001F: //Get Device WIFI Security Type
-			responsePacketBuffer[5] = LinxDev->WifiSecurity;
+			responsePacketBuffer[offset - 1] = LinxDev->WifiSecurity;
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 1, L_OK);
 			break;
 
 		case 0x0020: //Set Device WIFI Password
-			//Update PW Size In RAM And NVS
-			if (commandPacketBuffer[6] > 64)
+			if (length > commandPacketBuffer[offset])
 			{
-				LinxDev->WifiPwSize = 64;
-				LinxDev->NonVolatileWrite(NVS_WIFI_PW_SIZE, 64);
+				unsigned char len = commandPacketBuffer[offset],
+				              *ptr = commandPacketBuffer + offset + 1;
+				//Update PW Size In RAM And NVS
+				if (len > 64)
+				{
+					LinxDev->WifiPwSize = 64;
+					LinxDev->NonVolatileWrite(NVS_WIFI_PW_SIZE, 64);
+				}
+				else
+				{
+					LinxDev->WifiPwSize = len;
+					LinxDev->NonVolatileWrite(NVS_WIFI_PW_SIZE, len);
+				}
+
+				//Update PW Value In RAM And NVS
+				for (int i = 0; i < LinxDev->WifiPwSize; i++)
+				{
+					LinxDev->WifiPw[i] = ptr[i];
+					LinxDev->NonVolatileWrite(NVS_WIFI_PW + i, ptr[i]);
+				}
+				status = L_OK;
 			}
 			else
 			{
-				LinxDev->WifiPwSize = commandPacketBuffer[6];
-				LinxDev->NonVolatileWrite(NVS_WIFI_PW_SIZE, commandPacketBuffer[6]);
+				status = LERR_BADPARAM;
 			}
-
-			//Update PW Value In RAM And NVS
-			for (int i = 0; i < LinxDev->WifiPwSize; i++)
-			{
-				LinxDev->WifiPw[i] = commandPacketBuffer[7 + i];
-				LinxDev->NonVolatileWrite(NVS_WIFI_PW+i, commandPacketBuffer[7 + i]);
-			}
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
 		//case 0x0021: //TODO Get Device WIFI Password - Intentionally Not Implemented For Security Reasons.
 
 		case 0x0022: //Set Device Max Baud
-			LinxDev->serialInterfaceMaxBaud = (unsigned long)(((unsigned long)commandPacketBuffer[6] << 24) | ((unsigned long)commandPacketBuffer[7] << 16) | ((unsigned long)commandPacketBuffer[8] << 8) | ((unsigned long)commandPacketBuffer[9]));
-			LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD, commandPacketBuffer[6]);
-			LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 1, commandPacketBuffer[7]);
-			LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 2, commandPacketBuffer[8]);
-			LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 3, commandPacketBuffer[9]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			if (length >= 4)
+			{
+				LinxDev->serialInterfaceMaxBaud = GetU32FromBuff(commandPacketBuffer, offset);
+				LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 0, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 1, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 2, commandPacketBuffer[offset++]);
+				LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 3, commandPacketBuffer[offset++]);
+				status = L_OK;
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 		case 0x0023: //Get Device Max Baud
-			responsePacketBuffer[5] = ((LinxDev->serialInterfaceMaxBaud >> 24) & 0xFF);		//WIFI IP MSB
-			responsePacketBuffer[6] = ((LinxDev->serialInterfaceMaxBaud >> 16) & 0xFF);		//WIFI IP ...
-			responsePacketBuffer[7] = ((LinxDev->serialInterfaceMaxBaud >> 8) & 0xFF);		//WIFI IP ...
-			responsePacketBuffer[8] = ((LinxDev->serialInterfaceMaxBaud) & 0xFF);			//WIFI IP LSB
+			WriteU32ToBuff(responsePacketBuffer, offset - 1, LinxDev->serialInterfaceMaxBaud);
 			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, L_OK);
 			break;
 
 		case 0x0024: // Get Device Name
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, (unsigned char*)LinxDev->DeviceName, LinxDev->DeviceNameLen, L_OK);
+			length = LinxDev->GetDeviceName(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
 		case 0x0025: // Get Servo Channels
-			DataBufferResponse(commandPacketBuffer, responsePacketBuffer, LinxDev->ServoChans, LinxDev->NumServoChans, L_OK);
+			length = LinxDev->GetServoChans(responsePacketBuffer + offset - 1, ListenerBufferSize - offset); 
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, L_OK);
 			break;
 
 		//---0x0026 to 0x003F Reserved---
@@ -391,46 +482,66 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		****************************************************************************************/
 		//case 0x0040: //TODO Set Pin Mode
 
-		case 0x0041: // Digital Write
-			status = LinxDev->DigitalWrite(commandPacketBuffer[6], &commandPacketBuffer[7], &commandPacketBuffer[7 + commandPacketBuffer[6]]);
+		case LCMD_DIGITAL_WRITE: // Digital Write
+			if (length > 2 * (unsigned int)commandPacketBuffer[offset])
+			{
+				int numChans = commandPacketBuffer[offset];
+				status = LinxDev->DigitalWrite(numChans, commandPacketBuffer + offset + 1, commandPacketBuffer + offset + 1 + numChans);
+				status = L_OK;
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
-		case 0x0042: // Digital Read
-		{
-			unsigned char numRespBytes = (((commandPacketBuffer[1] - 7) - 1) >> 3) + 1;
-			status = LinxDev->DigitalRead((commandPacketBuffer[1] - 7), &commandPacketBuffer[6], &responsePacketBuffer[5]);
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, numRespBytes, status);
+		case LCMD_DIGITAL_READ: // Digital Read
+			if (length >= 1)
+			{
+				unsigned char numRespBytes = ((length - 1) >> 3) + 1;
+				status = LinxDev->DigitalRead(length, commandPacketBuffer + offset, responsePacketBuffer + offset - 1);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, numRespBytes, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			}
 			break;
-		}
 
-		case 0x0043: //Write Square Wave
-		{
-			unsigned long freq = (unsigned long)((unsigned long)(commandPacketBuffer[7] << 24) | (unsigned long)(commandPacketBuffer[8] << 16) | (unsigned long)(commandPacketBuffer[9] << 8) | (unsigned long)commandPacketBuffer[10]);
-			unsigned long duration = (unsigned long)(((unsigned long)commandPacketBuffer[11] << 24) | (unsigned long)(commandPacketBuffer[12] << 16) | (unsigned long)(commandPacketBuffer[13] << 8) | (unsigned long)commandPacketBuffer[14]);
-			status = LinxDev->DigitalWriteSquareWave(commandPacketBuffer[6], freq, duration);
+		case LCMD_SET_SQUARE_WAVE: //Write Square Wave
+			if (length >= 8)
+			{
+				unsigned int freq, duration;
+				ReadU32FromBuff(commandPacketBuffer, offset + 1, &freq);	
+				ReadU32FromBuff(commandPacketBuffer, offset + 5, &duration);	
+				status = LinxDev->DigitalWriteSquareWave(commandPacketBuffer[offset], freq, duration);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
-		}
 
-		case 0x0044: //Read Pulse Width
-		{
-			unsigned long timeout = (unsigned long)(((unsigned long)commandPacketBuffer[10] << 24) | ((unsigned long)commandPacketBuffer[11] << 16) | ((unsigned long)commandPacketBuffer[12] << 8) | ((unsigned long)commandPacketBuffer[13]));
+		case LCMD_GET_PULSE_WIDTH: //Read Pulse Width
+			if (length >= 8)
+			{
+				unsigned int timeout, width;
+				ReadU32FromBuff(commandPacketBuffer, offset + 4, &timeout);	
 
-			//LinxDev->DebugPrint("Timeout = ");
-			//LinxDev->DebugPrintln(timeout, DEC);
+				//LinxDev->DebugPrint("Timeout = ");
+				//LinxDev->DebugPrintln(timeout, DEC);
 
-			unsigned long width;
-			status = LinxDev->DigitalReadPulseWidth(commandPacketBuffer[7], commandPacketBuffer[8], commandPacketBuffer[6], commandPacketBuffer[9], timeout, &width);
-
-			responsePacketBuffer[5] = ((width >> 24) & 0xFF);
-			responsePacketBuffer[6] = ((width >> 16) & 0xFF);
-			responsePacketBuffer[7] = ((width >> 8) & 0xFF);
-			responsePacketBuffer[8] = ((width) & 0xFF);
-
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+				status = LinxDev->DigitalReadPulseWidth(commandPacketBuffer[offset + 1], commandPacketBuffer[offset + 2], commandPacketBuffer[offset], commandPacketBuffer[offset + 3], timeout, &width);
+				WriteU32ToBuff(responsePacketBuffer, offset - 1, width);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
 			break;
-		}
 
 		//---0x0045 to 0x005F Reserved---
 
@@ -438,40 +549,32 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		**  Analog I/O
 		****************************************************************************************/
 		case 0x0060: //Set AI Ref Voltage
-		{
-			unsigned long voltage = (unsigned long)(((unsigned long)commandPacketBuffer[7] << 24) | ((unsigned long)commandPacketBuffer[8] << 16) | ((unsigned long)commandPacketBuffer[9] << 8) | ((unsigned long)commandPacketBuffer[10]));
-			status =  LinxDev->AnalogSetRef(commandPacketBuffer[6], voltage);
+			if (length >= 5)
+			{
+				unsigned int voltage;
+				ReadU32FromBuff(commandPacketBuffer, offset + 1, &voltage);	
+				status =  LinxDev->AnalogSetRef(commandPacketBuffer[offset], voltage);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
-		}
 
 		case 0x0061: // Get AI Reference Voltage
-			responsePacketBuffer[5] = (LinxDev->AiRefSet >> 24) & 0xFF;						//AIREF MSB
-			responsePacketBuffer[6] = (LinxDev->AiRefSet >> 16) & 0xFF;						//...
-			responsePacketBuffer[7] = (LinxDev->AiRefSet >> 8) & 0xFF;						//...
-			responsePacketBuffer[8] = LinxDev->AiRefSet & 0xFF;								//AIREF LSB
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			WriteU32ToBuff(responsePacketBuffer, offset - 1, LinxDev->AiRefSet);
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, L_OK);
 			break;
 
 		//case 0x0062: //TODO Set AI Resolution
 		//case 0x0063: //TODO Get AI Resolution
 
 		case 0x0064: // Analog Read
-		{
-			responsePacketBuffer[5] = LinxDev->AiResolution;
-			status = LinxDev->AnalogRead((commandPacketBuffer[1] - 7), &commandPacketBuffer[6], &responsePacketBuffer[6]);
-			unsigned int numDataBits = ((commandPacketBuffer[1] - 7) * LinxDev->AiResolution);
-			unsigned char numResponseDataBytes = numDataBits / 8;
-
-			if( (numDataBits % 8) != 0)
-			{
-				//Partial Byte Included, Increment Total
-				numResponseDataBytes++;
-			}
-
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, numResponseDataBytes + 1, status);
+			responsePacketBuffer[offset - 1] = LinxDev->AiResolution;
+			status = LinxDev->AnalogRead(length, commandPacketBuffer + offset, responsePacketBuffer + offset);
+			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, (((length * LinxDev->AiResolution) + 7) >> 3) + 1, status);
 			break;
-		}
 
 		//case 0x0065: //TODO Analog Write
 
@@ -486,7 +589,15 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		//case 0x0082: //TODO PWM Set Frequency
 
 		case 0x0083: //PWM Set Duty Cycle
-			status = LinxDev->PwmSetDutyCycle(commandPacketBuffer[6], &commandPacketBuffer[7], &commandPacketBuffer[commandPacketBuffer[6] + 7] );
+			if (length > 2 * (unsigned int)commandPacketBuffer[offset])
+			{
+				unsigned char numChans = commandPacketBuffer[offset];
+				status = LinxDev->PwmSetDutyCycle(numChans, commandPacketBuffer + offset + 1, commandPacketBuffer + offset + 1 + numChans);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
@@ -503,57 +614,92 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		** UART
 		****************************************************************************************/
 		case 0x00C0: // UART Open
-		{
-			unsigned long targetBaud = (unsigned long)((unsigned long)(commandPacketBuffer[7] << 24) | (unsigned long)(commandPacketBuffer[8] << 16) | (unsigned long)(commandPacketBuffer[9] << 8) | (unsigned long)commandPacketBuffer[10]);
-			unsigned long actualBaud = 0;
+			if (length >= 5)
+			{
+				unsigned char command = commandPacketBuffer[offset];
+				unsigned int actualBaud = 0, baudrate = GetU32FromBuff(commandPacketBuffer, offset + 1);
+				if (length >= 8)
+				{
+					unsigned char dataBits = commandPacketBuffer[offset + 5];
+					unsigned char stopBits = commandPacketBuffer[offset + 6];
+					LinxUartParity parity = (LinxUartParity)commandPacketBuffer[offset + 7];
+					status = LinxDev->UartOpen(command, baudrate, &actualBaud, dataBits, stopBits, parity);
+				}
+				else
+				{
+					status = LinxDev->UartOpen(command, baudrate, &actualBaud);
+				}
+				WriteU32ToBuff(responsePacketBuffer, offset - 1, actualBaud); 
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
+			break;
 
-			status = LinxDev->UartOpen(commandPacketBuffer[6], targetBaud, &actualBaud);
-			responsePacketBuffer[5] = (actualBaud>>24) & 0xFF;								//actualBaud MSB
-			responsePacketBuffer[6] = (actualBaud>>16) & 0xFF;								//...
-			responsePacketBuffer[7] = (actualBaud>>8) & 0xFF;								//...
-			responsePacketBuffer[8] = actualBaud & 0xFF;									//actualBaud LSB
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
-			break;
-		}
 		case 0x00C1: // UART Set Buad Rate
-		{
-			unsigned long targetBaud = (unsigned long)((unsigned long)(commandPacketBuffer[7] << 24) | (unsigned long)(commandPacketBuffer[8] << 16) | (unsigned long)(commandPacketBuffer[9] << 8) | (unsigned long)commandPacketBuffer[10]);
-			unsigned long actualBaud = 0;
-			status = LinxDev->UartSetBaudRate(commandPacketBuffer[6], targetBaud, &actualBaud);
-			responsePacketBuffer[5] = (actualBaud>>24) & 0xFF;								//actualBaud MSB
-			responsePacketBuffer[6] = (actualBaud>>16) & 0xFF;								//...
-			responsePacketBuffer[7] = (actualBaud>>8) & 0xFF;								//...
-			responsePacketBuffer[8] = actualBaud & 0xFF;									//actualBaud LSB
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			if (length >= 5)
+			{
+				unsigned int actualBaud = 0;
+				status = LinxDev->UartSetBaudRate(commandPacketBuffer[offset], GetU32FromBuff(commandPacketBuffer, offset + 1), &actualBaud);
+				WriteU32ToBuff(responsePacketBuffer, 5, actualBaud);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
 			break;
-		}
+
 		case 0x00C2: // UART Get Bytes Available
-		{
-			unsigned char numBytes;
-			status = LinxDev->UartGetBytesAvailable(commandPacketBuffer[6], &numBytes);
-			responsePacketBuffer[5] = numBytes;
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 1, status);
+			if (length >= 1)
+			{
+				status = LinxDev->UartGetBytesAvailable(commandPacketBuffer[offset], responsePacketBuffer + offset - 1);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 1, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
 			break;
-		}
+
 		case 0x00C3: // UART Read
-		{
-			unsigned char numBytesRead = 0;
-			status = LinxDev->UartRead(commandPacketBuffer[6], commandPacketBuffer[7], &responsePacketBuffer[5], &numBytesRead);
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, numBytesRead, status);
+			if (length >= 2)
+			{
+				unsigned char numBytesRead = 0;
+				status = LinxDev->UartRead(commandPacketBuffer[offset], commandPacketBuffer[offset + 1], responsePacketBuffer + offset - 1, &numBytesRead);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, numBytesRead, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
 			break;
-		}
+
 		case 0x00C4: // UART Write
-		{
-			status = LinxDev->UartWrite(commandPacketBuffer[6], (commandPacketBuffer[1] - 8), &commandPacketBuffer[7]);
+			if (length >= 1)
+			{
+				status = LinxDev->UartWrite(commandPacketBuffer[offset], (unsigned char)length - 1, commandPacketBuffer + offset + 1);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
-		}
+
 		case 0x00C5: // UART Close
-		{
-			status = LinxDev->UartClose(commandPacketBuffer[6]);
+			if (length >= 1)
+			{
+				status = LinxDev->UartClose(commandPacketBuffer[offset]);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
-		}
 
 		//---0x00C6 to 0x00DF Reserved---
 
@@ -561,33 +707,66 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		** I2C
 		****************************************************************************************/
 		case 0x00E0: // I2C Open Master
-			status = LinxDev->I2cOpenMaster(commandPacketBuffer[6]);
+			if (length >= 1)
+			{
+				status = LinxDev->I2cOpenMaster(commandPacketBuffer[offset]);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
-		case 0x00E1: // I2C Set Speed
-		{
-			unsigned long targetSpeed = (unsigned long)((unsigned long)(commandPacketBuffer[7] << 24) | (unsigned long)(commandPacketBuffer[8] << 16) | (unsigned long)(commandPacketBuffer[9] << 8) | (unsigned long)commandPacketBuffer[10]);
-			unsigned long actualSpeed = 0;
-			status = LinxDev->I2cSetSpeed(commandPacketBuffer[6], targetSpeed, &actualSpeed);
 
-			//Build Response Packet
-			responsePacketBuffer[5] = (actualSpeed >> 24) & 0xFF;		//Actual Speed MSB
-			responsePacketBuffer[6] = (actualSpeed >> 16) & 0xFF;		//...
-			responsePacketBuffer[7] = (actualSpeed >> 8) & 0xFF;			//...
-			responsePacketBuffer[8] = actualSpeed & 0xFF;					//Actual Speed LSB
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+		case 0x00E1: // I2C Set Speed
+			if (length >= 5)
+			{
+				unsigned int actualSpeed = 0;
+				status = LinxDev->I2cSetSpeed(commandPacketBuffer[offset], GetU32FromBuff(commandPacketBuffer, offset + 1), &actualSpeed);
+
+				//Build Response Packet
+				WriteU32ToBuff(responsePacketBuffer, offset - 1, actualSpeed);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
 			break;
-		}
+
 		case 0x00E2: // I2C Write
-			status = LinxDev->I2cWrite(commandPacketBuffer[6], commandPacketBuffer[7], commandPacketBuffer[8], (commandPacketBuffer[1] - 10), &commandPacketBuffer[9]);
+			if (length >= 3)
+			{
+				status = LinxDev->I2cWrite(commandPacketBuffer[offset], commandPacketBuffer[offset + 1], commandPacketBuffer[offset + 2], (unsigned char)length - 3, commandPacketBuffer + offset + 3);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
+
 		case 0x00E3: // I2C Read
-			status = LinxDev->I2cRead(commandPacketBuffer[6], commandPacketBuffer[7], commandPacketBuffer[11], commandPacketBuffer[8],((commandPacketBuffer[9] << 8) | commandPacketBuffer[10]), &responsePacketBuffer[5]);
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, commandPacketBuffer[8], status);
+			if (length >= 6)
+			{
+				status = LinxDev->I2cRead(commandPacketBuffer[offset], commandPacketBuffer[offset + 1], commandPacketBuffer[offset + 5], commandPacketBuffer[offset + 2], GetU16FromBuff(commandPacketBuffer, offset + 3), responsePacketBuffer + offset - 1);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, commandPacketBuffer[offset + 2], status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
 			break;
+
 		case 0x00E4: // I2C Close
-			status = LinxDev->I2cClose((commandPacketBuffer[6]));
+			if (length >= 1)
+			{
+				status = LinxDev->I2cClose((commandPacketBuffer[offset]));
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
@@ -597,55 +776,86 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		** SPI
 		****************************************************************************************/
 		case 0x0100: // SPI Open Master
-			status = LinxDev->SpiOpenMaster(commandPacketBuffer[6]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			if (length >= 1)
+			{
+				status = LinxDev->SpiOpenMaster(commandPacketBuffer[offset]);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 		case 0x0101: // SPI Set Bit Order
-			LinxDev->SpiSetBitOrder(commandPacketBuffer[6], commandPacketBuffer[7]);
-			StatusResponse(commandPacketBuffer, responsePacketBuffer, L_OK);
+			if (length >= 2)
+			{
+				status = LinxDev->SpiSetBitOrder(commandPacketBuffer[offset], commandPacketBuffer[offset + 1]);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
 		case 0x0102: // SPI Set Clock Frequency
-		{
-			unsigned long targetSpeed = (unsigned long) ( (unsigned long)commandPacketBuffer[7] << 24 | (unsigned long)commandPacketBuffer[8] << 16 | (unsigned long)commandPacketBuffer[9] << 8 | (unsigned long)commandPacketBuffer[10] );
-			unsigned long actualSpeed = 0;
-			status = LinxDev->SpiSetSpeed(commandPacketBuffer[6], targetSpeed, &actualSpees);
+			if (length >= 5)
+			{
+				unsigned int actualSpeed = 0;
+				status = LinxDev->SpiSetSpeed(commandPacketBuffer[offset], GetU32FromBuff(commandPacketBuffer, offset + 1), &actualSpeed);
 
-			//Build Response Packet
-			responsePacketBuffer[5] = (actualSpeed >> 24) & 0xFF;		//Actual Speed MSB
-			responsePacketBuffer[6] = (actualSpeed >> 16) & 0xFF;		//...
-			responsePacketBuffer[7] = (actualSpeed >> 8) & 0xFF;			//...
-			responsePacketBuffer[8] = actualSpeed & 0xFF;					//Actual Speed LSB
-
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, L_OK);
+				//Build Response Packet
+				WriteU32ToBuff(responsePacketBuffer, offset - 1, actualSpeed);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
 			break;
-		}
+
 		case 0x0103: // SPI Set Mode
-		{
-			//Set SPI Mode
-			status = LinxDev->SpiSetMode(commandPacketBuffer[6], commandPacketBuffer[7]);
-
-			//Build Response Packet
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, 4, status);
+			if (length >= 2)
+			{
+				status = LinxDev->SpiSetMode(commandPacketBuffer[offset], commandPacketBuffer[offset + 1]);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
+			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
-		}
 
 		//case 0x0104: //LEGACY - SPI Set Frame Size
 		//case 0x0105: //LEGACY - SPI Set CS Logic Level
 		//case 0x0106: //LEGACY - SPI Set CS Channel
 
 		case 0x0107: // SPI Write Read
-		{
-			status = LinxDev->SpiWriteRead(commandPacketBuffer[6], commandPacketBuffer[7], (commandPacketBuffer[1] - 11) / commandPacketBuffer[7], commandPacketBuffer[8], commandPacketBuffer[9], &commandPacketBuffer[10], &responsePacketBuffer[5]);
-			PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, commandPacketBuffer[1] - 11, status);
+			if (length >= 4)
+			{
+				unsigned char frameSize = commandPacketBuffer[offset + 1], 
+							  numFrames = (length - 4) / frameSize,
+
+				status = LinxDev->SpiWriteRead(commandPacketBuffer[offset], frameSize, numFrames, commandPacketBuffer[offset + 2], commandPacketBuffer[offset + 3], commandPacketBuffer + offset + 4, responsePacketBuffer + offset - 1);
+				PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length - 5, status);
+			}
+			else
+			{
+				StatusResponse(commandPacketBuffer, responsePacketBuffer, LERR_BADPARAM);
+			}
 			break;
-		}
+
 		case 0x0108: // SPI Close
-		{
-			status = LinxDev->CloseMaster(commandPacketBuffer[6]);
+			if (length >= 1)
+			{
+				status = LinxDev->SpiCloseMaster(commandPacketBuffer[offset]);
+			}
+			else
+			{
+				status = LERR_BADPARAM;
+			}
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
-		}
 
 		//---0x0085 to 0x009F Reserved---
 
@@ -660,39 +870,43 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		****************************************************************************************/
 		case 0x0140: // Servo Init
 			//LinxDev->DebugPrintln("Opening Servo");
-			status = LinxDev->ServoOpen((commandPacketBuffer[1] - 7), &commandPacketBuffer[6]);
+			status = LinxDev->ServoOpen((unsigned char)length, commandPacketBuffer + offset);
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			//LinxDev->DebugPrintln("Done Creating Servos...");
 			break;
+
 		case 0x0141: // Servo Set Pulse Width
-		{
-			//Convert Big Endian Packet To Little Endian (uC)
-			unsigned char* valPtr = &commandPacketBuffer[7 + commandPacketBuffer[6]];		//Pointer To First Byte In Packet That Represents A Servo Value
-			unsigned short tempVals[commandPacketBuffer[6]];								//Temporary Array To Store Unsigned Shorts Built From Bytes
-
-			//LinxDev->DebugPrint("valPtr offset :  ");
-			//LinxDev->DebugPrintln(7+commandPacketBuffer[6]);
-
-
-			for (int i = 0; i < commandPacketBuffer[6]; i++)
+			if (length >= 1)
 			{
-				tempVals[i] = *(valPtr + (i * 2)) << 8  | *(valPtr + (i * 2) + 1);			//Create Unsigned Short From Bytes (Swap To Fix Endianess)
+				unsigned char numChans = commandPacketBuffer[offset];
+				// Convert Big Endian packet to platform endianess (uC)
+				// Temporary in place array pointer to store endianess corrected value
+				unsigned char *tempPtr = commandPacketBuffer + offset + 1 + numChans;
+				unsigned short *tempVals = (unsigned short *)tempPtr;
+
+				for (int i = 0; i < numChans; i++)
+				{
+					// Create unsigned short from big endian byte array
+					tempVals[i] = GetU16FromBuff(tempPtr, 2 * i);			
+				}
+
+				//TODO REMOVE DEBUG PRINT
+				LinxDev->DebugPrintln("::tempVals::");
+				for (int i = 0; i < numChans; i++)
+				{
+					LinxDev->DebugPrintln(tempVals[i], DEC);
+				}
+				status = LinxDev->ServoSetPulseWidth(numChans, commandPacketBuffer + offset + 1, tempVals);
 			}
-
-			//TODO REMOVE DEBUG PRINT
-			//LinxDev->DebugPrintln("::tempVals::");
-
-			for (int i = 0; i < commandPacketBuffer[6]; i++)
+			else
 			{
-				LinxDev->DebugPrintln(tempVals[i], DEC);
+				status = LERR_BADPARAM;
 			}
-
-			status = LinxDev->ServoSetPulseWidth(commandPacketBuffer[6], &commandPacketBuffer[7], tempVals);
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
-		}
+
 		case 0x0142: // Servo Close
-			status = LinxDev->ServoClose((commandPacketBuffer[1] - 7), &commandPacketBuffer[6]);
+			status = LinxDev->ServoClose((unsigned char)length, commandPacketBuffer + offset);
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 
@@ -700,15 +914,15 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, unsigned ch
 		** WS2812
 		****************************************************************************************/
 		case 0x0160: // WS2812 Open
-			status = LinxDev->Ws2812Open((commandPacketBuffer[6] << 8 | commandPacketBuffer[7]), commandPacketBuffer[8]);
+			status = LinxDev->Ws2812Open(GetU16FromBuff(commandPacketBuffer, offset), commandPacketBuffer[offset + 2]);
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 		case 0x0161: // WS2812 Write One Pixel
-			status = LinxDev->Ws2812WriteOnePixel((commandPacketBuffer[6] << 8 | commandPacketBuffer[7]), commandPacketBuffer[8], commandPacketBuffer[9], commandPacketBuffer[10], commandPacketBuffer[11]);
+			status = LinxDev->Ws2812WriteOnePixel(GetU16FromBuff(commandPacketBuffer, offset), commandPacketBuffer[offset + 2], commandPacketBuffer[offset + 3], commandPacketBuffer[offset + 4], commandPacketBuffer[offset + 5]);
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 		case 0x0162: // WS2812 Write N Pixels
-			status = LinxDev->Ws2812WriteNPixels((commandPacketBuffer[6] << 8 | commandPacketBuffer[7]), (commandPacketBuffer[8] << 8 | commandPacketBuffer[9]), &commandPacketBuffer[11], commandPacketBuffer[10]);
+			status = LinxDev->Ws2812WriteNPixels(GetU16FromBuff(commandPacketBuffer, offset), GetU16FromBuff(commandPacketBuffer, offset), commandPacketBuffer + offset + 5, commandPacketBuffer[offset + 4]);
 			StatusResponse(commandPacketBuffer, responsePacketBuffer, status);
 			break;
 		case 0x0163: // WS2812 Refresh
@@ -741,7 +955,7 @@ void LinxListener::PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned
 	responsePacketBuffer[2] = commandPacketBuffer[2];	//PACKET NUM (MSB)
 	responsePacketBuffer[3] = commandPacketBuffer[3];	//PACKET NUM (LSB)
 	//Make Sure Status Is Valid
-	if(status >= 0 && status <= 255)
+	if (status >= 0 && status <= 255)
 	{
 		responsePacketBuffer[4] = (unsigned char)status;	//Status
 	}
@@ -751,18 +965,17 @@ void LinxListener::PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned
 	}
 
 	//Compute And Load Checksum
-	responsePacketBuffer[dataSize+5] = ComputeChecksum(responsePacketBuffer);
+	responsePacketBuffer[dataSize + 5] = ComputeChecksum(responsePacketBuffer);
 }
 
 void LinxListener::DataBufferResponse(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, const unsigned char* dataBuffer, unsigned char dataSize, int status)
 {
 
 	//Copy Data Into Response Buffer
-	for(int i=0; i<dataSize; i++)
+	for (int i = 0; i < dataSize; i++)
 	{
-		responsePacketBuffer[i+5] = dataBuffer[i];
+		responsePacketBuffer[i + 5] = dataBuffer[i];
 	}
-
 	PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, dataSize, status);
 }
 
@@ -775,5 +988,3 @@ void LinxListener::AttachPeriodicTask(int (*function)(unsigned char*, unsigned c
 {
 	periodicTasks[0] = function;
 }
-
-#endif //LINXLISTENER_H

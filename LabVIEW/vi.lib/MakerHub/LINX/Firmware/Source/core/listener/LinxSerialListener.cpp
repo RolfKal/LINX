@@ -16,9 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utility/LinxDevice.h"
+#include "LinxDevice.h"
 
-#include "utility/LinxListener.h"
+#include "LinxListener.h"
 #include "LinxSerialListener.h"
 
 /****************************************************************************************

@@ -1,6 +1,6 @@
 CXX ?= g++
 
-INC=-I../core/device/utility -I../core/device/ -I../core/listener
+INC=-I../core/device/utility -I../core/device/ -I../core/listener -I../core/client
 
 CORE_LINX=../core/device/utility/LinxDevice.cpp
 CORE_LISTENER=../core/listener/utility/LinxListener.cpp

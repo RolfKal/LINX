@@ -12,8 +12,8 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
-#include "utility/LinxDevice.h"
-#include "utility/LinxListener.h"
+#include "LinxDevice.h"
+#include "LinxListener.h"
 #include "LinxLinuxTcpListener.h"
 
 #include <stdio.h>
@@ -34,6 +34,7 @@ LinxLinuxTcpListener::LinxLinuxTcpListener()
 	Interface = TCP;
 	TcpPort = 44300;
 	TcpTimeout.tv_sec = 10;		//Set Socket Time-out To Default Value
+	ListenerBufferSize = 256;
 }
 
 /****************************************************************************************
@@ -44,8 +45,8 @@ int LinxLinuxTcpListener::Start(LinxDevice* linxDev, unsigned short port)
 {
 	LinxDev = linxDev;
 
-	recBuffer = (unsigned char*) malloc(LinxDev->ListenerBufferSize);
-	sendBuffer = (unsigned char*) malloc(LinxDev->ListenerBufferSize);
+	recBuffer = (unsigned char*) malloc(ListenerBufferSize);
+	sendBuffer = (unsigned char*) malloc(ListenerBufferSize);
 
 	LinxDev->DebugPrintln("Starting Linux TCP Listener...");
 
@@ -110,7 +111,7 @@ int LinxLinuxTcpListener::Listen()
 	}
 	else
 	{
-		if ( setsockopt (ClientSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&TcpTimeout, sizeof(TcpTimeout)) < 0)
+		if (setsockopt (ClientSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&TcpTimeout, sizeof(TcpTimeout)) < 0)
 		{
 			LinxDev->DebugPrintln("Failed To Set Socket Receive Time-out\n");
 			return -1;

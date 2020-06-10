@@ -13,17 +13,20 @@
 **  Includes
 ****************************************************************************************/		
 #include <iostream>
-#include <unistd.h>
 #include <fstream>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <termios.h>	
 #include <map>
 #include <string.h>
+#ifndef _MSC_VER
 #include <dirent.h>
-
-#include "utility/LinxDevice.h"
-#include "utility/LinxLinuxDevice.h"
+#include <unistd.h>	
+#include <termios.h>
+#else
+#include <io.h>
+#endif
+#include "LinxDevice.h"
+#include "LinxLinuxDevice.h"
 #include "LinxBeagleBoneBlack.h"
 
 using namespace std;
@@ -32,51 +35,55 @@ using namespace std;
 **  Member Variables
 ****************************************************************************************/
 //System
-unsigned char LinxBeagleBoneBlack::m_DeviceName[DEVICE_NAME_LEN] = "BeagleBone Black";
+static const char *m_DeviceName = "BeagleBone Black";
 
 //AI
-const unsigned char LinxBeagleBoneBlack::m_AiChans[NUM_AI_CHANS] = {0, 1, 2, 3, 4, 5, 6};
-const string LinxBeagleBoneBlack::m_AiValuePaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:device0/in_voltage0_raw", "/sys/bus/iio/devices/iio:device0/in_voltage1_raw", "/sys/bus/iio/devices/iio:device0/in_voltage2_raw", "/sys/bus/iio/devices/iio:device0/in_voltage3_raw", "/sys/bus/iio/devices/iio:device0/in_voltage4_raw", "/sys/bus/iio/devices/iio:device0/in_voltage5_raw", "/sys/bus/iio/devices/iio:device0/in_voltage6_raw"};
-const unsigned long LinxBeagleBoneBlack::m_AiRefIntVals[NUM_AI_INT_REFS] = {};
-const int LinxBeagleBoneBlack::m_AiRefCodes[NUM_AI_INT_REFS] = {};
+static const unsigned char m_AiChans[NUM_AI_CHANS] = {0, 1, 2, 3, 4, 5, 6};
+static const string m_AiValuePaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:device0/in_voltage0_raw",
+													"/sys/bus/iio/devices/iio:device0/in_voltage1_raw",
+													"/sys/bus/iio/devices/iio:device0/in_voltage2_raw",
+													"/sys/bus/iio/devices/iio:device0/in_voltage3_raw",
+													"/sys/bus/iio/devices/iio:device0/in_voltage4_raw",
+													"/sys/bus/iio/devices/iio:device0/in_voltage5_raw",
+													"/sys/bus/iio/devices/iio:device0/in_voltage6_raw"};
+//static const unsigned int m_AiRefIntVals[NUM_AI_INT_REFS] = {};
+//static const int m_AiRefCodes[NUM_AI_INT_REFS] = {};
 
 //AO
 //None
 
 //DIGITAL
-const unsigned char LinxBeagleBoneBlack::m_DigitalChans[NUM_DIGITAL_CHANS] = { 7,  8,  9, 10, 11, 12, 15, 16, 17, 18, 26, 58, 61, 69,  73,  76};
-const unsigned char LinxBeagleBoneBlack::m_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61, 60, 48, 49, 115, 112};
+static const unsigned char m_DigitalChans[NUM_DIGITAL_CHANS] = { 7,  8,  9, 10, 11, 12, 15, 16, 17, 18, 26, 58, 61, 69,  73,  76};
+static const unsigned char m_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61, 60, 48, 49, 115, 112};
 
 //PWM - Default to 7.x Layout, Updated B
-unsigned char LinxBeagleBoneBlack::m_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
-//unsigned char LinxBeagleBoneBlack::m_PwmChips[NUM_PWM_CHANS] = {6, 5, 3, 4};
-//unsigned long m_PwmDefaultPeriod = 500000;
-//string LinxBeagleBoneBlack::m_PwmExportPaths = "/sys/class/pwm/export";
-//string LinxBeagleBoneBlack::m_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6/", "/sys/class/pwm/pwm5/", "/sys/class/pwm/pwm3/", "/sys/class/pwm/pwm4/"};
-//string LinxBeagleBoneBlack::m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
+static const unsigned char m_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
+static string m_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6/", "/sys/class/pwm/pwm5/", "/sys/class/pwm/pwm3/", "/sys/class/pwm/pwm4/"};
+static string m_EnableFileName;
+//static const string m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
 
 
 //QE
 //None
 
 //SPI
-unsigned char LinxBeagleBoneBlack::m_SpiChans[NUM_SPI_CHANS] = {0};
-string m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev1.1"};
-string m_SpiDtoNames[NUM_SPI_CHANS] = { "BB-SPIDEV0"};
-unsigned long LinxBeagleBoneBlack::m_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
-int LinxBeagleBoneBlack::m_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
+static const unsigned char m_SpiChans[NUM_SPI_CHANS] = {0};
+static string m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev1.1"};
+static const string m_SpiDtoNames[NUM_SPI_CHANS] = { "BB-SPIDEV0"};
+static const unsigned int m_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
+static const int m_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 
 //I2C
-unsigned char LinxBeagleBoneBlack::m_I2cChans[NUM_I2C_CHANS] = {2};
-string m_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1" };		//Out of order numbering is correct for BBB 7.x!!
-string m_I2cDtoNames[NUM_I2C_CHANS] = {"BB-I2C2"};
+static const unsigned char m_I2cChans[NUM_I2C_CHANS] = {2};
+static string m_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1" };		//Out of order numbering is correct for BBB 7.x!!
+static const string m_I2cDtoNames[NUM_I2C_CHANS] = {"BB-I2C2"};
 
 //UART
-unsigned char LinxBeagleBoneBlack::m_UartChans[NUM_UART_CHANS] = {0, 1, 4};
-string LinxBeagleBoneBlack::m_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
+unsigned char m_UartChans[NUM_UART_CHANS] = {0, 1, 4};
+string m_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
 string m_UartDtoNames[NUM_UART_CHANS] = {"BB-UART0", "BB-UART1", "BB-UART4"};
-unsigned long LinxBeagleBoneBlack::m_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
-unsigned long LinxBeagleBoneBlack::m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
+unsigned int m_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+unsigned int m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
 
 //SERVO
 //None
@@ -89,9 +96,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//LINX Device Information
 	DeviceFamily = 0x06;	//TI Family Code
 	DeviceId = 0x01;			//BeagleBone Black
-	DeviceNameLen = DEVICE_NAME_LEN;	 
-	DeviceName =  m_DeviceName;
- 
+
 	//LINX API Version
 	LinxApiMajor = 2;
 	LinxApiMinor = 2;
@@ -117,29 +122,21 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		FilePathLayout = 9;
 	}
 		
-	//DIGITAL
-	NumDigitalChans = NUM_DIGITAL_CHANS;			
-	DigitalChans = m_DigitalChans;
 		
 	//AI
-	NumAiChans = NUM_AI_CHANS;
-	
-	AiChans = m_AiChans;
 	AiResolution = AI_RES_BITS;
 	
 	AiRefDefault = AI_REFV;
 	AiRefSet = AI_REFV;
-	AiRefCodes = m_AiRefCodes;
+	AiRefCodes = NULL;
 	
 	NumAiRefIntVals = NUM_AI_INT_REFS;
-	AiRefIntVals = m_AiRefIntVals;
+	AiRefIntVals = NULL;
 	
 	AiRefExtMin = 0;
 	AiRefExtMax = 0;
 	
 	//AO
-	NumAoChans = 0;
-	AoChans = 0;
 	AoResolution = 0;
     AoRefDefault = 0;
 	AoRefSet = 0;
@@ -147,7 +144,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//PWM
 	//Shared Non Varying Components
 	
-	unsigned long m_PwmDefaultPeriod = 500000;	
+	unsigned int m_PwmDefaultPeriod = 500000;	
 	string m_PolarityFileName = "polarity";
 	
 	//7.x Only
@@ -162,14 +159,13 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//Shared, Varying Components - Default To 7.x
 	string m_PwmExportPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export"};
 	unsigned char m_PwmExportVal[NUM_PWM_CHANS] = {6, 5, 3, 4};
-	string m_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6/", "/sys/class/pwm/pwm5/", "/sys/class/pwm/pwm3/", "/sys/class/pwm/pwm4/"};
 	string m_DutyCycleFileName = "duty_ns";
 	string m_PeriodFileName = "period_ns";
 	m_EnableFileName = "run";
 
 
 	//Update to 8.x layout if necessary
-	if(FilePathLayout >= 8)
+	if (FilePathLayout >= 8)
 	{
 		string pwmBasePath = "/sys/class/pwm/";
 		
@@ -181,17 +177,18 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		dirent* dp;
 
 		//Loop Over All Dirs In PWM Base Dir
-		while(pwmDirHandle)
+		while (pwmDirHandle)
 		{
 			if ((dp = readdir(pwmDirHandle)) != NULL)
 			{
 				//Make Sure Dir Is Not . or ..
-				if((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
+				if ((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
 				{
 					//PWM Chip Dir, Check Where Symlink Points
 					char pwmChipSymlink[256];
 					char pwmChipSymlinkTarget[256];
 					bool isPwmChanLink = (strchr(dp->d_name, ':') != NULL);
+
 					// Debian 9/stretch has direct links to PWM chans (e.g. "pwm7:0"); the chip dir does not have pwm0/pwm1 subdirs
 					if (isPwmChanLink)
 						sawPwmChanLinks = true;
@@ -208,29 +205,35 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 						unsigned int val = 0;
 						sscanf(token, "%u", &val);
 						//printf("%u\n", val);
-						if(val == 48304200)
+						if (val == 48304200)
 						{
-							if (isPwmChanLink) {
+							if (isPwmChanLink)
+							{
 								string pwmLink = pwmChipSymlink;
 								pwmLink += "/";
 					 			if (strchr(dp->d_name, '1') != NULL)
 									m_PwmDirPaths[0] = pwmLink;
 								else
 									m_PwmDirPaths[1] = pwmLink;
-							} else {
+							}
+							else
+							{
 								PwmP8ChipDir = pwmChipSymlink;
 							}
 						}
-						else if(val == 48302200)
+						else if (val == 48302200)
 						{
-							if (isPwmChanLink) {
+							if (isPwmChanLink)
+							{
 								string pwmLink = pwmChipSymlink;
 								pwmLink += "/";
 					 			if (strchr(dp->d_name, '0') != NULL)
 									m_PwmDirPaths[2] = pwmLink;
 								else
 									m_PwmDirPaths[3] = pwmLink;
-							} else {
+							}
+							else
+							{
 								PwmP9ChipDir = pwmChipSymlink;
 							}
 						}
@@ -251,7 +254,8 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		m_PwmExportVal[2] = 0;
 		m_PwmExportVal[3] = 1;
 		
-		if (!sawPwmChanLinks) {
+		if (!sawPwmChanLinks)
+		{
 			m_PwmDirPaths[0] = PwmP8ChipDir + "/pwm1/";
 			m_PwmDirPaths[1] = PwmP8ChipDir + "/pwm0/";
 			m_PwmDirPaths[2] = PwmP9ChipDir + "/pwm0/";
@@ -280,39 +284,26 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	PwmPeriodFileName = m_PeriodFileName;
 	PwmEnableFileName = m_EnableFileName;
 		
-	NumPwmChans = NUM_PWM_CHANS;
-	PwmChans = m_PwmChans;
 	PwmDefaultPeriod = m_PwmDefaultPeriod;
 		
 	//QE
-	NumQeChans = 0;
-	QeChans = 0;
 		
 	//UART
-	NumUartChans = NUM_UART_CHANS;
-	UartChans = m_UartChans;	
 	UartMaxBaud = m_UartSupportedSpeeds[NUM_UART_SPEEDS - 1];
 	NumUartSpeeds = NUM_UART_SPEEDS;
 	UartSupportedSpeeds = m_UartSupportedSpeeds;
 	UartSupportedSpeedsCodes = m_UartSupportedSpeedsCodes;
 
 	//I2C
-	NumI2cChans = NUM_I2C_CHANS;	
-	I2cChans = m_I2cChans;
 		
 	//SPI
-	NumSpiChans = NUM_SPI_CHANS;	
-	SpiChans = m_SpiChans;		
 	NumSpiSpeeds = NUM_SPI_SPEEDS;
 	SpiSupportedSpeeds = m_SpiSupportedSpeeds;
 	SpiSpeedCodes = m_SpiSpeedCodes;
 		
 	//CAN
-	NumCanChans = 0;
-	CanChans = 0;
 	
 	//SERVO
-	NumServoChans = 0;
 	
 	//------------------------------------- ANALOG -------------------------------------
 	//Export Dev Tree Overlay For AI If It DNE And Open AI Handles
@@ -337,12 +328,12 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	if (dtoLoaded)
 	{
 		//Open AI Handles		
-		for(int i=0; i<NUM_AI_CHANS; i++)
+		for (int i = 0; i < NUM_AI_CHANS; i++)
 		{
 			AiValuePaths[m_AiChans[i]] = m_AiValuePaths[i];
 			AiValueHandles[m_AiChans[i]] = fopen(m_AiValuePaths[i].c_str(), "r+");
 			
-			if(AiValueHandles[m_AiChans[i]] <= 0)
+			if (AiValueHandles[m_AiChans[i]] <= 0)
 			{
 				DebugPrintln("AI Fail - Failed Open AI Channel Handle");
 			}			
@@ -351,7 +342,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	
 	//------------------------------------- DIGITAL -------------------------------------
 	//Export GPIO - Set All Digital Handles To NULL
-	for(int i=0; i<NUM_DIGITAL_CHANS; i++)
+	for (int i = 0; i < NUM_DIGITAL_CHANS; i++)
 	{
 		char gpioPath[64];
 		sprintf(gpioPath, "/sys/class/gpio/gpio%d", m_gpioChan[i]);
@@ -371,10 +362,10 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//------------------------------------- PWM -------------------------------------
 	
 	//PWM General Initialization
-	if(FilePathLayout == 7)
+	if (FilePathLayout == 7)
 	{
 		//Load AM33xx_PWM DTO If No PWM Channels Have Been Exported Since Boot
-		if(!fileExists(m_PwmDirPaths[NUM_PWM_CHANS-1].c_str(), m_PeriodFileName.c_str()))
+		if (!fileExists(m_PwmDirPaths[NUM_PWM_CHANS - 1].c_str(), m_PeriodFileName.c_str()))
 		{
 			if(!loadDto("am33xx_pwm"))
 			{
@@ -390,13 +381,13 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			*/
 		}
 	}
-	else if(FilePathLayout >= 8)
+	else if (FilePathLayout >= 8)
 	{
 		//Set Mux to PWM
-		for(int i=0; i<NUM_PWM_CHANS; i++)
+		for (int i = 0; i < NUM_PWM_CHANS; i++)
 		{
 			FILE* pwmMuxHandle = fopen(m_PwmMuxPaths[i].c_str(), "r+w+");
-			if(pwmMuxHandle != NULL)
+			if (pwmMuxHandle != NULL)
 			{
 				fprintf(pwmMuxHandle, "pwm");
 				fclose(pwmMuxHandle);							
@@ -405,17 +396,17 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	}
 	
 	//Per Pin Initialization
-	for(int i=0; i<NUM_PWM_CHANS; i++)
+	for (int i = 0; i < NUM_PWM_CHANS; i++)
 	{
 		//Store Default Values
 		PwmDirPaths[m_PwmChans[i]] = m_PwmDirPaths[i];
 		PwmPeriods[m_PwmChans[i]] = m_PwmDefaultPeriod;
 		
 		//Export PWM Channels - This Must Happend Before 7.x Loads Channel Specific DTOs
-		if(!fileExists(m_PwmDirPaths[i].c_str(), m_PeriodFileName.c_str()))
+		if (!fileExists(m_PwmDirPaths[i].c_str(), m_PeriodFileName.c_str()))
 		{
 			FILE* pwmExportHandle = fopen(m_PwmExportPaths[i].c_str(), "w");
-			if(pwmExportHandle != NULL)
+			if (pwmExportHandle != NULL)
 			{
 				fprintf(pwmExportHandle, "%u", m_PwmExportVal[i]);
 				fclose(pwmExportHandle);
@@ -430,7 +421,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			sprintf(periodPath, "%s%s", m_PwmDirPaths[i].c_str(), m_PeriodFileName.c_str());
 			
 			FILE* pwmPeriodleHandle = fopen(periodPath, "r+w+");
-			if(pwmPeriodleHandle != NULL)
+			if (pwmPeriodleHandle != NULL)
 			{
 				fprintf(pwmPeriodleHandle, "%lu", m_PwmDefaultPeriod);
 				fclose(pwmPeriodleHandle);							
@@ -442,24 +433,24 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		}
 		
 		//7.x Per Pin Init
-		if(FilePathLayout == 7)
+		if (FilePathLayout == 7)
 		{	
 			//Load Chip Specific PWM DTO If Not Already Loaded
-			if(!loadDto(m_PwmDtoNames[i].c_str()))
+			if (!loadDto(m_PwmDtoNames[i].c_str()))
 			{
 				DebugPrint("PWM Fail - Failed To Load PWM DTO ");
 				DebugPrintln(m_PwmDtoNames[i].c_str());
 			}
 			
 			//Make Sure DTO Has Time To Load Before Opening Handles
-			else if(!fileExists(m_PwmDirPaths[i].c_str(), "period_ns", 3000))
+			else if (!fileExists(m_PwmDirPaths[i].c_str(), "period_ns", 3000))
 			{
 				DebugPrint("PWM Fail - PWM DTO Did Not Load Correctly: ");				
 				DebugPrintln(m_PwmDirPaths[i].c_str());				
 			}		
 		}
 		//Export PWM Chans.  If 7.x layout this is done above.  This should probably be moved.
-		if(FilePathLayout >= 8)
+		if (FilePathLayout >= 8)
 		{
 			//Nothing 8.x Specific For Now
 		}
@@ -469,7 +460,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		sprintf(polarityPath, "%s%s", PwmDirPaths[m_PwmChans[i]].c_str(), m_PolarityFileName.c_str());
 		
 		FILE* pwmPolarityHandle = fopen(polarityPath, "w");
-		if(pwmPolarityHandle != NULL)
+		if (pwmPolarityHandle != NULL)
 		{
 			fprintf(pwmPolarityHandle, "0");
 			fclose(pwmPolarityHandle);
@@ -484,7 +475,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		sprintf(dutyCyclePath, "%s%s", PwmDirPaths[m_PwmChans[i]].c_str(), m_DutyCycleFileName.c_str());			
 		
 		FILE* pwmDutyCycleHandle = fopen(dutyCyclePath, "r+w+");
-		if(pwmDutyCycleHandle != NULL)
+		if (pwmDutyCycleHandle != NULL)
 		{
 			fprintf(pwmDutyCycleHandle, "0");
 			fclose(pwmDutyCycleHandle);
@@ -498,7 +489,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		char enablePath[64];
 		sprintf(enablePath, "%s%s", PwmDirPaths[m_PwmChans[i]].c_str(), m_EnableFileName.c_str());			
 		FILE* pwmEnableHandle = fopen(enablePath, "r+w+");
-		if(pwmEnableHandle != NULL)
+		if (pwmEnableHandle != NULL)
 		{
 			fprintf(pwmEnableHandle, "1");
 			fclose(pwmEnableHandle);		
@@ -511,20 +502,20 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	
 	//------------------------------------- I2C -------------------------------------
 	//Store I2C Master Paths In Map
-	for (int i=0; i<NUM_I2C_CHANS; i++)
+	for (int i = 0; i < NUM_I2C_CHANS; i++)
 	{	
-		I2cPaths[I2cChans[i]] = m_I2cPaths[i];
-		I2cDtoNames[I2cChans[i]] = m_I2cDtoNames[i];
+		I2cPaths[m_I2cChans[i]] = m_I2cPaths[i];
+		I2cDtoNames[m_I2cChans[i]] = m_I2cDtoNames[i];
 	}
 	
 	//------------------------------------- UART ------------------------------------
 	if (FilePathLayout >= 8)
 	{
 		//Set Mux to UART
-		for(int i=0; i<4; i++)
+		for (int i = 0; i < 4; i++)
 		{
 			FILE* uartMuxHandle = fopen(m_UartMuxPaths[i].c_str(), "r+w+");
-			if(uartMuxHandle != NULL)
+			if (uartMuxHandle != NULL)
 			{
 				fprintf(uartMuxHandle, "uart");
 				fclose(uartMuxHandle);							
@@ -568,11 +559,11 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	SpiDefaultSpeed = 3900000;
 	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
-		SpiDtoNames[SpiChans[i]] = m_SpiDtoNames[i];
+		SpiDtoNames[m_SpiChans[i]] = m_SpiDtoNames[i];
 				
-		SpiBitOrders[SpiChans[i]] = MSBFIRST;		//MSB First
-		SpiSetSpeeds[SpiChans[i]] = SpiDefaultSpeed;
-		SpiPaths[SpiChans[i]] = m_SpiPaths[i];
+		SpiBitOrders[m_SpiChans[i]] = MSBFIRST;		//MSB First
+		SpiSetSpeeds[m_SpiChans[i]] = SpiDefaultSpeed;
+		SpiPaths[m_SpiChans[i]] = m_SpiPaths[i];
 	}
 	
 	//If Debugging Is Enabled Call EnableDebug()
@@ -585,44 +576,44 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 {	
 	//Close AI Handles
-	for(int i=0; i<NUM_AI_CHANS; i++)
+	for (int i = 0; i < NUM_AI_CHANS; i++)
 	{
-		if(AiValueHandles[m_AiChans[i]] != 0)
+		if (AiValueHandles[m_AiChans[i]] != 0)
 		{
 			fclose(AiValueHandles[m_AiChans[i]]);
 		}
 	}
 	
 	//Close GPIO Handles If Open
-	for(int i=0; i<NUM_DIGITAL_CHANS; i++)
+	for (int i = 0; i < NUM_DIGITAL_CHANS; i++)
 	{
-		if(DigitalDirHandles[m_DigitalChans[i]] != NULL)
+		if (DigitalDirHandles[m_DigitalChans[i]] != NULL)
 		{			
 			fclose(DigitalDirHandles[m_DigitalChans[i]]);
 		}
-		if(DigitalValueHandles[m_DigitalChans[i]] != NULL)
+		if (DigitalValueHandles[m_DigitalChans[i]] != NULL)
 		{			
 			fclose(DigitalValueHandles[m_DigitalChans[i]]);
 		}
 	}
 	
 	//Close I2C Handles If Open
-	for(int i=0; i<NUM_I2C_CHANS; i++)
+	for (int i = 0; i<NUM_I2C_CHANS; i++)
 	{
-		if(I2cHandles[m_I2cChans[i]] != 0)
+		if (I2cHandles[m_I2cChans[i]] != 0)
 		{	
 			close(I2cHandles[m_I2cChans[i]]);
 		}
 	}
 	
 	//Close PWM Handles If Open
-	for(int i=0; i<NUM_PWM_CHANS; i++)
+	for (int i = 0; i < NUM_PWM_CHANS; i++)
 	{
-		if(PwmPeriodHandles[m_PwmChans[i]] != NULL)
+		if (PwmPeriodHandles[m_PwmChans[i]] != NULL)
 		{
 			fclose(PwmPeriodHandles[m_PwmChans[i]]);
 		}
-		if(PwmDutyCycleHandles[m_PwmChans[i]] != NULL)
+		if (PwmDutyCycleHandles[m_PwmChans[i]] != NULL)
 		{
 			fprintf(PwmDutyCycleHandles[m_PwmChans[i]], "0");
 			fclose(PwmDutyCycleHandles[m_PwmChans[i]]);
@@ -632,7 +623,7 @@ LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 		char enablePath[64];
 		sprintf(enablePath, "%s%s", m_PwmDirPaths[i].c_str(), m_EnableFileName.c_str());
 		FILE* pwmEnableHandle = fopen(enablePath, "r+w+");
-		if(pwmEnableHandle != NULL)
+		if (pwmEnableHandle != NULL)
 		{
 			fprintf(pwmEnableHandle, "0");
 			fclose(pwmEnableHandle);
@@ -645,7 +636,7 @@ LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 	
 	
 	//Close SPI Handles If Open
-	for(int i=0; i<NUM_SPI_CHANS; i++)
+	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
 		if(SpiHandles[m_SpiChans[i]] != 0)
 		{	
@@ -654,9 +645,9 @@ LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 	}
 	
 	//Close UART Handles If Open
-	for(int i=0; i<NUM_UART_CHANS; i++)
+	for (int i = 0; i < NUM_UART_CHANS; i++)
 	{
-		if(UartHandles[m_UartChans[i]] != 0)
+		if (UartHandles[m_UartChans[i]] != 0)
 		{	
 			close(UartHandles[m_UartChans[i]]);
 		}
@@ -691,6 +682,12 @@ bool LinxBeagleBoneBlack::loadDto(const char* dtoName)
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
+unsigned char LinxBeagleBoneBlack::GetDeviceName(unsigned char* buffer, unsigned char length)
+{
+	if (buffer)
+		strncpy((char*)buffer, m_DeviceName, length); 
+	return (unsigned char)strlen(m_DeviceName);
+}
 
 //--------------------------------------------------------ANALOG-------------------------------------------------------
 int LinxBeagleBoneBlack::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
@@ -759,8 +756,8 @@ int LinxBeagleBoneBlack::AnalogReadNoPacking(unsigned char numChans, unsigned ch
 //--------------------------------------------------------PWM-------------------------------------------------------
 int LinxBeagleBoneBlack::PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	//unsigned long period = 500000;		//Period Defaults To 500,000 nS. To Do Update This When Support For Changing Period / Frequency Is Added
-	unsigned long dutyCycle = 0;
+	//unsigned int period = 500000;		//Period Defaults To 500,000 nS. To Do Update This When Support For Changing Period / Frequency Is Added
+	unsigned int dutyCycle = 0;
 
 	//Smart Open PWM Channels
 	pwmSmartOpen(numChans, channels);
@@ -777,7 +774,7 @@ int LinxBeagleBoneBlack::PwmSetDutyCycle(unsigned char numChans, unsigned char* 
 		}
 		else
 		{
-			dutyCycle = PwmPeriods[channels[i]]*(values[i] / 255.0);
+			dutyCycle = (unsigned int)(PwmPeriods[channels[i]] * (values[i] / 255.0));
 		}
 
 		//Update Output
@@ -829,7 +826,7 @@ int LinxBeagleBoneBlack::I2cOpenMaster(unsigned char channel)
 
 
 //--------------------------------------------------------UART-------------------------------------------------------
-int LinxBeagleBoneBlack::UartOpen(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud)
+int LinxBeagleBoneBlack::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud)
 {
 	DebugPrintln("UART Open");
 

@@ -20,8 +20,8 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
-#include "utility/LinxListener.h"
-#include "utility/LinxDevice.h"
+#include "LinxListener.h"
+#include "LinxDevice.h"
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -39,7 +39,7 @@ class LinxLinuxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		unsigned long TcpUpdateTime;
+		unsigned int TcpUpdateTime;
 		struct timeval TcpTimeout;
 
 		unsigned short TcpPort;

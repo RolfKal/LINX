@@ -53,14 +53,6 @@ class LinxListener
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		LinxDevice* LinxDev;
-		LinxListenerState State;
-		LinxListenerInterface Interface;
-		unsigned char ListenerChan;
-		
-		unsigned char* recBuffer;
-		unsigned char* sendBuffer;
-		
 		int (*customCommands[16])(unsigned char, unsigned char*, unsigned char*, unsigned char*);
 		int (*periodicTasks[1])(unsigned char*, unsigned char*);
 		
@@ -91,7 +83,19 @@ class LinxListener
 		void StatusResponse(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, int status);
 		void DataBufferResponse(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, const unsigned char* dataBuffer, unsigned char dataSize, int status);
 		unsigned char ComputeChecksum(unsigned char* packetBuffer);
-		bool ChecksumPassed(unsigned char* packetBuffer);		
+		bool ChecksumPassed(unsigned char* packetBuffer);
+
+	protected:
+		LinxDevice* LinxDev;
+		LinxListenerState State;
+		LinxListenerInterface Interface;
+		unsigned char ListenerChan;
+
+		unsigned int ListenerBufferSize;
+		unsigned char* recBuffer;
+		unsigned char* sendBuffer;
+
+	private:
 };
 
 #endif //LINX_LISTENER_H

@@ -25,13 +25,17 @@
 #include <math.h>
 #include <errno.h>
 #include <iostream>
-#include <unistd.h>
 #include <fstream>
 #include <sys/stat.h>
+#ifndef _MSC_VER
 #include <sys/ioctl.h>
-#include <termios.h>
+#include <unistd.h>
+#include <asm/termios.h>
 #include <linux/i2c-dev.h>
 #include <linux/spi/spidev.h>
+#else
+#include <io.h>
+#endif
 
 using namespace std;
 
@@ -48,8 +52,9 @@ LinxLinuxDevice::~LinxLinuxDevice()
 {
 
 }
+
 /****************************************************************************************
-**  Public Functions
+**  Protected Functions
 ****************************************************************************************/
 int LinxLinuxDevice::DigitalWrite(unsigned char channel, unsigned char value)
 {
@@ -59,6 +64,147 @@ int LinxLinuxDevice::DigitalWrite(unsigned char channel, unsigned char value)
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
+unsigned char LinxLinuxDevice::GetAiChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AiValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+
+unsigned char LinxLinuxDevice::GetAoChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AoValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+
+unsigned char LinxLinuxDevice::GetDioChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = DigitalValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+unsigned char LinxLinuxDevice::GetQeChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AoValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+unsigned char LinxLinuxDevice::GetPwmChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AoValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+unsigned char LinxLinuxDevice::GetSpiChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AoValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+unsigned char LinxLinuxDevice::GetI2cChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AoValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+unsigned char LinxLinuxDevice::GetUartChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AoValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+unsigned char LinxLinuxDevice::GetCanChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AoValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
+
+unsigned char LinxLinuxDevice::GetServoChans(unsigned char *buffer, unsigned char length)
+{
+	map<unsigned char, FILE*> m = AoValueHandles;
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
+}
 
 //------------------------------------- Analog -------------------------------------
 int LinxLinuxDevice::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
@@ -66,7 +212,7 @@ int LinxLinuxDevice::AnalogRead(unsigned char numChans, unsigned char* channels,
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxLinuxDevice::AnalogSetRef(unsigned char mode, unsigned long voltage)
+int LinxLinuxDevice::AnalogSetRef(unsigned char mode, unsigned int voltage)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
@@ -104,8 +250,8 @@ int LinxLinuxDevice::DigitalSetDirection(unsigned char numChans, unsigned char* 
 int LinxLinuxDevice::DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Output Direction Array
-	int numDirBytes = ((numChans + 7) / 8);
-	unsigned char directions[numDirBytes];
+	int numDirBytes = ((numChans + 7) >> 3);
+	unsigned char *directions = (unsigned char *)alloca(numDirBytes);
 	for (int i = 0; i < numDirBytes; i++)
 	{
 		directions[i] = 0xFF;
@@ -136,8 +282,8 @@ int LinxLinuxDevice::DigitalWrite(unsigned char numChans, unsigned char* channel
 int LinxLinuxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Output Direction Array
-	int numDirBytes = ((numChans + 7) / 8);
-	unsigned char directions[numDirBytes];
+	int numDirBytes = ((numChans + 7) >> 3);
+	unsigned char *directions = (unsigned char *)alloca(numDirBytes);
 	for (int i = 0; i < numDirBytes; i++)
 	{
 		directions[i] = 0xFF;
@@ -168,8 +314,8 @@ int LinxLinuxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char
 int LinxLinuxDevice::DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Input Direction Array
-	int numDirBytes = ((numChans + 7) / 8);
-	unsigned char directions[numDirBytes];
+	int numDirBytes = ((numChans + 7) >> 3);
+	unsigned char *directions = (unsigned char *)alloca(numDirBytes);
 	for (int i = 0; i < numDirBytes; i++)
 	{
 		directions[i] = 0x00;
@@ -224,8 +370,8 @@ int LinxLinuxDevice::DigitalRead(unsigned char numChans, unsigned char* channels
 int LinxLinuxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	//Generate Bit Packed Input Direction Array
-	int numDirBytes = ((numChans + 7) / 8);
-	unsigned char directions[numDirBytes];
+	int numDirBytes = ((numChans + 7) >> 3);
+	unsigned char *directions = (unsigned char *)alloca(numDirBytes);
 	for (int i = 0; i < numDirBytes; i++)
 	{
 		directions[i] = 0x00;
@@ -251,12 +397,12 @@ int LinxLinuxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char*
 	return L_OK;
 }
 
-int LinxLinuxDevice::DigitalWriteSquareWave(unsigned char channel, unsigned long freq, unsigned long duration)
+int LinxLinuxDevice::DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxLinuxDevice::DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned long timeout, unsigned long* width)
+int LinxLinuxDevice::DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
@@ -338,7 +484,7 @@ int LinxLinuxDevice::SpiSetMode(unsigned char channel, unsigned char mode)
 	return L_OK;
 }
 
-int LinxLinuxDevice::SpiSetSpeed(unsigned char channel, unsigned long speed, unsigned long* actualSpeed)
+int LinxLinuxDevice::SpiSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed)
 {
 	if (NumSpiSpeeds)
 	{
@@ -381,7 +527,7 @@ int LinxLinuxDevice::SpiWriteRead(unsigned char channel, unsigned char frameSize
 		}
 	}
 
-	struct spi_ioc_transfer transfer = {};
+	struct spi_ioc_transfer transfer = {0};
 
 	//Set CS As Output And Make Sure CS Starts Idle
 	if (csChan)
@@ -390,8 +536,8 @@ int LinxLinuxDevice::SpiWriteRead(unsigned char channel, unsigned char frameSize
 	for (int i = 0; i < numFrames; i++)
 	{
 		//Setup Transfer
-		transfer.tx_buf = (unsigned long)(sendBuffer+nextByte);
-		transfer.rx_buf = (unsigned long)(recBuffer+nextByte);
+		transfer.tx_buf = (sendBuffer + nextByte);
+		transfer.rx_buf = (recBuffer + nextByte);
 		transfer.len = frameSize;
 		transfer.delay_usecs = 0;
 		transfer.speed_hz = SpiSetSpeeds[channel];
@@ -450,7 +596,7 @@ int LinxLinuxDevice::I2cOpenMaster(unsigned char channel)
 	return L_OK;
 }
 
-int LinxLinuxDevice::I2cSetSpeed(unsigned char channel, unsigned long speed, unsigned long* actualSpeed)
+int LinxLinuxDevice::I2cSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
@@ -524,67 +670,167 @@ int LinxLinuxDevice::I2cClose(unsigned char channel)
 
 
 //------------------------------------- UART -------------------------------------
-int LinxLinuxDevice::UartOpen(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud)
+int LinxLinuxDevice::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud)
 {
-	//Open UART	Handle If Not Already Open
-	if (UartHandles[channel] < 0)
-	{
-		int handle = open(UartPaths[channel].c_str(),  O_RDWR);
+	return UartOpen(channel, baudRate, actualBaud, 8, 1, None);
+}
 
-		if (handle < 0)
+int LinxLinuxDevice::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
+{
+	int fd = UartHandles[channel];
+	bool init = false;
+
+	//Open UART	Handle If Not Already Open
+	if (fd < 0)
+	{
+		fd = open(UartPaths[channel].c_str(),  O_RDWR);
+		if (fd < 0)
 		{
-			DebugPrint("UART Fail - Failed To Open UART Handle -  ");
+			DebugPrint("UART Fail - Failed To Open UART Handle - ");
 			DebugPrintln(UartPaths[channel].c_str());
 			return  LUART_OPEN_FAIL;
 		}
 		else
 		{
-			UartHandles[channel] = handle;
+			UartHandles[channel] = fd;
+			init = true;
 		}
 	}
-
-	if (UartSetBaudRate(channel, baudRate, actualBaud) != L_OK)
+	int status = UartSetBaudRate(fd, baudRate, actualBaud, init);
+	if (status != L_OK)
 	{
 		DebugPrintln("Failed to set baud rate");
 	}
-	return L_OK;
-}
-
-int LinxLinuxDevice::UartSetBaudRate(unsigned char channel, unsigned long baudRate, unsigned long* actualBaud)
-{
-	//Get Closest Support Baud Rate Without Going Over
-	//Loop Over All Supported Uart Speeds
-	int index;
-	for (index = 0; index < NumUartSpeeds; index++)
+	else
 	{
-		if (baudRate < *(UartSupportedSpeeds + index))
+		status = UartSetBitSize(fd, dataBits, stopBits);
+		if (status != L_OK)
 		{
-			//Previous Index Was Closest Supported Baud Without Going Over, Index Will Be Decremented Accordingly Below.
-			break;
+			DebugPrintln("Failed to set databits and stop bits");
+		}
+		else
+		{
+			status = UartSetParity(fd, parity);
+			if (status != L_OK)
+			{
+				DebugPrintln("Failed to set parity");
+			}
 		}
 	}
+	return status;
+}
 
-	//Once Loop Completes Index Is One Higher Than The Correct Baud, But Could Be Zero So Check And Decrement Accordingly
-	//If The Entire Loop Runs Then index == NumUartSpeeds So Decrement It To Get Max Baud
-	if (index != 0)
-		index--;
+int LinxLinuxDevice::UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud)
+{
+	return UartSetBaudRate(UartHandles[channel], baudRate, actualBaud, false);
+}
 
-	//Store Actual Baud Used
-	*actualBaud = (unsigned long) *(UartSupportedSpeeds + index);
+int LinxLinuxDevice::UartSetBaudRate(int fd, unsigned int baudRate, unsigned int* actualBaud, bool init)
+{
+	int temp;
+	struct termios2 options;
+	int ioctrlval = TCSETS2;
+	if (ioctrl(fd, TCGETS2 &options) < 0)
+	{
+		if (ioctrl(fd, TCGETS &options) < 0)
+			return LERR_IO;
+
+		//Get Closest Support Baud Rate Without Going Over
+		//Loop Over All Supported Uart Speeds
+		for (temp = 0; temp < NumUartSpeeds; temp++)
+		{
+			if (baudRate < *(UartSupportedSpeeds + temp))
+			{
+				//Previous Index Was Closest Supported Baud Without Going Over, Index Will Be Decremented Accordingly Below.
+				break;
+			}
+		}
+		//Once Loop Completes Index Is One Higher Than The Correct Baud, But Could Be Zero So Check And Decrement Accordingly
+		//If The Entire Loop Runs Then index == NumUartSpeeds So Decrement It To Get Max Baud
+		if (temp != 0)
+			temp--;
+
+		//Store Actual Baud Used
+		*actualBaud = (unsigned int) *(UartSupportedSpeeds + temp);
+		temp = (options.c_cflag & ~(CBAUD | CIBAUD)) | UartSupportedSpeedsCodes[temp] | UartSupportedSpeedsCodes[temp] << IBSHIFT;
+		ioctrlval = TCSETS;
+	}
+	else
+	{
+		*actualBaud = baudRate;
+		options.c_ispeed = baudRate;
+		options.c_ospeed = baudRate;
+		temp = ((options.c_cflag & ~(CBAUD | CIBAUD)) | BOTHER | BOTHER << IBSHIFT);
+	}
 
 	//Set Baud Rate
-	struct termios options;
-	tcgetattr(UartHandles[channel], &options);
-
-	options.c_cflag = *(UartSupportedSpeedsCodes + index) | CS8 | CLOCAL | CREAD;
-	options.c_iflag = IGNPAR;
-	options.c_oflag = 0;
-	options.c_lflag = 0;
-
-	tcflush(UartHandles[channel], TCIFLUSH);
-	tcsetattr(UartHandles[channel], TCSANOW, &options);
+	options.c_cflag = temp;
+	if (init)
+	{
+		options.c_iflag = IGNPAR; // Ignore parity errors
+		options.c_oflag = 0;
+		options.c_lflag = 0;
+	}
+	else
+	{
+		options.c_iflag |= IGNPAR; // Ignore parity errors
+	}
+	ioctrl(fd, TCFLSH, TCIFLUSH);
+	if (ioctrl(fd, ioctrlval, &options) < 0)
+		return LERR_IO;
 
 	return  L_OK;
+}
+
+#define BIT_SIZE_OFFSET	5
+#define NUM_BIT_SIZES	4
+
+static const int BitSizes[NUM_BIT_SIZES] = {CS5, CS6, CS7, CS8};
+
+int LinxLinuxDevice::UartSetBitSize(int fd, unsigned char dataBits, unsigned char stopBits)
+{
+	if (dataBits > 0 && (dataBits < BIT_SIZE_OFFSET || dataBits >= BIT_SIZE_OFFSET + NUM_BIT_SIZES))
+		return LERR_BADPARAM;
+
+	if (stopBits > 2)
+		return LERR_BADPARAM;
+
+	if (!dataBits && !stopBits)
+		return L_OK;
+
+	struct termios options;
+	if (ioctrl(fd, TCGETS &options) >= 0)
+	{
+		if (dataBits)
+			options.c_cflag = (options.c_cflag & ~CSIZE) | BitSizes[dataBits - BIT_SIZE_OFFSET];
+		if (stopBits)
+			options.c_cflag &= ~CSTOPB;
+		if (stopBits == 2)
+			options.c_cflag |= CSTOPB;
+
+		if (ioctrl(fd, TCSETS, &options) >= 0)
+			return  L_OK;
+	}
+	return LERR_IO;
+}
+
+#define NUM_PARITY_SIZES	3
+
+static const int Parity[NUM_PARITY_SIZES] = {0, PARENB, PARENB | PARODD};
+
+int LinxLinuxDevice::UartSetParity(int fd, unsigned char parity)
+{
+	if (parity <= NUM_PARITY_SIZES)
+		return LERR_BADPARAM;
+
+	struct termios options;
+	if (ioctrl(fd, TCGETS &options) >= 0)
+	{
+		options.c_cflag = (options.c_cflag & ~(PARENB | PARODD) | Parity[parity];
+		if (ioctrl(fd, TCSETS, &options) >= 0)
+			return  L_OK;
+	}
+	return LERR_IO;
 }
 
 int LinxLinuxDevice::UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes)
@@ -664,7 +910,7 @@ int LinxLinuxDevice::ServoClose(unsigned char numChans, unsigned char* channels)
 
 
 //------------------------------------- General -------------------------------------
-unsigned long LinxLinuxDevice::GetMilliSeconds()
+unsigned int LinxLinuxDevice::GetMilliSeconds()
 {
 	timespec mTime;
 	clock_gettime(CLOCK_MONOTONIC, &mTime);
@@ -672,14 +918,14 @@ unsigned long LinxLinuxDevice::GetMilliSeconds()
 	return ( ((unsigned long) mTime.tv_sec * 1000) + mTime.tv_nsec / 1000000);
 }
 
-unsigned long LinxLinuxDevice::GetSeconds()
+unsigned int LinxLinuxDevice::GetSeconds()
 {
 	timespec mTime;
 	clock_gettime(CLOCK_MONOTONIC, &mTime);
 	return mTime.tv_sec;
 }
 
-void LinxLinuxDevice::DelayMs(unsigned long ms)
+void LinxLinuxDevice::DelayMs(unsigned int ms)
 {
 	usleep(ms * 1000);
 }
@@ -775,6 +1021,10 @@ int LinxLinuxDevice::pwmSmartOpen(unsigned char numChans, unsigned char* channel
 	return L_OK;
 }
 
+bool LinxLinuxDevice::uartSupportsVarBaudrate(const char* path, int baudrate)
+{
+}
+
 //Return True If File Specified By path Exists.
 bool LinxLinuxDevice::fileExists(const char* path)
 {
@@ -799,14 +1049,14 @@ bool LinxLinuxDevice::fileExists(const char* directory, const char* fileName)
 	return (stat(fullPath, &buffer) == 0);
 }
 
-bool LinxLinuxDevice::fileExists(const char* directory, const char* fileName, unsigned long timeout)
+bool LinxLinuxDevice::fileExists(const char* directory, const char* fileName, unsigned int timeout)
 {
 	char fullPath[128];
 	sprintf(fullPath, "%s%s", directory, fileName);
 	struct stat buffer;
 
-	unsigned long startTime = GetMilliSeconds();
-	while (GetMilliSeconds()-startTime < timeout)
+	unsigned int startTime = GetMilliSeconds();
+	while (GetMilliSeconds() - startTime < timeout)
 	{
 		if (stat(fullPath, &buffer) == 0)
 		{

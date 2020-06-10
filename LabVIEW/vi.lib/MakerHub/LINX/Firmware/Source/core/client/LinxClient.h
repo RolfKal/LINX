@@ -1,36 +1,31 @@
 /****************************************************************************************
-**  LINX header for Linux support functions used in Beaglebone Black and Raspberry Pi Device
+**  LINX header for generic LINX Client interface.
 **
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
 **
-**  Written By Rolf Kalbermater based on code from Sam Kristoff
+**  Written By Rolf Kalbermatter
 **
 ** BSD2 License.
 ****************************************************************************************/
 
-#ifndef LINX_LINUXDEVICE_H
-#define LINX_LINUXDEVICE_H
+#ifndef LINX_CLIENT_H
+#define LINX_CLIENT_H
 
 /****************************************************************************************
-**  Defines
+** Defines
 ****************************************************************************************/
 
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
 #include "LinxDevice.h"
-#include <stdio.h>
-#include <map>
-#include <string>
-
-using namespace std;
 
 /****************************************************************************************
-**  Variables
+**  Typedefs
 ****************************************************************************************/
 
-class LinxLinuxDevice : public LinxDevice
+class LinxClient : public LinxDevice
 {
 	public:
 		/****************************************************************************************
@@ -40,25 +35,17 @@ class LinxLinuxDevice : public LinxDevice
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxLinuxDevice();
-		~LinxLinuxDevice();
+		LinxClient();
+		virtual ~LinxClient();
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned char GetAiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetAoChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetDioChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetQeChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetPwmChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetSpiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetI2cChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetUartChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetCanChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetServoChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
 
 		//Analog
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
+		virtual int AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values);		//Values Are ADC Ticks And Not Bit Packed
 		virtual int AnalogSetRef(unsigned char mode, unsigned int voltage);
 
 		//DIGITAL
@@ -72,7 +59,7 @@ class LinxLinuxDevice : public LinxDevice
 
 		//PWM
 		virtual int PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values);
- 
+
 		//SPI
 		virtual int SpiOpenMaster(unsigned char channel);
 		virtual int SpiSetBitOrder(unsigned char channel, unsigned char bitOrder);
@@ -90,7 +77,6 @@ class LinxLinuxDevice : public LinxDevice
 
 		//UART
 		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
-		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
 		virtual int UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
 		virtual int UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes);
 		virtual int UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead);
@@ -113,76 +99,67 @@ class LinxLinuxDevice : public LinxDevice
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		//System
-
-		//DIO
-		map<unsigned char, unsigned char> DigitalChannels;		//Maps LINX DIO Channel Numbers To BB GPIO Channels
-		map<unsigned char, unsigned char> DigitalDirs;			//Current DIO Direction Values
-		map<unsigned char, FILE*> DigitalDirHandles;			//File Handles For Digital Pin Directions
-		map<unsigned char, FILE*> DigitalValueHandles;			//File Handles For Digital Pin Values
-
-		//PWM
-		map<unsigned char, string> PwmDirPaths;					//PWM Device Tree Overlay Names
-		map<unsigned char, FILE*> PwmPeriodHandles;				//File Handles For PWM Period Values
-		map<unsigned char, FILE*> PwmDutyCycleHandles;			//File Handles For PWM Duty Cycle Values
-		map<unsigned char, unsigned int> PwmPeriods;			//Current PWM  Values
-		unsigned int PwmDefaultPeriod;							//Default Period For PWM Channels (nS)
-		string PwmDutyCycleFileName;
-		string PwmPeriodFileName;
-		string PwmEnableFileName;
-
-		//AI
-		map<unsigned char, FILE*> AiValueHandles;				//AI Value Handles
-		map<unsigned char, string> AiValuePaths;				//AI Value Paths
-		unsigned char NumAiRefIntVals;							//Number Of Internal AI Reference Voltages
-		const unsigned int* AiRefIntVals;						//Supported AI Reference Voltages (uV)
-		const int* AiRefCodes;									//AI Ref Values (AI Ref Macros In Wiring Case)
-		unsigned int AiRefExtMin;								//Min External AI Ref Value (uV)
-		unsigned int AiRefExtMax;					   			//Max External AI Ref Value (uV)
-
-		//AO
-		map<unsigned char, FILE*> AoValueHandles;				//AO Value Handles
-
-		//UART
-		map<unsigned char, string> UartPaths;					//UART Channel File Paths
-		map<unsigned char, int> UartHandles;					//File Handles For UARTs - Must Be Int For Termios Functions
-		map<unsigned char, string> UartDtoNames;				//UART Device Tree Overlay Names
-		unsigned char NumUartSpeeds;						//Number Of Support UART Buads
-		const unsigned int* UartSupportedSpeeds;				//Supported UART Bauds Frequencies
-		const unsigned int* UartSupportedSpeedsCodes;			//Supported UART Baud Divider Codes
-
-		//SPI
-		map<unsigned char, string> SpiDtoNames;  				//Device Tree Overlay Names For SPI Master(s)
-		map<unsigned char, string> SpiPaths;  					//File Paths For SPI Master(s)
-		map<unsigned char, int> SpiHandles;						//File Handles For SPI Master(s)
-		unsigned char NumSpiSpeeds;						//Number Of Supported SPI Speeds
-		const unsigned int* SpiSupportedSpeeds;					//Supported SPI Clock Frequencies
-		const int* SpiSpeedCodes;								//SPI Speed Values (Clock Divider Macros In Wiring Case)
-		map<unsigned char, unsigned char> SpiBitOrders;			//Stores Bit Orders For SPI Channels (LSBFIRST / MSBFIRST)
-		map<unsigned char, unsigned int> SpiSetSpeeds; 			//Stores The Set Clock Rate Of Each SPI Channel
-		unsigned int SpiDefaultSpeed;
-
-		//I2C
-		map<unsigned char, string> I2cPaths;					//File Paths For I2C Master(s)
-		map<unsigned char, int> I2cHandles;						//File Handles For I2C Master(s)
-		map<unsigned char, string> I2cDtoNames;					//Device Tree Overlay Names For I2C Master(s)
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int DigitalWrite(unsigned char channel, unsigned char value);
-		virtual int digitalSmartOpen(unsigned char numChans, unsigned char* channels);
-		virtual int pwmSmartOpen(unsigned char numChans, unsigned char* channels);
-		bool uartSupportsVarBaudrate(const char* path, int baudrate);
-		bool fileExists(const char* path);
-		bool fileExists(const char* path, int *length);
-		bool fileExists(const char* directory, const char* fileName);
-		bool fileExists(const char* directory, const char* fileName, unsigned int timout);
+		virtual int Initialize(); 
+
+		virtual int WriteCommand(unsigned char *packetBuffer, unsigned int packetLength, unsigned int timeout) = 0;
+		virtual int ReadResponse(unsigned char *packetBuffer, unsigned int packetLength, unsigned int timeout) = 0;
 
 	private:
-		int UartSetBaudRate(int fd, unsigned int baudRate, unsigned int* actualBaud, bool init);
-		int UartSetBitSize(int fd, unsigned char dataBits, unsigned char stopBits);
-		int UartSetParity(int fd, unsigned char parity);
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		unsigned char *m_DeviceName;
 
+		//DIO
+		unsigned char *m_DigitalChans;
+
+		//AI
+		unsigned char *m_AiChans;
+
+		//AO
+		unsigned char *m_AoChans;
+
+		//PWM
+		unsigned char *m_PwmChans;
+
+		//QE
+		unsigned char *m_QeChans;
+
+		//UART
+		unsigned char *m_UartChans;
+
+		//I2C
+		unsigned char *m_I2cChans;
+
+		//SPI
+		unsigned char *m_SpiChans;
+
+		//CAN
+		unsigned char *m_CanChans;
+
+		//Servo
+		unsigned char *m_ServoChans;
+
+		unsigned int m_Timeout;
+
+		unsigned int ListenerBufferSize;
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual unsigned short GetNextPacketNum();
+		virtual unsigned char ComputeChecksum(unsigned char* buffer, unsigned int size);
+		virtual bool ChecksumPassed(unsigned char* buffer, unsigned int size);
+		virtual unsigned int PrepareHeader(unsigned char* buffer, unsigned short command, unsigned short packetNum, unsigned int dataSize);
+		virtual int WriteAndRead(unsigned char *buffer, unsigned int *offset, unsigned short packetNum, unsigned int timeout, unsigned int writeData, unsigned int readData, unsigned int *dataRead);
+
+		virtual int GetNoParameter(unsigned short command);
+		virtual int GetU8Parameter(unsigned short command, unsigned char *val);
+		virtual int GetU32Parameter(unsigned short command, unsigned int *val);
+		virtual int GetU8ArrParameter(unsigned short command, unsigned char *val, unsigned int *offset, unsigned int length, unsigned int *dataRead);
 };
-#endif //LINX_LINUXDEVICE_H
+#endif //LINX_CLIENT_H

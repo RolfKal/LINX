@@ -15,6 +15,8 @@
 /****************************************************************************************
 **  Defines
 ****************************************************************************************/
+#define DEVICE_NAME_MAX 128
+
 #define NUM_AI_CHANS 0
 #define AI_RES_BITS 0
 #define AI_REFV 0
@@ -43,8 +45,8 @@
 ****************************************************************************************/
 #include <string>
 #include <map>
-#include "utility/LinxDevice.h"
-#include "utility/LinxLinuxDevice.h"
+#include "LinxDevice.h"
+#include "LinxLinuxDevice.h"
 #include "LinxRaspberryPi.h"
 
 using namespace std;
@@ -65,53 +67,48 @@ class LinxRaspberryPi : public LinxLinuxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+		unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
 		//System
-		static unsigned char m_DeviceName[];
-
+		static char m_DeviceName[DEVICE_NAME_MAX];
+		
 		//AI
-		//None
-
+		
 		//AO
 		//None
-
-		//CAN
-		//None
-
+		
 		//DIGITAL
 		static const unsigned char m_DigitalChans[NUM_DIGITAL_CHANS];
 		static const unsigned char m_gpioChan[NUM_DIGITAL_CHANS];
-
+		
 		//PWM
-		//None
-
+		
 		//SPI
-		unsigned char m_SpiChanBuf[NUM_SPI_CHANS];
 		static unsigned char m_SpiChans[NUM_SPI_CHANS];
-		static const char *m_SpiPaths[NUM_SPI_CHANS];
-		static unsigned long m_SpiSupportedSpeeds[NUM_SPI_SPEEDS];
+		static const char * m_SpiPaths[NUM_SPI_CHANS];
+		static int m_SpiHandles[NUM_SPI_CHANS];
+		static unsigned int m_SpiSupportedSpeeds[NUM_SPI_SPEEDS];
 		static int m_SpiSpeedCodes[NUM_SPI_SPEEDS];
-
+				
 		//I2C
 		static unsigned char m_I2cChans[NUM_I2C_CHANS];
-		static string m_I2cPaths[NUM_I2C_CHANS];
-
+		static const char * m_I2cPaths[NUM_I2C_CHANS];
+		
 		//UART
 		static unsigned char m_UartChans[NUM_UART_CHANS];
-		static unsigned long m_UartSupportedSpeeds[NUM_UART_SPEEDS];
-		static unsigned long m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS];
-		static string m_UartPaths[NUM_UART_CHANS];
-
-		//Servo
-		//None
+		static unsigned int m_UartSupportedSpeeds[NUM_UART_SPEEDS];
+		static unsigned int m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS];
+		static const char * m_UartPaths[NUM_UART_CHANS];
+		
+		//Servo		
+		//none
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 };
-
 #endif //LINX_RASPBERRYPI2B
