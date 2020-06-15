@@ -14,10 +14,14 @@
 ****************************************************************************************/
 #include <stdio.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <alloca.h>
+#else
+#include <malloc.h>
+#endif
 #include "LinxDevice.h"
 
-static unsigned char m_DeviceName[] = "Unknown Device";
+static unsigned char m_DeviceName[] = "Common Device Parent";
 
 /****************************************************************************************
 **  Constructors/Destructor
@@ -60,6 +64,9 @@ LinxDevice::LinxDevice()
 	//CAN
 
 	//Servo
+
+	//Debug
+	m_DebugChannnel = -1;
 }
 
 LinxDevice::~LinxDevice()
@@ -85,84 +92,22 @@ unsigned char LinxDevice::GetDeviceName(unsigned char *buffer, unsigned char len
 	return 12;
 }
 
-
-//----Peripherals----
-
-//DIO
-unsigned char LinxDevice::GetDioChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
+int LinxDevice::EnableDebug(unsigned char channel)
+{	
+	return EnableDebug(channel, 115200); 
 }
 
-//AI
-unsigned char LinxDevice::GetAiChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//AO
-unsigned char LinxDevice::GetAoChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//PWM
-unsigned char LinxDevice::GetPwmChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//QE
-unsigned char LinxDevice::GetQeChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//UART
-unsigned char LinxDevice::GetUartChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//I2C
-unsigned char LinxDevice::GetI2cChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//SPI
-unsigned char LinxDevice::GetSpiChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//CAN
-unsigned char LinxDevice::GetCanChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//Servo
-unsigned char LinxDevice::GetServoChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-//Reverse The Order Of Bits In A Byte.  This Is Useful For SPI Hardware That Does Not Support Bit Order
-unsigned char LinxDevice::ReverseBits(unsigned char b) 
-{
-	b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
-	b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
-	b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
-	return b;
-}
-
-void LinxDevice::EnableDebug(unsigned char channel)
+int LinxDevice::EnableDebug(unsigned char channel, unsigned int baudRate)
 {	
 	unsigned int actualBaud = 0;
-	
-	UartOpen(channel, 115200, &actualBaud);
-	DebugPrintln("Debugging Enabled");
+	int status = UartOpen(channel, baudRate, &actualBaud);
+	if (!status)
+	{
+		m_DebugChannnel = channel;
+		DebugPrint("Debugging Enabled on port ");
+		DebugPrintln((int)channel);
+	}
+	return status;
 }
 
 void LinxDevice::DelayMs(unsigned int ms)
@@ -182,7 +127,7 @@ void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* 
 			DebugPrint("Sending  :: ");
 		}
 		
-		for(int i=0; i<packetBuffer[1]; i++)
+		for (int i = 0; i<packetBuffer[1]; i++)
 		{
 			DebugPrint("[");
 			DebugPrint(packetBuffer[i], HEX);
@@ -190,7 +135,7 @@ void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* 
 		}
 		DebugPrintln();
 		
-		if(direction == TX)
+		if (direction == TX)
 		{
 			//Add Second New Line After TX
 			DebugPrintln();
@@ -261,111 +206,113 @@ int LinxDevice::UartOpen(unsigned char channel, unsigned int baudRate, unsigned 
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-void LinxDevice::UartWrite(unsigned char channel, unsigned char b)
+int LinxDevice::UartWrite(unsigned char channel, unsigned char b)
 {
-	UartWrite(channel, 1, (unsigned char*)&b);
+	return UartWrite(channel, 1, &b);
 }
 
-void LinxDevice::UartWrite(unsigned char channel, const char *s)
+int LinxDevice::UartWrite(unsigned char channel, const char *s)
 {
-	while (*s)
+	int status = L_OK;
+	while (!status && *s)
 	{
-		UartWrite(channel, *s++);
+		status = UartWrite(channel, 1, (unsigned char*)s++);
 	}
+	return status;
+}
+ 
+int LinxDevice::UartWrite(unsigned char channel, char c)
+{
+	return UartWrite(channel, 1, (unsigned char*)&c);
 }
 
-void LinxDevice::UartWrite(unsigned char channel, char c)
+int LinxDevice::UartWrite(unsigned char channel, int n)
 {
-	UartWrite(channel, (unsigned char) c);
+	return UartWrite(channel, (long)n);
 }
 
-void LinxDevice::UartWrite(unsigned char channel, int n)
+int LinxDevice::UartWrite(unsigned char channel, unsigned int n)
 {
-	UartWrite(channel, (long) n);
+	return UartWrite(channel, (unsigned long)n);
 }
 
-void LinxDevice::UartWrite(unsigned char channel, unsigned int n)
+int LinxDevice::UartWrite(unsigned char channel, long n)
 {
-	UartWrite(channel, (unsigned long) n);
-}
-
-void LinxDevice::UartWrite(unsigned char channel, long n)
-{
+	int status;
 	if (n < 0) 
 	{
-		UartWrite(channel, '-');
+		status = UartWrite(channel, '-');
 		n = -n;
 	}
-	UartWriteNumber(channel, n, 10);
+	if (!status)
+		status = UartWriteNumber(channel, n, 10);
+	return status;
 }
 
-void LinxDevice::UartWrite(unsigned char channel, unsigned long n)
+int LinxDevice::UartWrite(unsigned char channel, unsigned long n)
 {
-	UartWriteNumber(channel , n, 10);
+	return UartWriteNumber(channel, n, 10);
 }
 
-void LinxDevice::UartWrite(unsigned char channel, long n, int base)
+int LinxDevice::UartWrite(unsigned char channel, long n, int base)
 {
 	if (base == 0)
 	{
-		UartWrite(channel, (char) n);
+		return UartWrite(channel, (char)n);
 	}
 	else if (base == 10)
 	{
-		UartWrite(channel, n);
+		return UartWrite(channel, n);
 	}
-	else
-	{
-		UartWriteNumber(channel , n, base);
-	}
+	return UartWriteNumber(channel, n, base);
 }
 
-void LinxDevice::UartWriteln(unsigned char channel)
+int LinxDevice::UartWriteln(unsigned char channel)
 {
 	UartWrite(channel, '\r');
-	UartWrite(channel, '\n');  
+	return UartWrite(channel, '\n');  
 }
 
-void LinxDevice::UartWriteln(unsigned char channel, char c)
+int LinxDevice::UartWriteln(unsigned char channel, char c)
 {
 	UartWrite(channel, c);
-	UartWriteln(channel);  
+	return UartWriteln(channel);  
 }
 
-void LinxDevice::UartWriteln(unsigned char channel, const char c[])
+int LinxDevice::UartWriteln(unsigned char channel, const char c[])
 {
 	UartWrite(channel, c);
-	UartWriteln(channel);
+	return UartWriteln(channel);
 }
 
-void LinxDevice::UartWriteln(unsigned char channel, unsigned char b)
+int LinxDevice::UartWriteln(unsigned char channel, unsigned char b)
 {
 	UartWrite(channel, b);
-	UartWriteln(channel);
+	return UartWriteln(channel);
 }
 
-void LinxDevice::UartWriteln(unsigned char channel, int n)
+int LinxDevice::UartWriteln(unsigned char channel, int n)
 {
 	UartWrite(channel, n);
-	UartWriteln(channel);
+	return UartWriteln(channel);
 }
 
-void LinxDevice::UartWriteln(unsigned char channel, long n)
+int LinxDevice::UartWriteln(unsigned char channel, long n)
 {
 	UartWrite(channel, n);
-	UartWriteln(channel);  
+	return UartWriteln(channel);  
 }
 
-void LinxDevice::UartWriteln(unsigned char channel, unsigned long n)
+int LinxDevice::UartWriteln(unsigned char channel, unsigned long n)
 {
 	UartWrite(channel, n);
-	UartWriteln(channel);  
+	return UartWriteln(channel);  
 }
 
-void LinxDevice::UartWriteln(unsigned char channel, long n, int base)
+int LinxDevice::UartWriteln(unsigned char channel, long n, int base)
 {
 	UartWrite(channel, n, base);
-	UartWriteln(channel);
+	return UartWriteln(channel);
 }
 
 //----------------- WS2812 Functions -----------------------------
@@ -394,134 +341,133 @@ int LinxDevice::Ws2812Close()
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-
 //----------------- DEBUG Functions -----------------------------
 void  LinxDevice::DebugPrint(char c)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWrite(DEBUG_ENABLED, c);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWrite(m_DebugChannnel, c);
 }
 
 void  LinxDevice::DebugPrint(const char s[])
 {
-	#if DEBUG_ENABLED >= 0
-		UartWrite(DEBUG_ENABLED, s);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWrite(m_DebugChannnel, s);
 }
 
 void  LinxDevice::DebugPrint(unsigned char c)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWrite(DEBUG_ENABLED, c);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWrite(m_DebugChannnel, c);
 }
 
 void  LinxDevice::DebugPrint(int n)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWrite(DEBUG_ENABLED, n);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWrite(m_DebugChannnel, n);
 }
 
 void  LinxDevice::DebugPrint(unsigned int n)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWrite(DEBUG_ENABLED, n);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWrite(m_DebugChannnel, n);
 }
 
 void  LinxDevice::DebugPrint(long n)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWrite(DEBUG_ENABLED, n);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWrite(m_DebugChannnel, n);
 }
 
 void  LinxDevice::DebugPrint(unsigned long n)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWrite(DEBUG_ENABLED, n);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWrite(m_DebugChannnel, n);
 }
 
 void  LinxDevice::DebugPrint(long n, int base)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWrite(DEBUG_ENABLED, n, base);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWrite(m_DebugChannnel, n, base);
 }
 
 void  LinxDevice::DebugPrintln()
 {
-	#if DEBUG_ENABLED >= 0
-		UartWriteln(DEBUG_ENABLED);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWriteln(m_DebugChannnel);
 }
 
 void  LinxDevice::DebugPrintln(char c)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWriteln(DEBUG_ENABLED, c);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWriteln(m_DebugChannnel, c);
 }
 
 void  LinxDevice::DebugPrintln(const char s[])
 {
-	#if DEBUG_ENABLED >= 0
-		UartWriteln(DEBUG_ENABLED, s);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWriteln(m_DebugChannnel, s);
 }
 
 void  LinxDevice::DebugPrintln(unsigned char c)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWriteln(DEBUG_ENABLED, c);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWriteln(m_DebugChannnel, c);
 }
 
 void  LinxDevice::DebugPrintln(int n)
 {	
-	#if DEBUG_ENABLED >= 0
-		UartWriteln(DEBUG_ENABLED, n);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWriteln(m_DebugChannnel, n);
 }
 
 void  LinxDevice::DebugPrintln(long n)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWriteln(DEBUG_ENABLED, n);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWriteln(m_DebugChannnel, n);
 }
 
 void  LinxDevice::DebugPrintln(unsigned long n)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWriteln(DEBUG_ENABLED, n);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWriteln(m_DebugChannnel, n);
 }
 
 void  LinxDevice::DebugPrintln(long n, int base)
 {
-	#if DEBUG_ENABLED >= 0
-		UartWriteln(DEBUG_ENABLED, n, base);
-	#endif
+	if (m_DebugChannnel >= 0)
+		UartWriteln(m_DebugChannnel, n, base);
 }
 
+bool LinxDevice::ChecksumPassed(unsigned char* buffer, int length)
+{
+	return ComputeChecksum(buffer, length) == buffer[length];
+}
+
+unsigned char LinxDevice::ComputeChecksum(unsigned char* buffer, int length)
+{
+	unsigned char checksum = 0;
+	for (unsigned short i = 0; i < length; i++)
+	{
+		checksum += buffer[i];
+	}
+	return checksum;
+}
+
+/****************************************************************************************
+**  Protected Functions
+****************************************************************************************/
 
 /****************************************************************************************
 **  Private Functions
 ****************************************************************************************/
-
-void LinxDevice::UartWriteNumber(unsigned char channel, unsigned long n, unsigned char base)
+int LinxDevice::UartWriteNumber(unsigned char channel, unsigned long n, unsigned char base)
 {
 	unsigned char buf[8 * sizeof(long)]; // Assumes 8-bit chars. 
 	unsigned long i = 0;
 
 	if (n == 0) 
 	{
-		UartWrite(channel, '0');
-		return;
+		return UartWrite(channel, '0');
 	} 
 
 	while (n > 0) 
@@ -530,8 +476,10 @@ void LinxDevice::UartWriteNumber(unsigned char channel, unsigned long n, unsigne
 		n /= base;
 	}
 
-	for (; i > 0; i--)
+	int status = L_OK;
+	for (; i > 0 && !status; i--)
 	{
-		UartWrite(channel, (char) (buf[i - 1] < 10 ? '0' + buf[i - 1] : 'A' + buf[i - 1] - 10));
+		status = UartWrite(channel, (char) (buf[i - 1] < 10 ? '0' + buf[i - 1] : 'A' + buf[i - 1] - 10));
 	}
+	return status;
 }

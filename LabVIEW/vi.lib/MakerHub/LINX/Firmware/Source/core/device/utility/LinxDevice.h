@@ -20,26 +20,12 @@
 #ifndef LINXCONFIG
 	#include "../config/LinxConfig.h"
 #endif
+#include <map>
 
 /****************************************************************************************
 **  Defines
 ****************************************************************************************/
 //GPIO
-#ifndef INPUT
-	#define INPUT 0x00
-#endif
-
-#ifndef  OUTPUT
-	#define OUTPUT 0x01
-#endif
-
-#ifndef HIGH
-	#define HIGH 0x01
-#endif
-
-#ifndef LOW
-	#define LOW 0x00
-#endif
 
 //SPI
 #ifndef LSBFIRST
@@ -97,12 +83,15 @@ typedef enum LinxStatus
 	L_REQUEST_RESEND,
 	L_UNKNOWN_ERROR,
 	L_DISCONNECT,
+	LERR_RUNNING,
 	LERR_BADPARAM,
 	LERR_IO,
 	LERR_PACKET_NUM,
 	LERR_CHECKSUM,
 	LERR_INVALID_FRAME,
-	LERR_LENGTH_NOT_SUPPORTED
+	LERR_LENGTH_NOT_SUPPORTED,
+	LERR_MSG_TO_LONG,
+	LERR_CLOSED_BY_PEER,
 } LinxStatus;
 
 typedef enum AioStatus
@@ -224,21 +213,22 @@ class LinxDevice
 		**  Functions
 		****************************************************************************************/
 		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length) = 0;
-		virtual unsigned char GetAiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetAoChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetDioChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetQeChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetPwmChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetSpiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetI2cChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetUartChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetCanChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetServoChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetAiChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetAoChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetDioChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetQeChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetPwmChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetSpiChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetI2cChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetUartChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetCanChans(unsigned char *buffer, unsigned char length) = 0;
+		virtual unsigned char GetServoChans(unsigned char *buffer, unsigned char length) = 0;
 
 		//Analog
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values) = 0;
 		virtual int AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values);		//Values Are ADC Ticks And Not Bit Packed
 		virtual int AnalogSetRef(unsigned char mode, unsigned int voltage) = 0;
+		virtual int AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);
 
 		//DIGITAL
 		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values) = 0;			//Values Are Bit Packed
@@ -276,22 +266,23 @@ class LinxDevice
 		virtual int UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes) = 0;
 		virtual int UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead) = 0;
 		virtual int UartWrite(unsigned char channel, unsigned char numBytes, unsigned char* sendBuffer) = 0;
-		virtual void UartWrite(unsigned char channel, char c);
-		virtual void UartWrite(unsigned char channel, const char s[]);
-		virtual void UartWrite(unsigned char channel, unsigned char c);
-		virtual void UartWrite(unsigned char channel, int n);
-		virtual void UartWrite(unsigned char channel, unsigned int n);
-		virtual void UartWrite(unsigned char channel, long n);
-		virtual void UartWrite(unsigned char channel, unsigned long n);
-		virtual void UartWrite(unsigned char channel, long n, int base);
-		virtual void UartWriteln(unsigned char channel);
-		virtual void UartWriteln(unsigned char channel, char c);
-		virtual void UartWriteln(unsigned char channel, const char s[]);
-		virtual void UartWriteln(unsigned char channel, unsigned char c);
-		virtual void UartWriteln(unsigned char channel, int n);
-		virtual void UartWriteln(unsigned char channel, long n);
-		virtual void UartWriteln(unsigned char channel, unsigned long n);
-		virtual void UartWriteln(unsigned char channel, long n, int base);
+
+		virtual int UartWrite(unsigned char channel, char c);
+		virtual int UartWrite(unsigned char channel, const char s[]);
+		virtual int UartWrite(unsigned char channel, unsigned char c);
+		virtual int UartWrite(unsigned char channel, int n);
+		virtual int UartWrite(unsigned char channel, unsigned int n);
+		virtual int UartWrite(unsigned char channel, long n);
+		virtual int UartWrite(unsigned char channel, unsigned long n);
+		virtual int UartWrite(unsigned char channel, long n, int base);
+		virtual int UartWriteln(unsigned char channel);
+		virtual int UartWriteln(unsigned char channel, char c);
+		virtual int UartWriteln(unsigned char channel, const char s[]);
+		virtual int UartWriteln(unsigned char channel, unsigned char c);
+		virtual int UartWriteln(unsigned char channel, int n);
+		virtual int UartWriteln(unsigned char channel, long n);
+		virtual int UartWriteln(unsigned char channel, unsigned long n);
+		virtual int UartWriteln(unsigned char channel, long n, int base);
 		virtual int UartClose(unsigned char channel) = 0;
 
 		//CAN
@@ -309,15 +300,17 @@ class LinxDevice
 		virtual int Ws2812Close();
 
 		//General
-		unsigned char ReverseBits(unsigned char b);
 		virtual unsigned int GetMilliSeconds() = 0;
 		virtual unsigned int GetSeconds() = 0;
 		virtual void DelayMs(unsigned int ms);
 		virtual void NonVolatileWrite(int address, unsigned char data) = 0;
 		virtual unsigned char NonVolatileRead(int address) = 0;
+		virtual bool ChecksumPassed(unsigned char* buffer, int length);
+		virtual unsigned char ComputeChecksum(unsigned char* buffer, int length);
 
 		//Debug
-		virtual void EnableDebug(unsigned char channel);
+		virtual int EnableDebug(unsigned char channel);
+		virtual int EnableDebug(unsigned char channel, unsigned int baudRate);
 
 		virtual void DebugPrint(char c);
 		virtual void DebugPrint(const char s[]);
@@ -339,7 +332,7 @@ class LinxDevice
 
 		virtual void DebugPrintPacket(unsigned char direction, const unsigned char* packetBuffer);
 
-	private:
+	protected:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
@@ -347,6 +340,17 @@ class LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual void UartWriteNumber(unsigned char channel, unsigned long n, unsigned char bases);
+		virtual unsigned char ReverseBits(unsigned char b);
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		int m_DebugChannnel;
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int UartWriteNumber(unsigned char channel, unsigned long n, unsigned char bases);
 };
 #endif //LINX_DEVICE_H

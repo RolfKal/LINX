@@ -13,89 +13,74 @@
 #define LINX_LISTENER_H
 
 /****************************************************************************************
-** Defines
-****************************************************************************************/
-
-/****************************************************************************************
 ** Includes
 ****************************************************************************************/
 #include "LinxDevice.h"
 
 /****************************************************************************************
-** Enums
+** Defines
 ****************************************************************************************/
-enum LinxListenerState
-{
-	START, 
-	LISTENING, 
-	AVAILABLE, 
-	ACCEPT, 
-	CONNECTED, 
-	CLOSE, 
-	EXIT
-};
+#define MAX_CUSTOM_CMDS 16
+#define MAX_PERIODIC_TASKS	1
 
-enum LinxListenerInterface
-{
-	UART, 
-	TCP	
-};
-
-
-typedef enum ListenerStatus
-{
-	LUNKNOWN_STATE=128
-}ListenerStatus;
+/****************************************************************************************
+** Typedefs
+****************************************************************************************/
+typedef int (*CustomCommand)(unsigned char* commandPacketBuffer, int length, unsigned char* responsePacketBuffer, int* responseLength);
+typedef int (*PeriodicTask)(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer);
 
 class LinxListener
 {
 	public:	
 		/****************************************************************************************
-		**  Variables
-		****************************************************************************************/
-		int (*customCommands[16])(unsigned char, unsigned char*, unsigned char*, unsigned char*);
-		int (*periodicTasks[1])(unsigned char*, unsigned char*);
-		
-		
-		/****************************************************************************************
-		**  Constructors
+		**  Constructors/Destructors
 		****************************************************************************************/
 		LinxListener();
-		
+		~LinxListener();
+
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
-		virtual int Start();			//Start Listener
-		virtual int Listen();			//Listen For Connection
-		virtual int Available();		//New Client Connection Available
-		virtual int Accept();		//Accept New Client Connection
-		virtual int Connected();	//Connected To Client
-		virtual int Close();			//Close Client Connection
-		virtual int Exit();			//Stop Listening, Close And Exit
-		
-		void AttachCustomCommand(unsigned short commandNumber, int (*function)(unsigned char, unsigned char*, unsigned char*, unsigned char*) );
-		void AttachPeriodicTask(int (*function)(unsigned char*, unsigned char*));
-		
-		virtual int CheckForCommands();		//Execute Listener State Machine		
-				
-		int ProcessCommand(unsigned char* recBuffer, unsigned char* sendBuffer);
-		void PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, unsigned int dataSize, int status);
-		void StatusResponse(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, int status);
-		void DataBufferResponse(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, const unsigned char* dataBuffer, unsigned char dataSize, int status);
-		unsigned char ComputeChecksum(unsigned char* packetBuffer);
-		bool ChecksumPassed(unsigned char* packetBuffer);
+		virtual int Start(int bufferSize = 255);	// Start Listener with the device to relay commands to
+		virtual int WaitForConnection() = 0;		// Wait for incoming connection, child needs to implement this
+		int CheckForCommand();						// Check for next command and decode it to relay it to the device		
+
+		// Attach a custom command callback function. The class allows up to MAX_CUSTOM_CMDS to be installed and
+		// any message with the command word being 0xFCxx whit xx being the command number between 0 and 15 is then
+		// forwarded to this callback function to be processed
+		int AttachCustomCommand(unsigned short commandNumber, CustomCommand callback);
+		int AttachPeriodicTask(PeriodicTask task);
 
 	protected:
-		LinxDevice* LinxDev;
-		LinxListenerState State;
-		LinxListenerInterface Interface;
-		unsigned char ListenerChan;
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		LinxDevice *m_LinxDev;
+		LinxDevice *m_LinxDebug;
 
-		unsigned int ListenerBufferSize;
-		unsigned char* recBuffer;
-		unsigned char* sendBuffer;
+		/****************************************************************************************
+		** Functions
+		****************************************************************************************/
+		// Needs to be implemented by descendent class 
+		virtual int ReadData(unsigned char *buffer, int bytesToRead, int *numBytesRead) = 0;
+		virtual int WriteData(unsigned char *buffer, int bytesToWrite) = 0;
+		virtual int FlushData() = 0;
 
 	private:
-};
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		CustomCommand m_CustomCommands[MAX_CUSTOM_CMDS];
+		PeriodicTask m_PeriodicTask;
 
+		int m_ListenerBufferSize;
+		unsigned char* m_RecBuffer;
+		unsigned char* m_SendBuffer;
+
+		/****************************************************************************************
+		** Functions
+		****************************************************************************************/
+		int PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, int dataSize, int status);
+		int ProcessCommand(unsigned char* commandPacketBuffer, int offset, int length, unsigned short command, unsigned char* responsePacketBuffer);
+};
 #endif //LINX_LISTENER_H

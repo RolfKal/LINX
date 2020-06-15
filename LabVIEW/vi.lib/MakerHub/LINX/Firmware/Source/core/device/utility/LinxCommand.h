@@ -68,10 +68,12 @@
 #define LCMD_SET_AI_REF_VOLT		0x0060	// Set AI Reference Voltage
 #define LCMD_GET_ÀI_REF_VOLT		0x0061	// Get AI Reference Voltage
 //#define LCMD_SET_AI_RESOLUTIOM	0x0062	// Set AI Resolution
-//#define LCMD_GET_AI_RESOLUTION	0x0063	// Get AI Resolution
+#define LCMD_GET_AI_RESOLUTION		0x0063	// Get AI Resolution
 #define LCMD_ANALOG_READ			0x0064	// Analog Read
-//#define LCMD_ANALOG_WRITE			0x0065	// Analog Write
-//---0x0066 to 0x007F Reserved---
+//#define LCMD_SET_AO_RESOLUTION	0x0065	// Set AO Resolution
+#define LCMD_GET_AO_RESOLUTION		0x0066	// Get AO Resolution
+#define LCMD_ANALOG_WRITE			0x0067	// Analog Write
+//---0x0068 to 0x007F Reserved---
 
 /****************************************************************************************
 ** PWM
@@ -106,6 +108,8 @@
 #define LCMD_I2C_WRITE				0x00E2	// I2C Write
 #define LCMD_I2C_READ				0x00E3	// I2C Read
 #define LCMD_I2C_CLOSE				0x00E4	// I2C Close
+//#define LCMD_I2C_TRANSFER			0x00E5	// I2C Write Read
+//#define LCMD_I2C_SET_MODE			0x00E7	// I2C Set Mode
 //---0x00E5 to 0x00FF Reserved---
 
 /****************************************************************************************

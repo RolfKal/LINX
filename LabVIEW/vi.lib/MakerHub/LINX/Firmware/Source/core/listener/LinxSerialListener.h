@@ -19,8 +19,8 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
-#include "LinxListener.h"
 #include "LinxDevice.h"
+#include "utility/LinxListener.h"
 
 
 /****************************************************************************************
@@ -36,8 +36,6 @@ class LinxSerialListener : public LinxListener
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		LinxListenerState State;
-		//unsigned char LinxSerialListenerChan;
 
 		/****************************************************************************************
 		**  Constructors
@@ -47,17 +45,24 @@ class LinxSerialListener : public LinxListener
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Start(LinxDevice* linxDev, unsigned char uartChan);
-		virtual int Connected();
+		virtual int Start(LinxDevice* linxDev, unsigned char uartChan, unsigned int baudRate = 9600);
+		virtual int Start(LinxDevice* debug, LinxDevice* linxDev, unsigned char uartChan, unsigned int baudRate = 9600);
+		virtual int WaitForConnection();			// Wait for incoming connection, child needs to implement this
 		virtual int Close();
-		virtual int Exit();
 
-		virtual int CheckForCommands();
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		int ReadData(unsigned char *buffer, int bytesToRead, int *numBytesRead);
+		int WriteData(unsigned char *buffer, int bytesToWrite);
+		int FlushData();
 
-	private:
+private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
+		unsigned char m_UartChannel;
 
 		/****************************************************************************************
 		**  Functions

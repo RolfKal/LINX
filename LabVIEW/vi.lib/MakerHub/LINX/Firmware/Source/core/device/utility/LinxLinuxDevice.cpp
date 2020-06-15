@@ -295,9 +295,6 @@ struct spi_ioc_transfer {
 #define SPI_IOC_RD_MODE32		0
 #define SPI_IOC_WR_MODE32		0
 
-
-
-
 #endif
 
 using namespace std;
@@ -317,23 +314,16 @@ LinxLinuxDevice::~LinxLinuxDevice()
 }
 
 /****************************************************************************************
-**  Protected Functions
-****************************************************************************************/
-int LinxLinuxDevice::DigitalWrite(unsigned char channel, unsigned char value)
-{
-	return DigitalWrite(1, &channel, &value);
-}
-
-/****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
+//------------------------------------- Query --------------------------------------
 unsigned char LinxLinuxDevice::GetAiChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AiValueHandles;
+	std::map<unsigned char, FILE*> m = AiValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -344,11 +334,11 @@ unsigned char LinxLinuxDevice::GetAiChans(unsigned char *buffer, unsigned char l
 
 unsigned char LinxLinuxDevice::GetAoChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AoValueHandles;
+	std::map<unsigned char, FILE*> m = AoValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -359,11 +349,11 @@ unsigned char LinxLinuxDevice::GetAoChans(unsigned char *buffer, unsigned char l
 
 unsigned char LinxLinuxDevice::GetDioChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = DigitalValueHandles;
+	std::map<unsigned char, FILE*> m = DigitalValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -373,11 +363,11 @@ unsigned char LinxLinuxDevice::GetDioChans(unsigned char *buffer, unsigned char 
 
 unsigned char LinxLinuxDevice::GetQeChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AoValueHandles;
+	std::map<unsigned char, FILE*> m = AoValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -387,11 +377,11 @@ unsigned char LinxLinuxDevice::GetQeChans(unsigned char *buffer, unsigned char l
 
 unsigned char LinxLinuxDevice::GetPwmChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AoValueHandles;
+	std::map<unsigned char, FILE*> m = AoValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -401,11 +391,11 @@ unsigned char LinxLinuxDevice::GetPwmChans(unsigned char *buffer, unsigned char 
 
 unsigned char LinxLinuxDevice::GetSpiChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AoValueHandles;
+	std::map<unsigned char, FILE*> m = AoValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -415,11 +405,11 @@ unsigned char LinxLinuxDevice::GetSpiChans(unsigned char *buffer, unsigned char 
 
 unsigned char LinxLinuxDevice::GetI2cChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AoValueHandles;
+	std::map<unsigned char, FILE*> m = AoValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -429,11 +419,11 @@ unsigned char LinxLinuxDevice::GetI2cChans(unsigned char *buffer, unsigned char 
 
 unsigned char LinxLinuxDevice::GetUartChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AoValueHandles;
+	std::map<unsigned char, FILE*> m = AoValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -443,11 +433,11 @@ unsigned char LinxLinuxDevice::GetUartChans(unsigned char *buffer, unsigned char
 
 unsigned char LinxLinuxDevice::GetCanChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AoValueHandles;
+	std::map<unsigned char, FILE*> m = AoValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -457,11 +447,11 @@ unsigned char LinxLinuxDevice::GetCanChans(unsigned char *buffer, unsigned char 
 
 unsigned char LinxLinuxDevice::GetServoChans(unsigned char *buffer, unsigned char length)
 {
-	map<unsigned char, FILE*> m = AoValueHandles;
+	std::map<unsigned char, FILE*> m = AoValueHandles;
 	int i = 0, num = (int)m.size();
 	if (num && buffer)
 	{
-		for (map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		for (std::map<unsigned char, FILE*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
 		{
 			buffer[i] = it->first;
 		}
@@ -1206,6 +1196,10 @@ unsigned char LinxLinuxDevice::NonVolatileRead(int address)
 /****************************************************************************************
 **  Protected Functions
 ****************************************************************************************/
+int LinxLinuxDevice::DigitalWrite(unsigned char channel, unsigned char value)
+{
+	return DigitalWrite(1, &channel, &value);
+}
 
 //Open Direction And Value Handles If They Are Not Already Open And Set Direction
 int LinxLinuxDevice::digitalSmartOpen(unsigned char numChans, unsigned char* channels)

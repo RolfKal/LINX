@@ -21,79 +21,74 @@
 #include "LinxUtilities.h"
 #include "LinxClient.h"
 
-static unsigned char m_DeviceName[] = "Unknown Device";
+static unsigned char m_Unknown[] = "Uninitialized Device Client";
 
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
 LinxClient::LinxClient()
 {
-	m_DeviceName = NULL;
+	m_DeviceName = m_Unknown;
 
 	//DIO
-	m_DigitalChans = NULL;
+	m_DigitalChans.clear();
 
 	//AI
-	m_AiChans = NULL;
+	m_AiChans.clear();
 
 	//AO
-	m_AoChans = NULL;
+	m_AoChans.clear();
 
 	//PWM
-	m_PwmChans = NULL;
+	m_PwmChans.clear();
 
 	//QE
-	m_QeChans = NULL;
+	m_QeChans.clear();
 
 	//UART
-	m_UartChans = NULL;
+	m_UartChans.clear();
 
 	//I2C
-	m_I2cChans = NULL;
+	m_I2cChans.clear();
 
 	//SPI
-	m_SpiChans = NULL;
+	m_SpiChans.clear();
 
 	//CAN
-	m_CanChans = NULL;
+	m_CanChans.clear();
 
 	//Servo
-	m_ServoChans = NULL;
+	m_ServoChans.clear();
+
+	m_ListenerBufferSize = 255;
+
+	m_PacketNum = (unsigned int)((double)rand() / RAND_MAX * 0xFFFF);
 }
 
 LinxClient::~LinxClient()
 {
-	free(m_DeviceName);
+	if (m_DeviceName != m_Unknown)
+		free(m_DeviceName);
 
 	//DIO
-	free(m_DigitalChans);
 
 	//AI
-	free(m_AiChans);
 
 	//AO
-	free(m_AoChans);
 
 	//PWM
-	free(m_PwmChans);
 
 	//QE
-	free(m_QeChans);
 
 	//UART
-	free(m_UartChans);
 
 	//I2C
-	free(m_I2cChans);
 
 	//SPI
-	free(m_SpiChans);
 
 	//CAN
-	free(m_CanChans);
 
 	//Servo
-	free(m_ServoChans);
 }
 
 /****************************************************************************************
@@ -101,146 +96,175 @@ LinxClient::~LinxClient()
 ****************************************************************************************/
 unsigned short LinxClient::GetNextPacketNum()
 {
-	return 0;
+	return m_PacketNum++;
 }
 
-unsigned char LinxClient::ComputeChecksum(unsigned char* packetBuffer, unsigned int size)
+int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int *headerLength)
 {
-	unsigned char checksum = 0;
+	dataLength += 7;
+	if (dataLength >= (int)m_ListenerBufferSize || dataLength + 2 > 0xFFFFFF)
+		return LERR_MSG_TO_LONG;
 
-	//Sum All Bytes In The Packet Except The Last (Checksum Byte)
-	for (unsigned int i = 0; i < size; i++)
+	if (dataLength <= 255)
 	{
-		checksum += packetBuffer[i];
-	}
-	return checksum;
-}
-
-
-bool LinxClient::ChecksumPassed(unsigned char* packetBuffer, unsigned int size)
-{
-	return (ComputeChecksum(packetBuffer, size) == packetBuffer[size]);
-}
-
-// Return the data offset or 0 if an error
-unsigned int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, unsigned short packetNum, unsigned int dataSize)
-{
-	unsigned int offset = 0;
-	dataSize += 7;
-	if (dataSize >= ListenerBufferSize)
-		return 0;
-
-	if (dataSize > 255)
-	{
-		dataSize += 3;
-		offset = WriteU8ToBuff(buffer, offset, 0xFE);
-		offset = WriteU32ToBuff(buffer, offset, dataSize);
+		*headerLength = WriteU16ToBuff(buffer, 0,  0xFF00 + (unsigned short)dataLength);
 	}
 	else
 	{
-		offset = WriteU8ToBuff(buffer, offset, 0xFF);
-		offset = WriteU8ToBuff(buffer, offset, (unsigned char)dataSize);
+		*headerLength = WriteU32ToBuff(buffer, 0, 0xFE000000 + (unsigned int)dataLength + 2);
 	}
-	offset = WriteU16ToBuff(buffer, offset, packetNum);
-	offset = WriteU16ToBuff(buffer, offset, command);
-	return offset;
+	*headerLength = WriteU16ToBuff(buffer, *headerLength, GetNextPacketNum());
+	*headerLength = WriteU16ToBuff(buffer, *headerLength, command);
+	return L_OK;
 }
 
-int LinxClient::WriteAndRead(unsigned char *buffer, unsigned int *offset, unsigned short packetNum, unsigned int timeout, unsigned int writeData, unsigned int readData, unsigned int *dataRead)
+int LinxClient::WriteAndRead(unsigned char *buffer, int buffLength, int *headerLength, int dataLength, int *dataRead)
 {
-	writeData += *offset;
-	buffer[writeData] = ComputeChecksum(buffer, writeData);
-	int status = WriteCommand(buffer, writeData + 1, timeout);
+	unsigned short packetNum = GetU16FromBuff(buffer, *headerLength - 2);
+	unsigned int start = GetMilliSeconds();
+
+	dataLength += *headerLength;
+	buffer[dataLength] = ComputeChecksum(buffer, dataLength);
+	int status = WriteData(buffer, start,  m_Timeout, dataLength + 1);
 	if (!status)
 	{
-		*offset--;
-		readData += *offset;
-		status = ReadResponse(buffer, readData + 1, timeout);
-		if (!status && (buffer[0] & 0xFE) == 0xFE)
+		status = ReadData(buffer, start,  m_Timeout, 4, dataRead);
+		if (!status)
 		{
-			if (ChecksumPassed(buffer, readData))
+			if ((buffer[0] & 0xFE) != 0xFE)
+				return LERR_INVALID_FRAME;
+
+			*headerLength = 2;
+			if (buffer[0] == 0xFF)
 			{
-				unsigned short temp;
-				if (dataRead)
-				{
-					if (buffer[0] == 0xFF)
-						*dataRead = buffer[1];
-					else
-						ReadU32FromBuff(buffer, 1, dataRead);
-					*dataRead -= *offset;
-				}
-				ReadU16FromBuff(buffer, *offset - 2, &temp);
-				if (temp != packetNum)
-					status = LERR_PACKET_NUM;
-				else
-					status = buffer[4];
+				dataLength = buffer[1];
 			}
 			else
-				status = LERR_CHECKSUM;
+			{
+				dataLength = GetU32FromBuff(buffer, 0) & 0x00FFFFFF;
+				*headerLength += 2;
+			}
+			if (buffLength < dataLength)
+				dataLength = buffLength;
+			status = ReadData(buffer + 4, start,  m_Timeout, dataLength - 4, dataRead);
+			if (!status)
+			{
+				*dataRead += 4;
+				if (!ChecksumPassed(buffer, dataLength - 1))
+					return LERR_CHECKSUM;
+
+				if (packetNum != GetU16FromBuff(buffer, *headerLength))
+					return LERR_PACKET_NUM;
+
+				*headerLength += 2;
+				status = buffer[(*headerLength)++];
+			}
 		}
-		else if (!status)
-			status = LERR_INVALID_FRAME;
 	}
 	return status;
 }
 
 int LinxClient::GetNoParameter(unsigned short command)
 {
-	unsigned char buffer[10];
-	unsigned short packetNum = GetNextPacketNum();
-	unsigned int offset = PrepareHeader(buffer, command, packetNum, 0);
-	if (offset)
+	unsigned char buffer[20];
+	int headerLength;
+	int status = PrepareHeader(buffer, command, 0, &headerLength);
+	if (!status)
 	{
+		int dataRead;
 		// send data and read response
-		return WriteAndRead(buffer, &offset, packetNum, m_Timeout, 0, 0, NULL);
+		return WriteAndRead(buffer, 20, &headerLength, 0, &dataRead);
 	}
-	return LERR_LENGTH_NOT_SUPPORTED;
+	return status;
 }
 
 int LinxClient::GetU8Parameter(unsigned short command, unsigned char *val)
 {
-	unsigned char buffer[10];
-	unsigned short packetNum = GetNextPacketNum();
-	unsigned int offset = PrepareHeader(buffer, command, packetNum, 0);
-	if (offset)
+	unsigned char buffer[20];
+	int headerLength;
+	int status = PrepareHeader(buffer, command, 0, &headerLength);
+	if (!status)
 	{
+		int dataRead;
 		// send data and read response
-		int status = WriteAndRead(buffer, &offset, packetNum, m_Timeout, 0, 2, NULL);
+		status = WriteAndRead(buffer, 20, &headerLength, 0, &dataRead);
 		if (!status)
 		{
-			ReadU8FromBuff(buffer, offset, val);
+			ReadU8FromBuff(buffer, headerLength, val);
 		}
 	}
-	return LERR_LENGTH_NOT_SUPPORTED;
+	return status;
+}
+
+int LinxClient::GetU16Parameter(unsigned short command, unsigned short *val)
+{
+	unsigned char buffer[20];
+	int headerLength;
+	int status = PrepareHeader(buffer, command, 0, &headerLength);
+	if (!status)
+	{
+		int dataRead;
+		// send data and read response
+		status = WriteAndRead(buffer, 20, &headerLength, 0, &dataRead);
+		if (!status)
+		{
+			ReadU16FromBuff(buffer, headerLength, val);
+		}
+	}
+	return status;
 }
 
 int LinxClient::GetU32Parameter(unsigned short command, unsigned int *val)
 {
-	unsigned char buffer[10];
-	unsigned short packetNum = GetNextPacketNum();
-	unsigned int offset = PrepareHeader(buffer, command, packetNum, 0);
-	if (offset)
+	unsigned char buffer[20];
+	int headerLength;
+	int status = PrepareHeader(buffer, command, 0, &headerLength);
+	if (!status)
 	{
+		int dataRead;
 		// send data and read response
-		int status = WriteAndRead(buffer, &offset, packetNum, m_Timeout, 0, 4, NULL);
+		status = WriteAndRead(buffer, 20, &headerLength, 0, &dataRead);
 		if (!status)
 		{
-			ReadU32FromBuff(buffer, offset, val);
+			ReadU32FromBuff(buffer, headerLength, val);
 		}
 	}
-	return LERR_LENGTH_NOT_SUPPORTED;
+	return status;
 }
 
-int LinxClient::GetU8ArrParameter(unsigned short command, unsigned char *buffer, unsigned int *offset, unsigned int length, unsigned int *dataRead)
+int LinxClient::GetU8ArrParameter(unsigned short command, unsigned char *buffer, int buffLength, int *headerLength, int *dataRead)
 {
-	unsigned short packetNum = GetNextPacketNum();
-	*offset = PrepareHeader(buffer, command, packetNum, 0);
-	if (*offset)
+	int status = PrepareHeader(buffer, command, 0, headerLength);
+	if (!status)
 	{
 		// send data and read response
-		return WriteAndRead(buffer, offset, packetNum, m_Timeout, 0, length, dataRead);
+		status = WriteAndRead(buffer, buffLength, headerLength, 0, dataRead);
+		if (!status)
+		{
+			*dataRead -= *headerLength;
+		}
 	}
-	return LERR_LENGTH_NOT_SUPPORTED;
+	return status;
+}
+
+static void CopyArrayToSet(std::set<unsigned char> &s, unsigned char *arr, int length) 
+{
+	s.clear();
+	for (int i = 0; i < length; i++)
+		s.insert(arr[i]);
+}
+
+static int CopySetToArray(std::set<unsigned char> &s, unsigned char *arr, int length)
+{
+	int i = 0, len = (int)s.size();
+	if (arr)
+	{
+		if (len > length)
+			len = length;
+		for (std::set<unsigned char>::iterator it = s.begin(); i < len && it != s.end(); it++, i++)
+			arr[i] = *it;
+	}
+	return len;
 }
 
 /****************************************************************************************
@@ -248,88 +272,125 @@ int LinxClient::GetU8ArrParameter(unsigned short command, unsigned char *buffer,
 ****************************************************************************************/
 int LinxClient::Initialize()
 {
-	unsigned int dataRead, offset;
 	unsigned char buffer[255];
+	int dataRead, offset;
 	int status = GetNoParameter(LCMD_SYNC);
 	if (!status)
 	{
-		status = GetU8ArrParameter(LCMD_GET_API_VER, buffer, &offset, 3, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_API_VER, buffer, 255, &offset, &dataRead);
 	}
 	if (!status)
 	{
-		LinxApiMajor = buffer[offset++];
-		LinxApiMinor = buffer[offset++];
-		LinxApiSubminor = buffer[offset++];
-
-		status = GetU8ArrParameter(LCMD_GET_DEV_ID, buffer, &offset, 2, &dataRead);
+		if (dataRead >= 3)
+		{
+			LinxApiMajor = buffer[offset++];
+			LinxApiMinor = buffer[offset++];
+			LinxApiSubminor = buffer[offset++];
+		}
+		status = GetU8ArrParameter(LCMD_GET_DEV_ID, buffer, 255, &offset, &dataRead);
 	}
 	if (!status)
 	{
-		DeviceFamily = buffer[offset++];
-		DeviceId = buffer[offset++];
-
-		status = GetU8ArrParameter(LCMD_GET_DEV_NAME, buffer, &offset, 255, &dataRead);
+		if (dataRead >= 2)
+		{
+			DeviceFamily = buffer[offset++];
+			DeviceId = buffer[offset++];
+		}
+		status = GetU8ArrParameter(LCMD_GET_DEV_NAME, buffer, 255, &offset, &dataRead);
 	}
 	if (!status)
 	{
-		m_DeviceName = (unsigned char*)malloc(dataRead);
-		if (m_DeviceName)
-			memcpy(m_DeviceName, buffer + offset, dataRead);
+		if	(dataRead > 0)
+		{
+			if (m_DeviceName == m_Unknown)
+				m_DeviceName = (unsigned char*)malloc(dataRead + 1);
+			else
+				m_DeviceName = (unsigned char*)realloc(m_DeviceName, dataRead + 1);
 
-		status = GetU8ArrParameter(LCMD_GET_MAX_PACK_SIZE, buffer, &offset, 4, &dataRead);
-		if (!status)
-			ReadU32FromBuff(buffer, offset, &ListenerBufferSize);
+			if (m_DeviceName)
+			{
+				memcpy(m_DeviceName, buffer + offset, dataRead);
+				m_DeviceName[dataRead] = 0;
+			}
+		}
+
+		status = GetU8ArrParameter(LCMD_GET_MAX_PACK_SIZE, buffer, 255, &offset, &dataRead);
+		if (!status && dataRead >= 4)
+			ReadU32FromBuff(buffer, offset, &m_ListenerBufferSize);
 		// ignore error
-		status = L_OK;
+
+		status = GetU8ArrParameter(LCMD_GET_AI_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_AiChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_AO_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_AoChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_DIO_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_DigitalChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_PWM_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_PwmChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_QE_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_QeChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_UART_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_UartChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_I2C_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_I2cChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_SPI_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_SpiChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_CAN_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_CanChans, buffer, dataRead);
+
+		status = GetU8ArrParameter(LCMD_GET_SERVO_CHANS, buffer, 255, &offset, &dataRead);
+		if (!status)
+			CopyArrayToSet(m_ServoChans, buffer, dataRead);
 	}
+	if (!status)
+	{
 
-
+	}
 /*
 		//----Peripherals----
 
 
 		//AI
-		unsigned char NumAiChans;
-		const unsigned char* AiChans;
 		unsigned char AiResolution;
 		unsigned int AiRefDefault;
 		unsigned int AiRefSet;
 
 		//AO
-		unsigned char NumAoChans;
-		const unsigned char* AoChans;
 		unsigned char AoResolution;
 		unsigned int AoRefDefault;
 		unsigned int AoRefSet;
 
 		//PWM
-		unsigned char NumPwmChans;
-		const unsigned char* PwmChans;
 
 		//QE
-		unsigned char NumQeChans;
-		const unsigned char* QeChans;
 
 		//UART
-		unsigned char NumUartChans;
-		const unsigned char* UartChans;
 		unsigned int UartMaxBaud;
 
 		//I2C
-		unsigned char NumI2cChans;
-		const unsigned char* I2cChans;
 
 		//SPI
-		unsigned char NumSpiChans;
-		const unsigned char* SpiChans;
 
 		//CAN
-		unsigned char NumCanChans;
-		const unsigned char* CanChans;
 
 		//Servo
-		unsigned char NumServoChans;
-		const unsigned char* ServoChans;
 
 		//User Configured Values
 		unsigned short userId;
@@ -350,20 +411,70 @@ int LinxClient::Initialize()
 	return status;
 }
 
-int LinxClient::WriteCommand(unsigned char *packetBuffer, unsigned int packetLength, unsigned int timeout)
-{
-	return L_FUNCTION_NOT_SUPPORTED;
-}
-
-int LinxClient::ReadResponse(unsigned char *packetBuffer, unsigned int packetLength, unsigned int timeout)
-{
-	return L_FUNCTION_NOT_SUPPORTED;
-}
-
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
 unsigned char LinxClient::GetDeviceName(unsigned char *buffer, unsigned char length)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	size_t len = strlen((char*)m_DeviceName);
+	if (buffer)
+	{
+		if (len > length)
+			len = length;
+		memcpy(buffer, m_DeviceName, len);
+		if (length > len)
+			buffer[len] = 0;
+	}
+	return (unsigned char)len; 
 }
+
+unsigned char LinxClient::GetAiChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_AiChans, buffer, length);
+}
+
+unsigned char LinxClient::GetAoChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_AoChans, buffer, length);
+}
+
+unsigned char LinxClient::GetDioChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_DigitalChans, buffer, length);
+}
+
+unsigned char LinxClient::GetQeChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_QeChans, buffer, length);
+}
+
+unsigned char LinxClient::GetPwmChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_PwmChans, buffer, length);
+}
+
+unsigned char LinxClient::GetSpiChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_SpiChans, buffer, length);
+}
+
+unsigned char LinxClient::GetI2cChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_I2cChans, buffer, length);
+}
+
+unsigned char LinxClient::GetUartChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_UartChans, buffer, length);
+}
+
+unsigned char LinxClient::GetCanChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_CanChans, buffer, length);
+}
+
+unsigned char LinxClient::GetServoChans(unsigned char *buffer, unsigned char length)
+{
+	return (unsigned char)CopySetToArray(m_ServoChans, buffer, length);
+}
+

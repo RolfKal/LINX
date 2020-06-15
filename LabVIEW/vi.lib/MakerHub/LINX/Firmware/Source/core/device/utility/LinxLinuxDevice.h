@@ -15,13 +15,27 @@
 /****************************************************************************************
 **  Defines
 ****************************************************************************************/
+#ifndef INPUT
+	#define INPUT 0x00
+#endif
+
+#ifndef  OUTPUT
+	#define OUTPUT 0x01
+#endif
+
+#ifndef HIGH
+	#define HIGH 0x01
+#endif
+
+#ifndef LOW
+	#define LOW 0x00
+#endif
 
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
 #include "LinxDevice.h"
 #include <stdio.h>
-#include <map>
 #include <string>
 
 using namespace std;
@@ -116,56 +130,56 @@ class LinxLinuxDevice : public LinxDevice
 		//System
 
 		//DIO
-		map<unsigned char, unsigned char> DigitalChannels;		//Maps LINX DIO Channel Numbers To BB GPIO Channels
-		map<unsigned char, unsigned char> DigitalDirs;			//Current DIO Direction Values
-		map<unsigned char, FILE*> DigitalDirHandles;			//File Handles For Digital Pin Directions
-		map<unsigned char, FILE*> DigitalValueHandles;			//File Handles For Digital Pin Values
+		std::map<unsigned char, unsigned char> DigitalChannels;	//Maps LINX DIO Channel Numbers To BB GPIO Channels
+		std::map<unsigned char, unsigned char> DigitalDirs;		//Current DIO Direction Values
+		std::map<unsigned char, FILE*> DigitalDirHandles;		//File Handles For Digital Pin Directions
+		std::map<unsigned char, FILE*> DigitalValueHandles;		//File Handles For Digital Pin Values
 
 		//PWM
-		map<unsigned char, string> PwmDirPaths;					//PWM Device Tree Overlay Names
-		map<unsigned char, FILE*> PwmPeriodHandles;				//File Handles For PWM Period Values
-		map<unsigned char, FILE*> PwmDutyCycleHandles;			//File Handles For PWM Duty Cycle Values
-		map<unsigned char, unsigned int> PwmPeriods;			//Current PWM  Values
+		std::map<unsigned char, std::string> PwmDirPaths;		//PWM Device Tree Overlay Names
+		std::map<unsigned char, FILE*> PwmPeriodHandles;		//File Handles For PWM Period Values
+		std::map<unsigned char, FILE*> PwmDutyCycleHandles;		//File Handles For PWM Duty Cycle Values
+		std::map<unsigned char, unsigned long> PwmPeriods;		//Current PWM  Values
 		unsigned int PwmDefaultPeriod;							//Default Period For PWM Channels (nS)
-		string PwmDutyCycleFileName;
-		string PwmPeriodFileName;
-		string PwmEnableFileName;
+		std::string PwmDutyCycleFileName;
+		std::string PwmPeriodFileName;
+		std::string PwmEnableFileName;
 
 		//AI
-		map<unsigned char, FILE*> AiValueHandles;				//AI Value Handles
-		map<unsigned char, string> AiValuePaths;				//AI Value Paths
+		std::map<unsigned char, FILE*> AiValueHandles;			//AI Value Handles
+		std::map<unsigned char, std::string> AiValuePaths;		//AI Value Paths
 		unsigned char NumAiRefIntVals;							//Number Of Internal AI Reference Voltages
-		const unsigned int* AiRefIntVals;						//Supported AI Reference Voltages (uV)
+		const unsigned long* AiRefIntVals;						//Supported AI Reference Voltages (uV)
 		const int* AiRefCodes;									//AI Ref Values (AI Ref Macros In Wiring Case)
 		unsigned int AiRefExtMin;								//Min External AI Ref Value (uV)
 		unsigned int AiRefExtMax;					   			//Max External AI Ref Value (uV)
 
 		//AO
-		map<unsigned char, FILE*> AoValueHandles;				//AO Value Handles
+		std::map<unsigned char, FILE*> AoValueHandles;			//AO Value Handles
 
 		//UART
-		map<unsigned char, string> UartPaths;					//UART Channel File Paths
-		map<unsigned char, int> UartHandles;					//File Handles For UARTs - Must Be Int For Termios Functions
-		map<unsigned char, string> UartDtoNames;				//UART Device Tree Overlay Names
-		unsigned char NumUartSpeeds;						//Number Of Support UART Buads
-		const unsigned int* UartSupportedSpeeds;				//Supported UART Bauds Frequencies
-		const unsigned int* UartSupportedSpeedsCodes;			//Supported UART Baud Divider Codes
+		std::map<unsigned char, std::string> UartPaths;			//UART Channel File Paths
+		std::map<unsigned char, int> UartHandles;				//File Handles For UARTs - Must Be Int For Termios Functions
+		std::map<unsigned char, std::string> UartDtoNames;		//UART Device Tree Overlay Names
+		unsigned char NumUartSpeeds;							//Number Of Support UART Buads
+		unsigned int* UartSupportedSpeeds;						//Supported UART Bauds Frequencies
+		unsigned int* UartSupportedSpeedsCodes;					//Supported UART Baud Divider Codes
 
 		//SPI
-		map<unsigned char, string> SpiDtoNames;  				//Device Tree Overlay Names For SPI Master(s)
-		map<unsigned char, string> SpiPaths;  					//File Paths For SPI Master(s)
-		map<unsigned char, int> SpiHandles;						//File Handles For SPI Master(s)
-		unsigned char NumSpiSpeeds;						//Number Of Supported SPI Speeds
-		const unsigned int* SpiSupportedSpeeds;					//Supported SPI Clock Frequencies
-		const int* SpiSpeedCodes;								//SPI Speed Values (Clock Divider Macros In Wiring Case)
-		map<unsigned char, unsigned char> SpiBitOrders;			//Stores Bit Orders For SPI Channels (LSBFIRST / MSBFIRST)
-		map<unsigned char, unsigned int> SpiSetSpeeds; 			//Stores The Set Clock Rate Of Each SPI Channel
+		std::map<unsigned char, std::string> SpiDtoNames;  		//Device Tree Overlay Names For SPI Master(s)
+		std::map<unsigned char, std::string> SpiPaths;  		//File Paths For SPI Master(s)
+		std::map<unsigned char, int> SpiHandles;				//File Handles For SPI Master(s)
+		unsigned char NumSpiSpeeds;								//Number Of Supported SPI Speeds
+		unsigned int* SpiSupportedSpeeds;						//Supported SPI Clock Frequencies
+		int* SpiSpeedCodes;										//SPI Speed Values (Clock Divider Macros In Wiring Case)
+		std::map<unsigned char, unsigned char> SpiBitOrders;	//Stores Bit Orders For SPI Channels (LSBFIRST / MSBFIRST)
+		std::map<unsigned char, unsigned long> SpiSetSpeeds; 	//Stores The Set Clock Rate Of Each SPI Channel
 		unsigned int SpiDefaultSpeed;
 
 		//I2C
-		map<unsigned char, string> I2cPaths;					//File Paths For I2C Master(s)
-		map<unsigned char, int> I2cHandles;						//File Handles For I2C Master(s)
-		map<unsigned char, string> I2cDtoNames;					//Device Tree Overlay Names For I2C Master(s)
+		std::map<unsigned char, std::string> I2cPaths;			//File Paths For I2C Master(s)
+		std::map<unsigned char, int> I2cHandles;				//File Handles For I2C Master(s)
+		std::map<unsigned char, std::string> I2cDtoNames;		//Device Tree Overlay Names For I2C Master(s)
 
 		/****************************************************************************************
 		**  Functions

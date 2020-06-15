@@ -15,10 +15,12 @@
 /****************************************************************************************
 ** Defines
 ****************************************************************************************/
+#define LINX_TIMOUT_INFINITE -1
 
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
+#include <set>
 #include "LinxDevice.h"
 
 /****************************************************************************************
@@ -42,6 +44,16 @@ class LinxClient : public LinxDevice
 		**  Functions
 		****************************************************************************************/
 		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetAiChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetAoChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetDioChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetQeChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetPwmChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetSpiChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetI2cChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetUartChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetCanChans(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetServoChans(unsigned char *buffer, unsigned char length);
 
 		//Analog
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
@@ -89,9 +101,6 @@ class LinxClient : public LinxDevice
 		virtual int ServoClose(unsigned char numChans, unsigned char* chans);
 
 		// General
-		virtual unsigned int GetMilliSeconds();
-		virtual unsigned int GetSeconds();
-		virtual void DelayMs(unsigned int ms);
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 
@@ -103,10 +112,13 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Initialize(); 
+		// After the derived class established a connection it needs to call this function to initialize
+		// the various private data elements this library will cache for quick information gathering
+		virtual int Initialize();	
 
-		virtual int WriteCommand(unsigned char *packetBuffer, unsigned int packetLength, unsigned int timeout) = 0;
-		virtual int ReadResponse(unsigned char *packetBuffer, unsigned int packetLength, unsigned int timeout) = 0;
+		// These two function need to be implemented by any derived class to do the actual data transfers
+		virtual int ReadData(unsigned char *buffer, unsigned int startTime, int timeout, int bytesToRead, int *numBytesRead) = 0;
+		virtual int WriteData(unsigned char *buffer, unsigned int startTime, int timeout, int bytesToWrite) = 0;
 
 	private:
 		/****************************************************************************************
@@ -115,51 +127,50 @@ class LinxClient : public LinxDevice
 		unsigned char *m_DeviceName;
 
 		//DIO
-		unsigned char *m_DigitalChans;
+		std::set<unsigned char> m_DigitalChans;
 
 		//AI
-		unsigned char *m_AiChans;
+		std::set<unsigned char> m_AiChans;
 
 		//AO
-		unsigned char *m_AoChans;
+		std::set<unsigned char> m_AoChans;
 
 		//PWM
-		unsigned char *m_PwmChans;
+		std::set<unsigned char> m_PwmChans;
 
 		//QE
-		unsigned char *m_QeChans;
+		std::set<unsigned char> m_QeChans;
 
 		//UART
-		unsigned char *m_UartChans;
+		std::set<unsigned char> m_UartChans;
 
 		//I2C
-		unsigned char *m_I2cChans;
+		std::set<unsigned char> m_I2cChans;
 
 		//SPI
-		unsigned char *m_SpiChans;
+		std::set<unsigned char> m_SpiChans;
 
 		//CAN
-		unsigned char *m_CanChans;
+		std::set<unsigned char> m_CanChans;
 
 		//Servo
-		unsigned char *m_ServoChans;
+		std::set<unsigned char> m_ServoChans;
 
-		unsigned int m_Timeout;
-
-		unsigned int ListenerBufferSize;
+		unsigned int m_ListenerBufferSize;
+		unsigned short m_PacketNum;
+		int m_Timeout;
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual unsigned short GetNextPacketNum();
-		virtual unsigned char ComputeChecksum(unsigned char* buffer, unsigned int size);
-		virtual bool ChecksumPassed(unsigned char* buffer, unsigned int size);
-		virtual unsigned int PrepareHeader(unsigned char* buffer, unsigned short command, unsigned short packetNum, unsigned int dataSize);
-		virtual int WriteAndRead(unsigned char *buffer, unsigned int *offset, unsigned short packetNum, unsigned int timeout, unsigned int writeData, unsigned int readData, unsigned int *dataRead);
+		virtual int PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int *headerLength);
+		virtual int WriteAndRead(unsigned char *buffer, int buffLength, int *headerLength, int dataLength, int *dataRead);
 
 		virtual int GetNoParameter(unsigned short command);
 		virtual int GetU8Parameter(unsigned short command, unsigned char *val);
+		virtual int GetU16Parameter(unsigned short command, unsigned short *val);
 		virtual int GetU32Parameter(unsigned short command, unsigned int *val);
-		virtual int GetU8ArrParameter(unsigned short command, unsigned char *val, unsigned int *offset, unsigned int length, unsigned int *dataRead);
+		virtual int GetU8ArrParameter(unsigned short command, unsigned char *val, int buffLength, int *headerLength, int *dataRead);
 };
 #endif //LINX_CLIENT_H

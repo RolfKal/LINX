@@ -20,15 +20,17 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
-#include "LinxListener.h"
-#include "LinxDevice.h"
-
 #include <stdio.h>
+#ifndef _MSC_VER
 #include <sys/time.h>
-#include <unistd.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
-
+#define NetSocket int
+#else
+#include <winsock.h>
+#define NetSocket SOCKET
+#endif
+#include "utility\LinxListener.h"
+#include "LinxDevice.h"
 
 /****************************************************************************************
 **  Classes
@@ -39,36 +41,41 @@ class LinxLinuxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		unsigned int TcpUpdateTime;
-		struct timeval TcpTimeout;
-
-		unsigned short TcpPort;
-		int ServerSocket;
-		int ClientSocket;
-
-		struct sockaddr_in TcpServer;
-		struct sockaddr_in TcpClient;
 
 		/****************************************************************************************
-		**  Constructors
+		**  Constructors/Destructor
 		****************************************************************************************/
-		LinxLinuxTcpListener();		//Default Constructor
+		LinxLinuxTcpListener();
+		~LinxLinuxTcpListener();
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		int Start(LinxDevice* linxDev, unsigned short port);
-		int Listen();
-		int Connected();
-		int Close();
-		int Exit();
+		virtual int Start(LinxDevice* debug, LinxDevice* device, unsigned int interfaceAaddress = INADDR_ANY, unsigned short port = 44300);
+		virtual int Start(LinxDevice* device, unsigned int interfaceAaddress = INADDR_ANY, unsigned short port = 44300);
+		virtual int WaitForConnection();
+		virtual int Close();
 
-		virtual int CheckForCommands();
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		int ReadData(unsigned char *buffer, int bytesToRead, int *numBytesRead);
+		int WriteData(unsigned char *buffer, int bytesToWrite);
+		int FlushData();
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
+		unsigned int m_TcpUpdateTime;
+		struct timeval m_TcpTimeout;
+
+		NetSocket m_ServerSocket;
+		NetSocket m_ClientSocket;
+
+		struct sockaddr_in m_TcpServer;
+		struct sockaddr_in m_TcpClient;
 
 		/****************************************************************************************
 		**  Functions
