@@ -103,24 +103,6 @@ class LinxRaspberryPi : public LinxLinuxDevice
 		//System
 		static char m_DeviceName[DEVICE_NAME_MAX];
 		
-		//AI
-		
-		//AO
-		//None
-		
-		//DIGITAL
-
-		//PWM
-		
-		//SPI
-				
-		//I2C
-		
-		//UART
-		
-		//Servo		
-		//none
-
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/

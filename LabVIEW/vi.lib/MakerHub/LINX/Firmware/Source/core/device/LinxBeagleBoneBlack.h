@@ -143,7 +143,7 @@ class LinxBeagleBoneBlack : public LinxLinuxDevice
 		/****************************************************************************************
 		**  Constructors /  Destructor
 		****************************************************************************************/
-		LinxBeagleBoneBlack(LinxFmtChannel *debug);
+		LinxBeagleBoneBlack();
 		~LinxBeagleBoneBlack();
 		
 		/****************************************************************************************

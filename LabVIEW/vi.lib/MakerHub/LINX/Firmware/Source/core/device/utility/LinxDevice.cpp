@@ -356,6 +356,14 @@ int LinxFmtChannel::WriteNumber(unsigned long n, unsigned char base)
 	return m_Channel->Write(buf + i, e - i, TIMEOUT_INFINITE);
 }
 
+int LinxFmtChannel::SetChannel(LinxCommChannel *channel)
+{
+	if (m_Channel)
+		m_Channel->Release();
+	m_Channel = channel;
+	m_Channel->AddRef();
+	return L_OK;
+}
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
@@ -423,12 +431,7 @@ LinxDevice::~LinxDevice()
 ****************************************************************************************/
 int LinxDevice::EnableDebug(LinxCommChannel *channel)
 {	
-	if (m_Debug)
-		m_Debug->Release();
-	m_Debug = new LinxFmtChannel(channel);
-	if (m_Debug)
-		return m_Debug->AddRef();
-	return LERR_MEMORY;
+	return m_Debug->SetChannel(channel);
 }
 
 void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* packetBuffer)

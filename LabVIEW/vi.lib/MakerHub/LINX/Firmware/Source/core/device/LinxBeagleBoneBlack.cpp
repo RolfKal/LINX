@@ -190,7 +190,7 @@ int LinxBBBSpiChannel::Open()
 /****************************************************************************************
 **  Constructors /  Destructor
 ****************************************************************************************/
-LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug)
+LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 {
 	//LINX Device Information
 	DeviceFamily = 0x06;	//TI Family Code
