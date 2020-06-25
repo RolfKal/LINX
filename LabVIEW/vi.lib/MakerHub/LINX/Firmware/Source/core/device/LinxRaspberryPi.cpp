@@ -92,8 +92,6 @@ enum {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B48
 //SPI
 static unsigned char g_SpiChans[NUM_SPI_CHANS] = {0, 1};
 static const char * g_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
-static unsigned int g_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
-static int g_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 
 //I2C
 static unsigned char g_I2cChans[NUM_I2C_CHANS] = {1};
@@ -119,7 +117,7 @@ static void ShortWait(void)
 **  Digital Channels
 ****************************************************************************************/
 // Raspberry Pi GPIO memory map pointer
-static volatile int *gpio_map = MAP_FAILED;
+static volatile int *gpio_map = (volatile int*)MAP_FAILED;
 
 // Raspberry Pi GPIO pins
 static const unsigned char g_LinxDioChans[NUM_DIGITAL_CHANS] = {7, 11, 12, 13, 15, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40};
@@ -448,7 +446,7 @@ LinxRaspberryPi::~LinxRaspberryPi()
 	if (gpio_map != MAP_FAILED)
 	{
 		munmap((void *)gpio_map, BLOCK_SIZE);
-		gpio_map = MAP_FAILED;
+		gpio_map = (volatile int*)MAP_FAILED;
 	}
 }
 

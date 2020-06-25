@@ -24,10 +24,13 @@
 #include <time.h>
 #include <math.h>
 #include <errno.h>
+#include <string.h>
+#include <malloc.h>
 #include <iostream>
 #include <fstream>
 #if Unix
 #include <alloca.h>
+#inclide <poll.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <asm/ioctls.h>
@@ -36,7 +39,6 @@
 #include <linux/spi/spidev.h>
 #elif Win32
 #include <io.h>
-#include <malloc.h>
 
 #define open	_open
 #define read	_read
@@ -389,14 +391,14 @@ LinxSysfsDioChannel::~LinxSysfsDioChannel()
 		fclose(m_EdgeHandle);
 	}
 
-	if (m_DirHandle = NULL)
+	if (m_DirHandle != NULL)
 	{
 		// return to input
 		fprintf(m_DirHandle, "in");
 		fclose(m_DirHandle);
 	}
 
-	if (m_ValHandle)
+	if (m_ValHandle != NULL)
 	{
 		fclose(m_ValHandle);
 		if (m_State & GPIO_EXPORTED)

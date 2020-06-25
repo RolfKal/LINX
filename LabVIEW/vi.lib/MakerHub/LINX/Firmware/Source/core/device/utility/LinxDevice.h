@@ -208,7 +208,7 @@ class LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxChannel(const char *channelName, LinxFmtChannel *debug);
-		~LinxChannel();
+		virtual ~LinxChannel();
 
 		/****************************************************************************************
 		**  Functions
@@ -238,6 +238,7 @@ class LinxAiChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxAiChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+
 
 		/****************************************************************************************
 		**  Functions

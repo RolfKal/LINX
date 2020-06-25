@@ -15,6 +15,7 @@
 #define getMilliSeconds()	(unsigned int)(getUsTicks() / 1000)
 #define getSeconds()		(unsigned int)(getUsTicks() / 1000000)
 #include <list>
+#include <string>
 
 int WriteU8ToBuff(unsigned char *buffer, int offset, unsigned char val);
 int WriteU16ToBuff(unsigned char *buffer, int offset, unsigned short val);

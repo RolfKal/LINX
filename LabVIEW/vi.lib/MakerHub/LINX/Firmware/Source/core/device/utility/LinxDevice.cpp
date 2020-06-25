@@ -423,7 +423,6 @@ LinxDevice::~LinxDevice()
 ****************************************************************************************/
 int LinxDevice::EnableDebug(LinxCommChannel *channel)
 {	
-	int status = L_OK;
 	if (m_Debug)
 		m_Debug->Release();
 	m_Debug = new LinxFmtChannel(channel);
