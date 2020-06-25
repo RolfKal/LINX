@@ -31,6 +31,31 @@
 
 class LinxLinuxDevice;
 
+class LinxSysfsAiChannel : public LinxAiChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName);
+		~LinxSysfsAiChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual LinxChannel *QueryInterface(int interfaceId);
+
+		virtual int Read(unsigned int *value);
+
+	protected:
+		char m_State;			// Current DIO Direction and Pull-State
+
+	private:
+		FILE *m_ValHandle;	// File Handles For Digital Pin Value
+
+		int SmartOpen();
+};
+
 class LinxSysfsDioChannel : public LinxDioChannel
 {
 	public:
@@ -52,7 +77,6 @@ class LinxSysfsDioChannel : public LinxDioChannel
 		virtual int ReadPulseWidth(unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
 
 	protected:
-		LinxFmtChannel *m_Debug;
 		short m_GpioChan;		// Maps LINX DIO Channel Number To GPIO Channel
 		short m_LinxChan;		// Maps LINX DIO Channel Number To GPIO Channel
 		char m_State;			// Current DIO Direction and Pull-State

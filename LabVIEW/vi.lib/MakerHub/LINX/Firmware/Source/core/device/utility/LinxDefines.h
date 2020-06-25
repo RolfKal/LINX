@@ -16,7 +16,7 @@
 #define Win32 1
 #define _CRT_SECURE_NO_WARNINGS 1
 #elif defined(unix) || defined(__unix) || defined(__unix__)
-#define Posix 1
+#define Unix 1
 #endif
 
 #endif

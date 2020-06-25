@@ -26,7 +26,7 @@
 #include <errno.h>
 #include <iostream>
 #include <fstream>
-#if Posix
+#if Unix
 #include <alloca.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -37,6 +37,11 @@
 #elif Win32
 #include <io.h>
 #include <malloc.h>
+
+#define open	_open
+#define read	_read
+#define write	_write
+#define close	_close
 
 #define O_NOCTTY	1
 #define O_NONBLOCK	2
@@ -325,6 +330,47 @@ void usleep(long);
 #include "LinxUtilities.h"
 #include "LinxDevice.h"
 #include "LinxLinuxDevice.h"
+
+//------------------------------------- Digital -------------------------------------
+LinxSysfsAiChannel::LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName) : LinxAiChannel(channelName, debug)
+{
+	m_ValHandle = NULL;
+}
+
+LinxSysfsAiChannel::~LinxSysfsAiChannel()
+{
+	if (m_ValHandle)
+	{
+		fclose(m_ValHandle);
+	}
+}
+
+LinxChannel *LinxSysfsAiChannel::QueryInterface(int interfaceId)
+{
+	if (interfaceId == IID_LinxSysfsAiChannel)
+	{
+		AddRef();
+		return this;
+	}
+	return LinxAiChannel::QueryInterface(interfaceId);
+}
+
+// Open direction and value handles if it is not already open
+int LinxSysfsAiChannel::SmartOpen()
+{
+	// Open value handle if it is not already open
+	if (m_ValHandle == NULL)
+	{
+		m_Debug->Writeln("Opening AI Value Handle");
+		m_ValHandle = fopen(m_ChannelName, "r+w+");
+		if (m_ValHandle == NULL)
+		{
+			m_Debug->Writeln("AI Fail - Unable To Open Value File Handle");
+			return L_UNKNOWN_ERROR;
+		}
+	}
+	return L_OK;
+}
 
 //------------------------------------- Digital -------------------------------------
 LinxSysfsDioChannel::LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin) : LinxDioChannel("LinxDioPin", debug)
@@ -913,6 +959,9 @@ int LinxSysfsSpiChannel::SetMode(unsigned char mode)
 
 int LinxSysfsSpiChannel::SetSpeed(unsigned int speed, unsigned int* actualSpeed)
 {
+	if (m_Fd < 0)
+		return LSPI_DEVICE_NOT_OPEN;
+
 	if (m_NumSpiSpeeds)
 	{
 		int index;
@@ -942,9 +991,10 @@ int LinxSysfsSpiChannel::WriteRead(unsigned char frameSize, unsigned char numFra
 	if (m_Fd < 0)
 		return LSPI_DEVICE_NOT_OPEN;
 
-	unsigned char csInv = ~csLL & 0x01, nextByte = 0;	//First Byte Of Next SPI Frame
+	unsigned char csInv = ~csLL & 0x01, // Precompute inverse digital value
+		          nextByte = 0;			// First Byte Of Next SPI Frame
 
-	//SPI Hardware Only Supports MSb First Transfer. If  Configured for LSb First Reverse Bits In Software
+	//SPI hardware only supports MSB First transfer. If  Configured for LSB First reverse bits in software
 	if (m_BitOrder == LSBFIRST)
 	{
 		for (int i = 0; i < frameSize * numFrames; i++)

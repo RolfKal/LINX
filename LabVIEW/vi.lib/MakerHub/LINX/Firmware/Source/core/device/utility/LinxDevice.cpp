@@ -45,7 +45,7 @@ unsigned int LinxChannel::AddRef()
 {
 #if Win32
 	return InterlockedIncrement(&m_Refcount);
-#elif Posix
+#elif Unix
 	return __sync_fetch_and_add(&m_Refcount, 1);
 #endif
 }
@@ -55,7 +55,7 @@ unsigned int LinxChannel::Release()
 	unsigned int refcount = 
 #if Win32
 	InterlockedDecrement(&m_Refcount);
-#elif Posix
+#elif Unix
 	__sync_sub_and_fetch(&m_Refcount, 1);
 #endif
 	if (!refcount)

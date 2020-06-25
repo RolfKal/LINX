@@ -11,7 +11,7 @@
 #include "LinxDefines.h"
 #include <stdio.h>
 #include <string.h>
-#if Posix
+#if Unix
 #include <sys/stat.h>
 #elif Win32
 #include <windows.h>
@@ -106,7 +106,7 @@ int ReadStringFromBuff(unsigned char *buffer, int offset, unsigned char *arr, in
 // Return true If file specified by path exists.
 int fileExists(const char* path)
 {
-#if Posix
+#if Unix
 	struct stat buffer;
 	return (stat(path, &buffer) == 0);
 #elif Win32
@@ -131,7 +131,7 @@ static int initializeFrequency()
 
 unsigned long long getUsTicks()
 {
-#if Posix
+#if Unix
 	timespec mTime;
 	clock_gettime(CLOCK_MONOTONIC, &mTime);
 	return (((unsigned long long)mTime.tv_sec * 1000000) + mTime.tv_nsec / 1000);
@@ -152,7 +152,7 @@ unsigned long long getUsTicks()
 
 void delayMs(unsigned int ms)
 {
-#if Posix
+#if Unix
 	usleep(ms * 1000);
 #elif Win32
 	Sleep(ms);
@@ -161,7 +161,7 @@ void delayMs(unsigned int ms)
 
 int fileExists(const char* path, int *length)
 {
-#if Posix
+#if Unix
 	struct stat buffer;
 	int ret = stat(path, &buffer);
 	if (ret == 0)
@@ -180,7 +180,7 @@ int fileExists(const char* directory, const char* fileName)
 {
 	char fullPath[260];
 	sprintf(fullPath, "%s%s", directory, fileName);
-#if Posix
+#if Unix
 	struct stat buffer;
 	return (stat(fullPath, &buffer) == 0);
 #elif Win32
@@ -193,7 +193,7 @@ int fileExists(const char* directory, const char* fileName, unsigned int timeout
 	char fullPath[260];
 	sprintf(fullPath, "%s%s", directory, fileName);
 	unsigned int startTime = getMilliSeconds();
-#if Posix
+#if Unix
 	struct stat buffer;
 	while (getMilliSeconds()) - startTime < timeout)
 	{

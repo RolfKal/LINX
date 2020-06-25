@@ -17,13 +17,13 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#ifndef _MSC_VER
+#if Unix
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #define INVALID_SOCKET -1
 #define closesocket(s) close(s)
-#else
+#elif Win32
 #include <io.h>
 #include <winsock2.h>
 #endif

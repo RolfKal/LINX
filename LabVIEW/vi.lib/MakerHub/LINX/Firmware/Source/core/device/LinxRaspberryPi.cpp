@@ -18,12 +18,22 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#ifdef Posix
+#ifdef Unix
 #include <unistd.h>
 #include <termios.h>
 #include <sys/mman.h>
+
+#define __nop()   		asm volatile("nop");
+
 #elif Win32
 #include <io.h>
+#include <intrin.h>  // for __nop
+
+#define open	_open
+#define read	_read
+#define write	_write
+#define close	_close
+
 #define MAP_FAILED (volatile int*)-1
 #define PROT_READ 0
 #define PROT_WRITE 0
@@ -101,9 +111,7 @@ static void ShortWait(void)
     for (int i = 0; i < 150; i++)
 	{
 		// wait 150 cycles
-#ifndef _MSC_VER
-		asm volatile("nop");
-#endif
+		__nop();
     }
 }
 

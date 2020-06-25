@@ -20,12 +20,13 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
+#include "LinxDefines.h"
 #include <stdio.h>
-#ifndef _MSC_VER
+#if Unix
 #include <sys/time.h>
 #include <netinet/in.h>
 #define NetSocket int
-#else
+#elif Win32
 #include <winsock.h>
 #define NetSocket SOCKET
 #endif

@@ -39,7 +39,7 @@ using namespace std;
 //System
 static const char *m_DeviceName = "BeagleBone Black";
 
-//AI
+//-------------------------------------- AI -------------------------------------
 static const unsigned char m_AiChans[NUM_AI_CHANS] = {0, 1, 2, 3, 4, 5, 6};
 static const string m_AiValuePaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:device0/in_voltage0_raw",
 													"/sys/bus/iio/devices/iio:device0/in_voltage1_raw",
@@ -51,31 +51,22 @@ static const string m_AiValuePaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:de
 //static const unsigned int m_AiRefIntVals[NUM_AI_INT_REFS] = {};
 //static const int m_AiRefCodes[NUM_AI_INT_REFS] = {};
 
-//AO
+//-------------------------------------- AO -------------------------------------
 //None
 
-//DIGITAL
+//-------------------------------------- DIO ------------------------------------
 static const unsigned char m_DigitalChans[NUM_DIGITAL_CHANS] = { 7,  8,  9, 10, 11, 12, 15, 16, 17, 18, 26, 58, 61, 69,  73,  76};
 static const unsigned char m_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61, 60, 48, 49, 115, 112};
 
-//PWM - Default to 7.x Layout, Updated B
+
+//-------------------------------------- PWM ------------------------------------
+// Default to 7.x Layout, Updated in Constructor if newer
 static const unsigned char m_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
 static string m_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6", "/sys/class/pwm/pwm5", "/sys/class/pwm/pwm3", "/sys/class/pwm/pwm4"};
 static string m_EnableFileName;
 //static const string m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
 
 
-//QE
-//None
-
-//SPI
-
-//I2C
-
-//UART
-
-//SERVO
-//None
 //------------------------------------- Uart ------------------------------------
 static unsigned char g_UartChans[NUM_UART_CHANS] = {0, 1, 4};
 static const char *g_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
@@ -112,6 +103,7 @@ int LinxBBBUartChannel::SmartOpen()
 	}
 	return LinxUnixUartChannel::SmartOpen();
 }
+
 
 //------------------------------------- I2c -------------------------------------
 static const unsigned char g_I2cChans[NUM_I2C_CHANS] = {2};
@@ -150,6 +142,7 @@ int LinxBBBI2cChannel::Open()
 	}
 	return LinxSysfsI2cChannel::Open();
 }
+
 
 //------------------------------------- SPI -------------------------------------
 static const unsigned char g_SpiChans[NUM_SPI_CHANS] = {0};
@@ -190,6 +183,9 @@ int LinxBBBSpiChannel::Open()
 	}
 	return LinxSysfsSpiChannel::Open();
 }
+
+
+//----------------------------------- Device ------------------------------------
 
 /****************************************************************************************
 **  Constructors /  Destructor
