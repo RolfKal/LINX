@@ -378,7 +378,7 @@ int LinxSysfsAiChannel::Read(unsigned int *value)
 		return status;
 
 	m_ValHandle = freopen(m_ChannelName, "r+", m_ValHandle);
-	fscanf(m_ValHandle, "%lu", value);
+	fscanf(m_ValHandle, "%u", value);
 	return L_OK;
 }
 

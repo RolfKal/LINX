@@ -13,6 +13,7 @@
 #include <string.h>
 #if Unix
 #include <time.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #elif Win32
 #include <windows.h>
@@ -193,19 +194,14 @@ int fileExists(const char* directory, const char* fileName, unsigned int timeout
 	char fullPath[260];
 	sprintf(fullPath, "%s%s", directory, fileName);
 	unsigned int startTime = getMilliSeconds();
-#if Unix
-	struct stat buffer;
-	while (getMilliSeconds()) - startTime < timeout)
-	{
-		if (stat(fullPath, &buffer) == 0)
-			return TRUE;
-		delayMs(10);
-	}
-#elif Win32
-#endif
 	while (getMilliSeconds() - startTime < timeout)
 	{
+#if Unix
+		struct stat buffer;
+		if (stat(fullPath, &buffer) == 0)
+#elif Win32
 		if (GetFileAttributesA(fullPath) != INVALID_FILE_ATTRIBUTES)
+#endif
 			return TRUE;
 		delayMs(10);
 	}
