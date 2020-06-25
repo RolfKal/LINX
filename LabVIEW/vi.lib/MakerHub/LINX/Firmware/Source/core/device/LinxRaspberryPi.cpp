@@ -71,39 +71,8 @@ enum {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B48
 #define BLOCK_SIZE (4 * 1024)
 
 /****************************************************************************************
-**  Member Variables
+**  Channel implementations
 ****************************************************************************************/
-//System
-
-//AI
-//None 
-
-//AO
-//None
-
-//DIGITAL
-
-//PWM
-//None
-
-//QE
-//None
-
-//SPI
-static unsigned char g_SpiChans[NUM_SPI_CHANS] = {0, 1};
-static const char * g_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
-
-//I2C
-static unsigned char g_I2cChans[NUM_I2C_CHANS] = {1};
-static const char * g_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1"};
-
-//UART
-static unsigned char g_UartChans[NUM_UART_CHANS] = {0};
-static const char * g_UartPaths[NUM_UART_CHANS] = {"/dev/ttyAMA0"};
-
-//SERVO
-//None
-
 static void ShortWait(void)
 {
     for (int i = 0; i < 150; i++)
@@ -276,6 +245,19 @@ void LinxRaspiDioChannel::setState(unsigned char state)
 		setPull(pud); 
 	}
 }
+
+//SPI
+static unsigned char g_SpiChans[NUM_SPI_CHANS] = {0, 1};
+static const char * g_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
+
+//I2C
+static unsigned char g_I2cChans[NUM_I2C_CHANS] = {1};
+static const char * g_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1"};
+
+//UART
+static unsigned char g_UartChans[NUM_UART_CHANS] = {0};
+static const char * g_UartPaths[NUM_UART_CHANS] = {"/dev/ttyAMA0"};
+
 
 /****************************************************************************************
 **  Constructors /  Destructor

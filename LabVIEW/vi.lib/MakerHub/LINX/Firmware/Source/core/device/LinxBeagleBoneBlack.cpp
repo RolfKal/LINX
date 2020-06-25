@@ -34,7 +34,7 @@
 using namespace std;
 
 /****************************************************************************************
-**  Member Variables
+**  Channel implementations
 ****************************************************************************************/
 //System
 static const char *m_DeviceName = "BeagleBone Black";
@@ -138,7 +138,6 @@ int LinxBBBI2cChannel::Open()
 			m_Debug->Writeln("I2C Fail - Failed To Load I2C DTO");
 			return  LI2C_OPEN_FAIL;
 		}
-
 	}
 	return LinxSysfsI2cChannel::Open();
 }
@@ -698,70 +697,6 @@ unsigned char LinxBeagleBoneBlack::GetDeviceName(unsigned char* buffer, unsigned
 	if (buffer)
 		strncpy((char*)buffer, m_DeviceName, length); 
 	return (unsigned char)strlen(m_DeviceName);
-}
-
-//--------------------------------------------------------ANALOG-------------------------------------------------------
-int LinxBeagleBoneBlack::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
-{
-
-	//unsigned int analogValue = 0;
-	unsigned char responseByteOffset = 0;
-	unsigned char responseBitsRemaining = 8;
-	unsigned char dataBitsRemaining = AiResolution;
-	fstream fs;	//AI File Handle
-
-	values[responseByteOffset] = 0x00;    //Clear First	Response Byte
-
-	//Loop Over All AI channels In Command Packet
-	for (int i = 0; i < numChans; i++)
-	{
-		//Acquire AI Sample
-		int aiVal = 0;
-		AiValueHandles[channels[i]] = freopen(AiValuePaths[channels[i]].c_str(), "r+", AiValueHandles[channels[i]]);
-		fscanf(AiValueHandles[channels[i]], "%u", &aiVal);
-
-		/*
-		fs.open(AiPaths[channels[i]], fstream::in);
-		fs >> analogValue;
-		fs.close();
-		*/
-
-		dataBitsRemaining = AiResolution;
-
-		//Byte Packet AI Values In Response Packet
-		while (dataBitsRemaining > 0)
-		{
-			*(values + responseByteOffset) |= ( ((unsigned int)aiVal >> (AiResolution - dataBitsRemaining)) << (8 - responseBitsRemaining));
-			//*(values+responseByteOffset) = 69;
-
-			if (responseBitsRemaining > dataBitsRemaining)
-			{
-				//Current Byte Still Has Empty Bits
-				responseBitsRemaining -= dataBitsRemaining;
-				dataBitsRemaining = 0;
-			}
-			else
-			{
-				//Current Byte Full
-				dataBitsRemaining = dataBitsRemaining - responseBitsRemaining;
-				responseByteOffset++;
-				responseBitsRemaining = 8;
-				values[responseByteOffset] = 0x00;    //Clear Next Response Byte
-			}
-		}
-	}
-	return L_OK;
-}
-
-int LinxBeagleBoneBlack::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values)
-{
-	//Loop Over All AI channels In Command Packet
-	for (int i = 0; i < numChans; i++)
-	{
-		AiValueHandles[channels[i]] = freopen(AiValuePaths[channels[i]].c_str(), "r+", AiValueHandles[channels[i]]);
-		fscanf(AiValueHandles[channels[i]], "%lu", values+i);
-	}
-	return L_OK;
 }
 
 //--------------------------------------------------------PWM-------------------------------------------------------

@@ -2,15 +2,16 @@ CXX ?= g++
 
 INC=-I../core/device/utility -I../core/device/ -I../core/listener -I../core/client
 
-CORE_LINX=../core/device/utility/LinxDevice.cpp
+CORE_LINX=../core/device/utility/LinxDevice.cpp ../core/device/utility/LinxUtilities.cpp
 CORE_LISTENER=../core/listener/utility/LinxListener.cpp
 CORE_LINUX=../core/device/utility/LinxLinuxDevice.cpp
+CORE_CLIENT=../core/client/LinxClient.cpp ../core/client/LinxSerialClient.cpp ../core/client/LinxTcpClient.cpp
 CORE_RPI=$(CORE_LINX) $(CORE_LINUX) ../core/device/LinxRaspberryPi.cpp
 CORE_BBB=$(CORE_LINX) $(CORE_LINUX) ../core/device/LinxBeagleBoneBlack.cpp
 
 LISTENER_SERIAL=$(CORE_LISTENER) ../core/listener/LinxSerialListener.cpp
-LISTENER_TCP=$(CORE_LISTENER) ../core/listener/LinxLinuxTcpListener.cpp
-LISTENER_CONFIG=$(CORE_LISTENER) ../core/listener/LinxSerialListener.cpp ../core/listener/LinxLinuxTcpListener.cpp
+LISTENER_TCP=$(CORE_LISTENER) ../core/listener/LinxTcpListener.cpp
+LISTENER_CONFIG=$(CORE_LISTENER) ../core/listener/LinxSerialListener.cpp ../core/listener/LinxTcpListener.cpp
 
 HW_RPI = -DLINX_DEVICE_FAMILY=4 -DLINX_DEVICE_ID=3
 HW_BBB = -DLINX_DEVICE_FAMILY=6 -DLINX_DEVICE_ID=1

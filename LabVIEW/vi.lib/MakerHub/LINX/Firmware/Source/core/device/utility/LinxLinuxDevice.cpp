@@ -374,6 +374,17 @@ int LinxSysfsAiChannel::SmartOpen()
 	return L_OK;
 }
 
+int LinxSysfsAiChannel::Read(unsigned int *value)
+{
+	int status = SmartOpen();
+	if (status)
+		return status;
+
+	m_ValHandle = freopen(m_ChannelName, "r+", m_ValHandle);
+	fscanf(m_ValHandle, "%lu", value);
+	return L_OK;
+}
+
 //------------------------------------- Digital -------------------------------------
 LinxSysfsDioChannel::LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin) : LinxDioChannel("LinxDioPin", debug)
 {

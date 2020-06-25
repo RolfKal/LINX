@@ -296,8 +296,6 @@ class LinxLinuxDevice : public LinxDevice
 		std::string PwmEnableFileName;
 
 		//AI
-		std::map<unsigned char, FILE*> AiValueHandles;			//AI Value Handles
-		std::map<unsigned char, std::string> AiValuePaths;		//AI Value Paths
 		unsigned char NumAiRefIntVals;							//Number Of Internal AI Reference Voltages
 		const unsigned long* AiRefIntVals;						//Supported AI Reference Voltages (uV)
 		const int* AiRefCodes;									//AI Ref Values (AI Ref Macros In Wiring Case)
