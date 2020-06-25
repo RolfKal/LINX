@@ -170,10 +170,13 @@ int fileExists(const char* path, int *length)
 	return (ret == 0);
 #elif Win32
 	WIN32_FIND_DATAA findBuf;
-	HANDLE findhandle = FindFirstFileA(path, &findBuf);
-    if (findhandle == INVALID_HANDLE_VALUE)
+	HANDLE findHandle = FindFirstFileA(path, &findBuf);
+    if (findHandle != INVALID_HANDLE_VALUE)
+	{
 		*length = findBuf.nFileSizeLow;
-	return findhandle != INVALID_HANDLE_VALUE;
+		FindClose(findHandle);
+	}
+	return findHandle != INVALID_HANDLE_VALUE;
 #endif
 }
 
@@ -202,9 +205,9 @@ int fileExists(const char* directory, const char* fileName, unsigned int timeout
 #elif Win32
 		if (GetFileAttributesA(fullPath) != INVALID_FILE_ATTRIBUTES)
 #endif
-			return TRUE;
+			return true;
 		delayMs(10);
 	}
-	return FALSE;
+	return false;
 }
 
