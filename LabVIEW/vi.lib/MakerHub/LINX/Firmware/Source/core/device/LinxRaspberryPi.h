@@ -55,7 +55,7 @@ class LinxRaspiDioChannel : public LinxSysfsDioChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin);
-		~LinxRaspiDioChannel();
+		virtual ~LinxRaspiDioChannel();
 
 		/****************************************************************************************
 		**  Functions

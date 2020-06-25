@@ -238,6 +238,7 @@ class LinxAiChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxAiChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxAiChannel() {};
 
 
 		/****************************************************************************************
@@ -259,6 +260,7 @@ class LinxAoChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxAoChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxAoChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -279,6 +281,7 @@ class LinxDioChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxDioChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxDioChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -303,6 +306,7 @@ class LinxPwmChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxPwmChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxPwmChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -324,6 +328,7 @@ class LinxQeChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxQeChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxQeChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -344,6 +349,7 @@ class LinxCommChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxCommChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxCommChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -366,6 +372,7 @@ class LinxUartChannel : public LinxCommChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxUartChannel(const char *channelName, LinxFmtChannel *debug) : LinxCommChannel(channelName, debug) {};
+		virtual ~LinxUartChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -392,6 +399,7 @@ class LinxI2cChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxI2cChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxI2cChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -416,6 +424,7 @@ class LinxSpiChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSpiChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxSpiChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -441,6 +450,7 @@ class LinxCanChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxCanChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxCanChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -462,6 +472,7 @@ class LinxServoChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxServoChannel(const char *channelName, LinxFmtChannel *debug) : LinxChannel(channelName, debug) {};
+		virtual ~LinxServoChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -485,7 +496,7 @@ class LinxFmtChannel : public LinxCommChannel
 		****************************************************************************************/
 		LinxFmtChannel();
 		LinxFmtChannel(LinxCommChannel *channel);
-		~LinxFmtChannel();
+		virtual ~LinxFmtChannel();
 
 		/****************************************************************************************
 		**  Functions

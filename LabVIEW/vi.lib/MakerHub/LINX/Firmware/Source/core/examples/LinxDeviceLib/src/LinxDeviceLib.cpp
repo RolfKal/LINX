@@ -51,13 +51,15 @@ extern "C" int LinxOpen()
 	return L_OK;
 }
 
-extern "C" LinxDevice * LinxOpenTCP(char address, short port, int timeout)
+extern "C" LinxDevice * LinxOpenTCP(char *address, short port, int timeout)
 {
+	// return new LinxTCPClient(address, port, timeout);
 	return NULL;
 }
 
-extern "C" LinxDevice * LinxOpenSerial(char address, int timeout)
+extern "C" LinxDevice * LinxOpenSerial(char *device, int timeout)
 {
+	// return new LinxSerialClient(device, timeout);
 	return NULL;
 }
 

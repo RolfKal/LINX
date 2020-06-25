@@ -40,14 +40,14 @@ using namespace std;
 static const char *m_DeviceName = "BeagleBone Black";
 
 //-------------------------------------- AI -------------------------------------
-static const unsigned char m_AiChans[NUM_AI_CHANS] = {0, 1, 2, 3, 4, 5, 6};
-static const string m_AiValuePaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:device0/in_voltage0_raw",
-													"/sys/bus/iio/devices/iio:device0/in_voltage1_raw",
-													"/sys/bus/iio/devices/iio:device0/in_voltage2_raw",
-													"/sys/bus/iio/devices/iio:device0/in_voltage3_raw",
-													"/sys/bus/iio/devices/iio:device0/in_voltage4_raw",
-													"/sys/bus/iio/devices/iio:device0/in_voltage5_raw",
-													"/sys/bus/iio/devices/iio:device0/in_voltage6_raw"};
+static const unsigned char g_AiChans[NUM_AI_CHANS] = {0, 1, 2, 3, 4, 5, 6};
+static const char *g_AiPaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:device0/in_voltage0_raw",
+											  "/sys/bus/iio/devices/iio:device0/in_voltage1_raw",
+											  "/sys/bus/iio/devices/iio:device0/in_voltage2_raw",
+											  "/sys/bus/iio/devices/iio:device0/in_voltage3_raw",
+											  "/sys/bus/iio/devices/iio:device0/in_voltage4_raw",
+											  "/sys/bus/iio/devices/iio:device0/in_voltage5_raw",
+											  "/sys/bus/iio/devices/iio:device0/in_voltage6_raw"};
 //static const unsigned int m_AiRefIntVals[NUM_AI_INT_REFS] = {};
 //static const int m_AiRefCodes[NUM_AI_INT_REFS] = {};
 
@@ -422,13 +422,11 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		//Open AI Handles		
 		for (int i = 0; i < NUM_AI_CHANS; i++)
 		{
-			AiValuePaths[m_AiChans[i]] = m_AiValuePaths[i];
-			AiValueHandles[m_AiChans[i]] = fopen(m_AiValuePaths[i].c_str(), "r+");
-			
-			if (AiValueHandles[m_AiChans[i]] <= 0)
-			{
+			LinxChannel *chan = new LinxSysfsAiChannel(m_Debug, g_AiPaths[i]);
+			if (chan)
+				RegisterChannel(IID_LinxAiChannel, g_AiChans[i], chan);
+			else
 				m_Debug->Writeln("AI Fail - Failed Open AI Channel Handle");
-			}			
 		}
 	}	
 	
@@ -581,7 +579,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	for (int i = 0; i < NUM_I2C_CHANS; i++)
 	{	
 		LinxI2cChannel *chan = new LinxBBBI2cChannel(g_I2cPaths[i], m_Debug, m_FilePathLayout == 7 ? g_I2cDtoNames[i] : NULL, m_DtoSlotsPath);
-		RegisterChannel(IID_LinxI2cChannel, g_UartChans[i], chan);
+		RegisterChannel(IID_LinxI2cChannel, g_I2cChans[i], chan);
 	}
 
 	//------------------------------------- UART ------------------------------------
@@ -627,7 +625,6 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			}
 		}
 	}
-
 	
 	//Load SPI Paths and DTO Names, Configure SPI Master Default Values	
 	SpiDefaultSpeed = 3900000;
@@ -645,15 +642,6 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 //Destructor
 LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 {	
-	//Close AI Handles
-	for (int i = 0; i < NUM_AI_CHANS; i++)
-	{
-		if (AiValueHandles[m_AiChans[i]] != 0)
-		{
-			fclose(AiValueHandles[m_AiChans[i]]);
-		}
-	}
-	
 	//Close PWM Handles If Open
 	for (int i = 0; i < NUM_PWM_CHANS; i++)
 	{

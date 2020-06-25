@@ -55,6 +55,7 @@ class LinxBBBUartChannel : public LinxUnixUartChannel
 		**  Constructor
 		****************************************************************************************/
 		LinxBBBUartChannel(const char *channelName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath);
+		virtual ~LinxBBBUartChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -82,6 +83,7 @@ class LinxBBBI2cChannel : public LinxSysfsI2cChannel
 		**  Constructor
 		****************************************************************************************/
 		LinxBBBI2cChannel(const char *channelName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath);
+		virtual ~LinxBBBI2cChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -110,6 +112,7 @@ class LinxBBBSpiChannel : public LinxSysfsSpiChannel
 		**  Constructor
 		****************************************************************************************/
 		LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxLinuxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath);
+		virtual ~LinxBBBSpiChannel() {};
 
 		/****************************************************************************************
 		**  Functions
@@ -144,7 +147,7 @@ class LinxBeagleBoneBlack : public LinxLinuxDevice
 		**  Constructors /  Destructor
 		****************************************************************************************/
 		LinxBeagleBoneBlack();
-		~LinxBeagleBoneBlack();
+		virtual ~LinxBeagleBoneBlack();
 		
 		/****************************************************************************************
 		**  Functions

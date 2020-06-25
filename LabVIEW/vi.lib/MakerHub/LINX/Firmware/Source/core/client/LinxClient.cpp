@@ -102,7 +102,7 @@ unsigned short LinxClient::GetNextPacketNum()
 int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int *headerLength)
 {
 	dataLength += 7;
-	if (dataLength >= (int)m_ListenerBufferSize || dataLength + 2 > 0xFFFFFF)
+	if (dataLength >= (int)m_ListenerBufferSize || dataLength > 0xFFFFFF - 2)
 		return LERR_MSG_TO_LONG;
 
 	if (dataLength <= 255)

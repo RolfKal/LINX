@@ -38,7 +38,7 @@ class LinxSysfsAiChannel : public LinxAiChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName);
-		~LinxSysfsAiChannel();
+		virtual ~LinxSysfsAiChannel();
 
 		/****************************************************************************************
 		**  Functions
@@ -63,7 +63,7 @@ class LinxSysfsDioChannel : public LinxDioChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin);
-		~LinxSysfsDioChannel();
+		virtual ~LinxSysfsDioChannel();
 
 		/****************************************************************************************
 		**  Functions
@@ -96,7 +96,7 @@ class LinxUnixUartChannel : public LinxUartChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxUnixUartChannel(const char *channelName, LinxFmtChannel *debug);
-		~LinxUnixUartChannel();
+		virtual ~LinxUnixUartChannel();
 
 		/****************************************************************************************
 		**  Functions
@@ -132,7 +132,7 @@ class LinxSysfsI2cChannel : public LinxI2cChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsI2cChannel(const char *channelName, LinxFmtChannel *debug);
-		~LinxSysfsI2cChannel();
+		virtual ~LinxSysfsI2cChannel();
 
 		/****************************************************************************************
 		**  Functions
@@ -168,7 +168,7 @@ class LinxSysfsSpiChannel : public LinxSpiChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxLinuxDevice *device, unsigned int speed);
-		~LinxSysfsSpiChannel();
+		virtual ~LinxSysfsSpiChannel();
 
 		/****************************************************************************************
 		**  Functions
@@ -223,7 +223,7 @@ class LinxLinuxDevice : public LinxDevice
 		**  Constructors
 		****************************************************************************************/
 		LinxLinuxDevice();
-		~LinxLinuxDevice();
+		virtual ~LinxLinuxDevice();
 
 		/****************************************************************************************
 		**  Functions
@@ -308,21 +308,12 @@ class LinxLinuxDevice : public LinxDevice
 		std::map<unsigned char, FILE*> AoValueHandles;			//AO Value Handles
 
 		//UART
-//		std::map<unsigned char, std::string> UartPaths;			//UART Channel File Paths
-//		std::map<unsigned char, int> UartHandles;				//File Handles For UARTs - Must Be Int For Termios Functions
-//		std::map<unsigned char, std::string> UartDtoNames;		//UART Device Tree Overlay Names
 		unsigned char NumUartSpeeds;							//Number Of Support UART Buads
 
 		//SPI
-//		std::map<unsigned char, std::string> SpiDtoNames;  		//Device Tree Overlay Names For SPI Master(s)
-//		std::map<unsigned char, std::string> SpiPaths;  		//File Paths For SPI Master(s)
-//		std::map<unsigned char, int> SpiHandles;				//File Handles For SPI Master(s)
-
 		unsigned int SpiDefaultSpeed;
 
 		//I2C
-//		std::map<unsigned char, std::string> I2cPaths;			//File Paths For I2C Master(s)
-///		std::map<unsigned char, int> I2cHandles;				//File Handles For I2C Master(s)
 
 		/****************************************************************************************
 		**  Functions
