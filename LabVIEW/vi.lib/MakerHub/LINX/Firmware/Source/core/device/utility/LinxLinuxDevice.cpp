@@ -30,7 +30,7 @@
 #include <fstream>
 #if Unix
 #include <alloca.h>
-#inclide <poll.h>
+#include <poll.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <asm/ioctls.h>
