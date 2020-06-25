@@ -19,6 +19,7 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
+#include "LinxDefines.h"
 #include <stdio.h>
 #include <map>
 #include <string>
@@ -27,6 +28,41 @@
 #include "LinxDevice.h"
 
 using namespace std;
+
+class LinxWinUartChannel : public LinxUartChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxWinUartChannel(const char *channelName, LinxFmtChannel *debug);
+		~LinxWinUartChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual LinxChannel *QueryInterface(int interfaceId);
+
+		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
+		virtual int SetBitSizes(unsigned char dataBits, unsigned char stopBits);
+		virtual int SetParity(LinxUartParity parity);
+		virtual int GetBytesAvail(int* numBytesAvailable);
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Close();
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int SmartOpen();
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		HANDLE m_Handle;
+};
 
 /****************************************************************************************
 **  Variables
@@ -49,23 +85,13 @@ class LinxWindowsDevice : public LinxDevice
 		**  Functions
 		****************************************************************************************/
 		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetAiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetAoChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetDioChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetQeChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetPwmChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetSpiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetI2cChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetUartChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetCanChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetServoChans(unsigned char *buffer, unsigned char length);
 
 		//Analog
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int AnalogSetRef(unsigned char mode, unsigned int voltage);
 
 		//DIGITAL
-		virtual int DigitalSetDirection(unsigned char numChans, unsigned char* channels, unsigned char* values);
+		virtual int DigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char* states);
 		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Values Not Bit Packed
 		virtual int DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
@@ -78,6 +104,7 @@ class LinxWindowsDevice : public LinxDevice
  
 		//SPI
 		virtual int SpiOpenMaster(unsigned char channel);
+		virtual int SpiOpenMaster(const char *deviceName, unsigned char channel);
 		virtual int SpiSetBitOrder(unsigned char channel, unsigned char bitOrder);
 		virtual int SpiSetMode(unsigned char channel, unsigned char mode);
 		virtual int SpiSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed);
@@ -92,8 +119,8 @@ class LinxWindowsDevice : public LinxDevice
 		virtual int I2cClose(unsigned char channel);
 
 		//UART
-		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
-		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
+		virtual int UartOpen(unsigned char channel, LinxUartChannel **chan);
+		virtual int UartOpen(const char *deviceName, unsigned char nameLength, unsigned char *channel, LinxUartChannel **chan);
 		virtual int UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
 		virtual int UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes);
 		virtual int UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead);
@@ -106,9 +133,6 @@ class LinxWindowsDevice : public LinxDevice
 		virtual int ServoClose(unsigned char numChans, unsigned char* chans);
 
 		// General
-		virtual unsigned int GetMilliSeconds();
-		virtual unsigned int GetSeconds();
-		virtual void DelayMs(unsigned int ms);
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 
@@ -120,15 +144,8 @@ class LinxWindowsDevice : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int DigitalWrite(unsigned char channel, unsigned char value);
-		virtual int digitalSmartOpen(unsigned char numChans, unsigned char* channels);
 		virtual int pwmSmartOpen(unsigned char numChans, unsigned char* channels);
-		bool fileExists(const char* path);
-		bool fileExists(const char* path, int *length);
-		bool fileExists(const char* directory, const char* fileName);
-		bool fileExists(const char* directory, const char* fileName, unsigned int timout);
 
 	private:
-		LARGE_INTEGER Frequency;
 };
 #endif //LINX_WINDOWSDEVICE_H

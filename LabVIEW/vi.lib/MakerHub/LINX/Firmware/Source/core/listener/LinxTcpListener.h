@@ -9,8 +9,8 @@
 ** BSD2 License.
 ****************************************************************************************/
 
-#ifndef LINX_LINUX_TCP_LISTENER_H
-#define LINX_LINUX_TCP_LISTENER_H
+#ifndef LINX_TCP_LISTENER_H
+#define LINX_TCP_LISTENER_H
 
 
 #ifndef MAX_PENDING_CONS
@@ -35,7 +35,7 @@
 /****************************************************************************************
 **  Classes
 ****************************************************************************************/
-class LinxLinuxTcpListener : public LinxListener
+class LinxTcpListener : public LinxListener
 {
 	public:
 		/****************************************************************************************
@@ -45,14 +45,13 @@ class LinxLinuxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Constructors/Destructor
 		****************************************************************************************/
-		LinxLinuxTcpListener();
-		~LinxLinuxTcpListener();
+		LinxTcpListener(LinxDevice* device, LinxFmtChannel* debug);
+		~LinxTcpListener();
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Start(LinxDevice* debug, LinxDevice* device, unsigned int interfaceAaddress = INADDR_ANY, unsigned short port = 44300);
-		virtual int Start(LinxDevice* device, unsigned int interfaceAaddress = INADDR_ANY, unsigned short port = 44300);
+		virtual int Start(unsigned int interfaceAaddress = INADDR_ANY, unsigned short port = 44300);
 		virtual int WaitForConnection();
 		virtual int Close();
 
@@ -80,9 +79,5 @@ class LinxLinuxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		int peek(unsigned char * recBuffer, int bufferSize);
 };
-
-extern LinxLinuxTcpListener LinxTcpConnection;
-
-#endif //LINX_LINUX_TCP_LISTENER_H
+#endif //LINX_TCP_LISTENER_H

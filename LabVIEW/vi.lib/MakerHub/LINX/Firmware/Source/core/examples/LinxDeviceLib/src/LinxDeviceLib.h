@@ -41,7 +41,7 @@ extern "C" unsigned char LinxAoGetNumChans();
 extern "C" int LinxAiGetChans(unsigned char numChans, unsigned char* channels);
 extern "C" int LinxAoGetChans(unsigned char numChans, unsigned char* channels);
 extern "C" int LinxAnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
-extern "C" int LinxAnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values);
+extern "C" int LinxAnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values);
 
 
 //------------------------------------- CAN -------------------------------------
@@ -97,6 +97,7 @@ extern "C" unsigned char LinxUartGetNumChans();
 extern "C" int LinxUartGetChans(unsigned char numChans, unsigned char* channels);
 extern "C" int LinxUartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
 extern "C" int LinxUartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
+extern "C" int LinxUartSetAttributes(unsigned char channel, unsigned char dataBits, LinxUartParity parity);
 extern "C" int LinxUartGetBytesAvailable(unsigned char channel, unsigned char *numBytes);
 extern "C" int LinxUartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead);
 extern "C" int LinxUartWrite(unsigned char channel, unsigned char numBytes, unsigned char* sendBuffer);

@@ -15,28 +15,172 @@
 /****************************************************************************************
 **  Defines
 ****************************************************************************************/
-#ifndef INPUT
-	#define INPUT 0x00
-#endif
-
-#ifndef  OUTPUT
-	#define OUTPUT 0x01
-#endif
-
-#ifndef HIGH
-	#define HIGH 0x01
-#endif
-
-#ifndef LOW
-	#define LOW 0x00
-#endif
+#define NUM_UART_SPEEDS 18
 
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
-#include "LinxDevice.h"
+#include "LinxDefines.h"
 #include <stdio.h>
 #include <string>
+#include "LinxDevice.h"
+
+/****************************************************************************************
+**  Typedefs
+****************************************************************************************/
+
+class LinxLinuxDevice;
+
+class LinxSysfsDioChannel : public LinxDioChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin);
+		~LinxSysfsDioChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual LinxChannel *QueryInterface(int interfaceId);
+
+		virtual int SetState(unsigned char state);		// direction and pull-up/down
+		virtual int Write(unsigned char value);
+		virtual int Read(unsigned char *value);
+		virtual int WriteSquareWave(unsigned int freq, unsigned int duration);
+		virtual int ReadPulseWidth(unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
+
+	protected:
+		LinxFmtChannel *m_Debug;
+		short m_GpioChan;		// Maps LINX DIO Channel Number To GPIO Channel
+		short m_LinxChan;		// Maps LINX DIO Channel Number To GPIO Channel
+		char m_State;			// Current DIO Direction and Pull-State
+
+	private:
+		FILE *m_ValHandle;	// File Handles For Digital Pin Value
+		FILE *m_DirHandle;	// File Handles For Digital Pin Direction
+		FILE *m_EdgeHandle;	// File Handles For Digital Pin Edge
+
+		int SmartOpen();
+};
+
+class LinxUnixUartChannel : public LinxUartChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxUnixUartChannel(const char *channelName, LinxFmtChannel *debug);
+		~LinxUnixUartChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual LinxChannel *QueryInterface(int interfaceId);
+
+		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
+		virtual int SetBitSizes(unsigned char dataBits, unsigned char stopBits);
+		virtual int SetParity(LinxUartParity parity);
+		virtual int GetBytesAvail(int* numBytesAvailable);
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Close();
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int SmartOpen();
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		int m_Fd;
+		bool m_init;
+};
+
+class LinxSysfsI2cChannel : public LinxI2cChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxSysfsI2cChannel(const char *channelName, LinxFmtChannel *debug);
+		~LinxSysfsI2cChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual LinxChannel *QueryInterface(int interfaceId);
+
+		virtual int Open();
+		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
+		virtual int Read(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned int timeout, unsigned char* recBuffer);
+		virtual int Write(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned char* sendBuffer);
+		virtual int Close();
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		int m_Fd;
+};
+
+class LinxSysfsSpiChannel : public LinxSpiChannel
+{
+	public:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxSysfsSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxLinuxDevice *device, unsigned int speed);
+		~LinxSysfsSpiChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual LinxChannel *QueryInterface(int interfaceId);
+
+		virtual int Open();
+		virtual int SetBitOrder(unsigned char bitOrder);
+		virtual int SetMode(unsigned char mode);
+		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
+		virtual int WriteRead(unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer);
+		virtual int Close();
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		unsigned char m_NumSpiSpeeds;								//Number Of Supported SPI Speeds
+		unsigned int* m_SpiSupportedSpeeds;						//Supported SPI Clock Frequencies
+		int* m_SpiSpeedCodes;										//SPI Speed Values (Clock Divider Macros In Wiring Case)
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		LinxLinuxDevice *m_Device;
+		int m_Fd;
+		unsigned char m_BitOrder;
+		unsigned int m_CurrentSpeed;
+		unsigned int m_MaxSpeed;
+
+};
 
 using namespace std;
 
@@ -60,27 +204,16 @@ class LinxLinuxDevice : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned char GetAiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetAoChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetDioChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetQeChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetPwmChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetSpiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetI2cChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetUartChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetCanChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetServoChans(unsigned char *buffer, unsigned char length);
-
 		//Analog
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int AnalogSetRef(unsigned char mode, unsigned int voltage);
 
 		//DIGITAL
-		virtual int DigitalSetDirection(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Values Not Bit Packed
+		virtual int DigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char *states);		// direction and pull-up/down
+		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);			// Values Are Bit Packed
+		virtual int DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);	// Values Are Not Bit Packed
 		virtual int DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Response Not Bit Packed
+		virtual int DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);	// Response Not Bit Packed
 		virtual int DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration);
 		virtual int DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
 
@@ -89,6 +222,7 @@ class LinxLinuxDevice : public LinxDevice
  
 		//SPI
 		virtual int SpiOpenMaster(unsigned char channel);
+		virtual int SpiOpenMaster(const char *deviceName, unsigned char channel);
 		virtual int SpiSetBitOrder(unsigned char channel, unsigned char bitOrder);
 		virtual int SpiSetMode(unsigned char channel, unsigned char mode);
 		virtual int SpiSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed);
@@ -103,8 +237,7 @@ class LinxLinuxDevice : public LinxDevice
 		virtual int I2cClose(unsigned char channel);
 
 		//UART
-		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
-		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
+		virtual int UartOpen(const char *deviceName, unsigned char nameLength, unsigned char *channel, LinxUartChannel **chan = NULL);
 		virtual int UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
 		virtual int UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes);
 		virtual int UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead);
@@ -117,9 +250,6 @@ class LinxLinuxDevice : public LinxDevice
 		virtual int ServoClose(unsigned char numChans, unsigned char* chans);
 
 		// General
-		virtual unsigned int GetMilliSeconds();
-		virtual unsigned int GetSeconds();
-		virtual void DelayMs(unsigned int ms);
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 
@@ -130,10 +260,6 @@ class LinxLinuxDevice : public LinxDevice
 		//System
 
 		//DIO
-		std::map<unsigned char, unsigned char> DigitalChannels;	//Maps LINX DIO Channel Numbers To BB GPIO Channels
-		std::map<unsigned char, unsigned char> DigitalDirs;		//Current DIO Direction Values
-		std::map<unsigned char, FILE*> DigitalDirHandles;		//File Handles For Digital Pin Directions
-		std::map<unsigned char, FILE*> DigitalValueHandles;		//File Handles For Digital Pin Values
 
 		//PWM
 		std::map<unsigned char, std::string> PwmDirPaths;		//PWM Device Tree Overlay Names
@@ -158,45 +284,32 @@ class LinxLinuxDevice : public LinxDevice
 		std::map<unsigned char, FILE*> AoValueHandles;			//AO Value Handles
 
 		//UART
-		std::map<unsigned char, std::string> UartPaths;			//UART Channel File Paths
-		std::map<unsigned char, int> UartHandles;				//File Handles For UARTs - Must Be Int For Termios Functions
-		std::map<unsigned char, std::string> UartDtoNames;		//UART Device Tree Overlay Names
+//		std::map<unsigned char, std::string> UartPaths;			//UART Channel File Paths
+//		std::map<unsigned char, int> UartHandles;				//File Handles For UARTs - Must Be Int For Termios Functions
+//		std::map<unsigned char, std::string> UartDtoNames;		//UART Device Tree Overlay Names
 		unsigned char NumUartSpeeds;							//Number Of Support UART Buads
-		unsigned int* UartSupportedSpeeds;						//Supported UART Bauds Frequencies
-		unsigned int* UartSupportedSpeedsCodes;					//Supported UART Baud Divider Codes
 
 		//SPI
-		std::map<unsigned char, std::string> SpiDtoNames;  		//Device Tree Overlay Names For SPI Master(s)
-		std::map<unsigned char, std::string> SpiPaths;  		//File Paths For SPI Master(s)
-		std::map<unsigned char, int> SpiHandles;				//File Handles For SPI Master(s)
-		unsigned char NumSpiSpeeds;								//Number Of Supported SPI Speeds
-		unsigned int* SpiSupportedSpeeds;						//Supported SPI Clock Frequencies
-		int* SpiSpeedCodes;										//SPI Speed Values (Clock Divider Macros In Wiring Case)
-		std::map<unsigned char, unsigned char> SpiBitOrders;	//Stores Bit Orders For SPI Channels (LSBFIRST / MSBFIRST)
-		std::map<unsigned char, unsigned long> SpiSetSpeeds; 	//Stores The Set Clock Rate Of Each SPI Channel
+//		std::map<unsigned char, std::string> SpiDtoNames;  		//Device Tree Overlay Names For SPI Master(s)
+//		std::map<unsigned char, std::string> SpiPaths;  		//File Paths For SPI Master(s)
+//		std::map<unsigned char, int> SpiHandles;				//File Handles For SPI Master(s)
+
 		unsigned int SpiDefaultSpeed;
 
 		//I2C
-		std::map<unsigned char, std::string> I2cPaths;			//File Paths For I2C Master(s)
-		std::map<unsigned char, int> I2cHandles;				//File Handles For I2C Master(s)
-		std::map<unsigned char, std::string> I2cDtoNames;		//Device Tree Overlay Names For I2C Master(s)
+//		std::map<unsigned char, std::string> I2cPaths;			//File Paths For I2C Master(s)
+///		std::map<unsigned char, int> I2cHandles;				//File Handles For I2C Master(s)
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int DigitalWrite(unsigned char channel, unsigned char value);
-		virtual int digitalSmartOpen(unsigned char numChans, unsigned char* channels);
 		virtual int pwmSmartOpen(unsigned char numChans, unsigned char* channels);
 		bool uartSupportsVarBaudrate(const char* path, int baudrate);
-		bool fileExists(const char* path);
-		bool fileExists(const char* path, int *length);
-		bool fileExists(const char* directory, const char* fileName);
-		bool fileExists(const char* directory, const char* fileName, unsigned int timout);
 
 	private:
 		int UartSetBaudRate(int fd, unsigned int baudRate, unsigned int* actualBaud, bool init);
 		int UartSetBitSize(int fd, unsigned char dataBits, unsigned char stopBits);
-		int UartSetParity(int fd, unsigned char parity);
+		int UartSetParity(int fd, LinxUartParity parity);
 
 };
 #endif //LINX_LINUXDEVICE_H

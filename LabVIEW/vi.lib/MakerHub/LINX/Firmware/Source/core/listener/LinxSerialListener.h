@@ -40,34 +40,27 @@ class LinxSerialListener : public LinxListener
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSerialListener();		//Default Constructor
+		LinxSerialListener(LinxDevice *device, LinxFmtChannel* debug = NULL) : LinxListener(device, debug){};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Start(LinxDevice* linxDev, unsigned char uartChan, unsigned int baudRate = 9600);
-		virtual int Start(LinxDevice* debug, LinxDevice* linxDev, unsigned char uartChan, unsigned int baudRate = 9600);
-		virtual int WaitForConnection();			// Wait for incoming connection, child needs to implement this
-		virtual int Close();
+		virtual int Start(unsigned char uartChan, unsigned int baudRate = 9600);
+		virtual int WaitForConnection();	// Wait for incoming connection, child needs to implement this
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		int ReadData(unsigned char *buffer, int bytesToRead, int *numBytesRead);
-		int WriteData(unsigned char *buffer, int bytesToWrite);
-		int FlushData();
 
 private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		unsigned char m_UartChannel;
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-
 };
 
 extern LinxSerialListener LinxSerialConnection;

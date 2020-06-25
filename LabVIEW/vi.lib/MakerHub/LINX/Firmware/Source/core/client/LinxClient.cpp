@@ -359,55 +359,52 @@ int LinxClient::Initialize()
 		if (!status)
 			CopyArrayToSet(m_ServoChans, buffer, dataRead);
 	}
+	//----Peripherals----
+	// Uart
 	if (!status)
 	{
-
+		status = GetU32Parameter(LCMD_GET_UART_MAX_BAUD, &UartMaxBaud);
+	}
+	// AI
+	if (!status)
+	{
+		status = GetU32Parameter(LCMD_GET_AI_REF_VOLT, &AiRefSet);
+	}
+	if (!status)
+	{
+		status = GetU32Parameter(LCMD_GET_AI_REF_VOLT, &AiRefSet);
 	}
 /*
-		//----Peripherals----
 
 
-		//AI
-		unsigned char AiResolution;
-		unsigned int AiRefDefault;
-		unsigned int AiRefSet;
+	// AI
+	unsigned char AiResolution;
+	unsigned int AiRefDefault;
+	unsigned int AiRefSet;
 
-		//AO
-		unsigned char AoResolution;
-		unsigned int AoRefDefault;
-		unsigned int AoRefSet;
+	// AO
+	AoResolution;
+	AoRefDefault;
+	AoRefSet;
 
-		//PWM
+	// Uart
+	UartMaxBaud = 0;
 
-		//QE
+	// User Configured Values
+	userId = 0;
 
-		//UART
-		unsigned int UartMaxBaud;
+	unsigned int ethernetIp;
+	unsigned short ethernetPort;
 
-		//I2C
+	unsigned int WifiIp;
+	unsigned short WifiPort;
+	unsigned char WifiSsidSize;
+	char WifiSsid[32];
+	unsigned char WifiSecurity;
+	unsigned char WifiPwSize;
+	char WifiPw[64];
 
-		//SPI
-
-		//CAN
-
-		//Servo
-
-		//User Configured Values
-		unsigned short userId;
-
-		unsigned int ethernetIp;
-		unsigned short ethernetPort;
-
-		unsigned int WifiIp;
-		unsigned short WifiPort;
-		unsigned char WifiSsidSize;
-		char WifiSsid[32];
-		unsigned char WifiSecurity;
-		unsigned char WifiPwSize;
-		char WifiPw[64];
-
-		unsigned int serialInterfaceMaxBaud;
-		*/
+	*/
 	return status;
 }
 

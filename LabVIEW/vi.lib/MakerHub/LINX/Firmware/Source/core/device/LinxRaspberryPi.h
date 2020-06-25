@@ -36,7 +36,6 @@
 #define NUM_I2C_CHANS 1
 
 #define NUM_UART_CHANS 1
-#define NUM_UART_SPEEDS 18
 
 #define NUM_SERVO_CHANS 0
 
@@ -48,6 +47,32 @@
 #include "LinxDevice.h"
 #include "LinxLinuxDevice.h"
 #include "LinxRaspberryPi.h"
+
+class LinxRaspiDioChannel : public LinxSysfsDioChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin);
+		~LinxRaspiDioChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual LinxChannel *QueryInterface(int interfaceId);
+
+		virtual int SetState(unsigned char state);		// direction and pull-up/down
+		virtual int Write(unsigned char value);
+		virtual int Read(unsigned char *value);
+		virtual int WriteSquareWave(unsigned int freq, unsigned int duration);
+		virtual int ReadPulseWidth(unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
+
+	private:
+		void setState(unsigned char state);
+		void setPull(unsigned char pud);
+		void setDirection(unsigned char direction);
+};
 
 using namespace std;
 
@@ -67,7 +92,9 @@ class LinxRaspberryPi : public LinxLinuxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
+		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
+
+	protected:
 
 	private:
 		/****************************************************************************************
@@ -82,27 +109,14 @@ class LinxRaspberryPi : public LinxLinuxDevice
 		//None
 		
 		//DIGITAL
-		static const unsigned char m_DigitalChans[NUM_DIGITAL_CHANS];
-		static const unsigned char m_gpioChan[NUM_DIGITAL_CHANS];
-		
+
 		//PWM
 		
 		//SPI
-		static unsigned char m_SpiChans[NUM_SPI_CHANS];
-		static const char * m_SpiPaths[NUM_SPI_CHANS];
-		static int m_SpiHandles[NUM_SPI_CHANS];
-		static unsigned int m_SpiSupportedSpeeds[NUM_SPI_SPEEDS];
-		static int m_SpiSpeedCodes[NUM_SPI_SPEEDS];
 				
 		//I2C
-		static unsigned char m_I2cChans[NUM_I2C_CHANS];
-		static const char * m_I2cPaths[NUM_I2C_CHANS];
 		
 		//UART
-		static unsigned char m_UartChans[NUM_UART_CHANS];
-		static unsigned int m_UartSupportedSpeeds[NUM_UART_SPEEDS];
-		static unsigned int m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS];
-		static const char * m_UartPaths[NUM_UART_CHANS];
 		
 		//Servo		
 		//none

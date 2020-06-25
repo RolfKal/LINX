@@ -12,6 +12,10 @@
 #ifndef LINX_UTILITIES_H
 #define LINX_UTILITIES_H
 
+#define getMilliSeconds()	(unsigned int)(getUsTicks() / 1000)
+#define getSeconds()		(unsigned int)(getUsTicks() / 1000000)
+#include <list>
+
 int WriteU8ToBuff(unsigned char *buffer, int offset, unsigned char val);
 int WriteU16ToBuff(unsigned char *buffer, int offset, unsigned short val);
 int WriteU32ToBuff(unsigned char *buffer, int offset, unsigned int val);
@@ -26,5 +30,15 @@ int ReadU16FromBuff(unsigned char *buffer, int offset, unsigned short *val);
 int ReadU32FromBuff(unsigned char *buffer, int offset, unsigned int *val);
 int ReadU8ArrFromBuff(unsigned char *buffer, int offset, unsigned char *arr, int length);
 int ReadStringFromBuff(unsigned char *buffer, int offset, unsigned char *arr, int length);
+
+unsigned long long getUsTicks();
+void delayMs(unsigned int ms);
+
+int fileExists(const char* path);
+int fileExists(const char* path, int *length);
+int fileExists(const char* directory, const char* fileName);
+int fileExists(const char* directory, const char* fileName, unsigned int timout);
+
+int listDirectory(const char* path, std::list<std::string> list);
 
 #endif // LINX_UTILITIES_H

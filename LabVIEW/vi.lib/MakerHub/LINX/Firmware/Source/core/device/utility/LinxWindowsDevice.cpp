@@ -20,13 +20,187 @@
 #include "LinxDevice.h"
 #include "LinxWindowsDevice.h"
 
+LinxWinUartChannel::LinxWinUartChannel(const char *channelName, LinxFmtChannel *debug) : LinxUartChannel(channelName, debug)
+{
+	m_Handle = INVALID_HANDLE_VALUE;
+}
+
+LinxWinUartChannel::~LinxWinUartChannel()
+{
+	if (m_Handle != INVALID_HANDLE_VALUE)
+		CloseHandle(m_Handle);
+}
+
+/****************************************************************************************
+**  Functions
+****************************************************************************************/
+LinxChannel *LinxWinUartChannel::QueryInterface(int interfaceId)
+{
+	if (interfaceId == IID_LinxWinUartChannel)
+	{
+		AddRef();
+		return this;
+	}
+	return LinxUartChannel::QueryInterface(interfaceId);
+}
+
+int LinxWinUartChannel::SmartOpen()
+{
+	if (m_Handle == INVALID_HANDLE_VALUE)
+	{
+		m_Handle = CreateFileA(m_ChannelName,                  // Name of the Port to be Opened
+		                        GENERIC_READ | GENERIC_WRITE, // Read/Write Access
+								0,                            // No Sharing, ports cant be shared
+								NULL,                         // No Security
+							    OPEN_EXISTING,                // Open existing port only
+		                        0,                            // Non Overlapped I/O
+		                        NULL);                        // Null for Comm Devicesopen(m_ChannelName, O_RDWR);
+		if (m_Handle == INVALID_HANDLE_VALUE)
+		{
+			m_Debug->Write("UART Fail - Failed To Open UART Handle - ");
+			m_Debug->Writeln(m_ChannelName);
+			return  LUART_OPEN_FAIL;
+		}
+	}
+	return L_OK;
+}
+
+int LinxWinUartChannel::SetSpeed(unsigned int speed, unsigned int* actualSpeed)
+{
+	int status = SmartOpen();
+	if (status)
+		return status;
+
+	DCB dcbSerialParams = { 0 };                         // Initializing DCB structure
+	dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+
+	status = GetCommState(m_Handle, &dcbSerialParams);      //retreives  the current settings
+	if (status == FALSE)
+		m_Debug->Writeln("   Error! in GetCommState()");
+
+	dcbSerialParams.BaudRate = speed;      // Setting BaudRate = 9600
+	status = SetCommState(m_Handle, &dcbSerialParams);  //Configuring the port according to settings in DCB 
+	return status ? L_OK : LERR_IO;
+}
+
+int LinxWinUartChannel::SetBitSizes(unsigned char dataBits, unsigned char stopBits)
+{
+	int status = SmartOpen();
+	if (status)
+		return status;
+
+	DCB dcbSerialParams = { 0 };					// Initializing DCB structure
+	dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+
+	status = GetCommState(m_Handle, &dcbSerialParams);      //retreives  the current settings
+	if (status == FALSE)
+		m_Debug->Writeln("   Error! in GetCommState()");
+
+	if (dataBits)
+		dcbSerialParams.ByteSize = dataBits;	// Setting ByteSize
+	if (stopBits == 1)
+		dcbSerialParams.StopBits = ONESTOPBIT;	// Setting StopBits
+	else if ((stopBits == 1))
+		dcbSerialParams.StopBits = TWOSTOPBITS;	// Setting StopBits
+	status = SetCommState(m_Handle, &dcbSerialParams);  //Configuring the port according to settings in DCB 
+	return status ? L_OK : LERR_IO;
+}
+
+#define NUM_PARITY_SIZES	5
+
+int LinxWinUartChannel::SetParity(LinxUartParity parity)
+{
+	int status = SmartOpen();
+	if (status)
+		return status;
+
+	if (parity > NUM_PARITY_SIZES)
+		return LERR_BADPARAM;
+
+	DCB dcbSerialParams = { 0 };                         // Initializing DCB structure
+	dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+
+	status = GetCommState(m_Handle, &dcbSerialParams);      //retreives  the current settings
+	if (status == FALSE)
+		m_Debug->Writeln("   Error! in GetCommState()");
+
+	if (parity == Ignore)
+	{
+		dcbSerialParams.Parity = NOPARITY;		// Setting parity = None 
+		dcbSerialParams.fParity = TRUE;			// Ignore parity errors
+	}
+	else
+	{
+		dcbSerialParams.Parity = parity - 1;	// Setting parity to desired value
+		dcbSerialParams.fParity = FALSE;		// Enable parity errors
+	}
+	status = SetCommState(m_Handle, &dcbSerialParams);  //Configuring the port according to settings in DCB 
+	return status ? L_OK : LERR_IO;
+}
+
+int LinxWinUartChannel::GetBytesAvail(int* numBytesAvailable)
+{
+	COMSTAT stat;
+	DWORD error;
+	int status = ClearCommError(m_Handle, (LPDWORD)&error, &stat);
+	if (status)
+		*numBytesAvailable = stat.cbInQue;
+	return status ? L_OK : LERR_IO;
+}
+
+int LinxWinUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+{
+	if (recBuffer && numBytes)
+	{
+		COMMTIMEOUTS timeouts = { 0 };
+		int status = GetCommTimeouts(m_Handle, &timeouts);
+		if (status)
+		{
+			timeouts.ReadTotalTimeoutMultiplier = 0;
+			if (!timeout)
+			{
+				// Return immediately even if there is no data
+				timeouts.ReadIntervalTimeout = MAXDWORD; 
+				timeouts.ReadTotalTimeoutConstant = 0;
+			}
+			else
+			{
+				timeouts.ReadIntervalTimeout = 0;
+				timeouts.ReadTotalTimeoutConstant = timeout > 0 ? timeout : MAXDWORD;
+			}
+			status = SetCommTimeouts(m_Handle, &timeouts);
+			if (status)
+				status = ReadFile(m_Handle, recBuffer, numBytes, (LPDWORD)numBytesRead, NULL);
+		}
+		return status ? L_OK : LERR_IO;
+	}
+	return GetBytesAvail(numBytesRead);
+}
+
+int LinxWinUartChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+{
+	COMMTIMEOUTS timeouts = { 0 };
+	int status = GetCommTimeouts(m_Handle, &timeouts);
+	timeouts.ReadTotalTimeoutConstant = timeout >= 0 ? timeout : MAXDWORD;
+	timeouts.ReadTotalTimeoutMultiplier = 0;
+	status = SetCommTimeouts(m_Handle, &timeouts);
+
+	status = WriteFile(m_Handle, sendBuffer, numBytes, (LPDWORD)&numBytes, NULL);
+	return status ? L_OK : LERR_IO;
+}
+
+int LinxWinUartChannel::Close()
+{
+	if (m_Handle != INVALID_HANDLE_VALUE)
+		CloseHandle(m_Handle);
+	return L_OK;
+}
+
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
 LinxWindowsDevice::LinxWindowsDevice()
 {
-	if (!QueryPerformanceFrequency(&Frequency))
-		Frequency.QuadPart = 0;
 }
 
 LinxWindowsDevice::~LinxWindowsDevice()
@@ -36,105 +210,12 @@ LinxWindowsDevice::~LinxWindowsDevice()
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-unsigned char LinxWindowsDevice::GetDeviceName(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetAiChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetAoChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetDioChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetQeChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetPwmChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetSpiChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetI2cChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetUartChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetCanChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-unsigned char LinxWindowsDevice::GetServoChans(unsigned char *buffer, unsigned char length)
-{
-	return 0;
-}
-
-int LinxWindowsDevice::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud)
-{
-	return UartOpen(channel, baudRate, actualBaud, 8, 1, None);
-}
-
-int LinxWindowsDevice::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
+int LinxWindowsDevice::UartOpen(const char *deviceName, unsigned char nameLength, unsigned char *channel, LinxUartChannel **chan)
 {
 	return 0;
 }
 
 //------------------------------------- General -------------------------------------
-unsigned int LinxWindowsDevice::GetMilliSeconds()
-{
-	if (Frequency.QuadPart)
-	{
-		LARGE_INTEGER counter;
-		if (QueryPerformanceCounter(&counter))
-		{
-			counter.QuadPart *= 1000;
-			counter.QuadPart /= Frequency.QuadPart;
-			return (int)counter.LowPart;
-		}
-	}
-	return (int)GetTickCount();
-}
-
-unsigned int LinxWindowsDevice::GetSeconds()
-{
-	if (Frequency.QuadPart)
-	{
-		LARGE_INTEGER counter;
-		if (QueryPerformanceCounter(&counter))
-		{
-			counter.QuadPart /= Frequency.QuadPart;
-			return (int)counter.LowPart;
-		}
-	}
-	return (int)GetTickCount() / 1000;
-}
-
-void LinxWindowsDevice::DelayMs(unsigned int ms)
-{
-	Sleep(ms);
-}
 
 void LinxWindowsDevice::NonVolatileWrite(int address, unsigned char data)
 {

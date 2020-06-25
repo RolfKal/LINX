@@ -15,6 +15,7 @@ LISTENER_CONFIG=$(CORE_LISTENER) ../core/listener/LinxSerialListener.cpp ../core
 HW_RPI = -DLINX_DEVICE_FAMILY=4 -DLINX_DEVICE_ID=3
 HW_BBB = -DLINX_DEVICE_FAMILY=6 -DLINX_DEVICE_ID=1
 
+CFLAGS=-g
 
 libs: raspberryPiLib beagleBoneBlackLib
 
@@ -26,10 +27,10 @@ raspberryPiAll: raspberryPiSerial raspberryPiTcp raspberryPiConfigurable
 	
 #----------------------- Shared Objects -----------------------
 raspberryPiLib:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_rpi.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_RPI) $(HW_RPI) -DLINXCONFIG -DDEBUG_ENABLED=-1 -g
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_rpi.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_RPI) $(HW_RPI) -DLINXCONFIG -DDEBUG_ENABLED=-1
 
 beagleBoneBlackLib:
-	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_bbb.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_BBB) $(HW_BBB) -DLINXCONFIG -DDEBUG_ENABLED=-1 -g
+	$(CXX) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $(INC) -Wall -shared -fPIC -lrt -o ../core/examples/LinxDeviceLib/bin/liblinxdevice_bbb.so ../core/examples/LinxDeviceLib/src/LinxDeviceLib.cpp $(CORE_BBB) $(HW_BBB) -DLINXCONFIG -DDEBUG_ENABLED=-1
 #----------------------- Listeners -----------------------
 	
 beagleBoneBlackSerial:

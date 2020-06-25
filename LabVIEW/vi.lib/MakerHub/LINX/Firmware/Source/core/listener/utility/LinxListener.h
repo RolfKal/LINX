@@ -35,15 +35,18 @@ class LinxListener
 		/****************************************************************************************
 		**  Constructors/Destructors
 		****************************************************************************************/
-		LinxListener();
+		LinxListener(LinxDevice *device, LinxFmtChannel *debug = NULL);
 		~LinxListener();
 
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
-		virtual int Start(int bufferSize = 255);	// Start Listener with the device to relay commands to
-		virtual int WaitForConnection() = 0;		// Wait for incoming connection, child needs to implement this
-		int CheckForCommand();						// Check for next command and decode it to relay it to the device		
+		// Start Listener with the device to relay commands to
+		virtual int Start(LinxCommChannel *channel,		// Channel to use for listening for messages
+						  int bufferSize = 255);		// maximum buffer size for messages
+		virtual int WaitForConnection() = 0;			// Wait for incoming connection, child needs to implement this
+		virtual int CheckForCommand();					// Check for next command and decode it to relay it to the device
+		virtual int Close();
 
 		// Attach a custom command callback function. The class allows up to MAX_CUSTOM_CMDS to be installed and
 		// any message with the command word being 0xFCxx whit xx being the command number between 0 and 15 is then
@@ -56,15 +59,16 @@ class LinxListener
 		**  Variables
 		****************************************************************************************/
 		LinxDevice *m_LinxDev;
-		LinxDevice *m_LinxDebug;
+		LinxCommChannel *m_Channel;
+		LinxFmtChannel *m_Debug;
 
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
-		// Needs to be implemented by descendent class 
-		virtual int ReadData(unsigned char *buffer, int bytesToRead, int *numBytesRead) = 0;
-		virtual int WriteData(unsigned char *buffer, int bytesToWrite) = 0;
-		virtual int FlushData() = 0;
+		// Convinience functions which relay to the m_Channel
+		virtual int ReadData(unsigned char *buffer, int bytesToRead, int timeout, int *numBytesRead);
+		virtual int WriteData(unsigned char *buffer, int bytesToWrite, int timeout);
+		virtual int FlushData();
 
 	private:
 		/****************************************************************************************

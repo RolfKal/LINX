@@ -66,7 +66,7 @@
 **  Analog I/O
 ****************************************************************************************/
 #define LCMD_SET_AI_REF_VOLT		0x0060	// Set AI Reference Voltage
-#define LCMD_GET_ÀI_REF_VOLT		0x0061	// Get AI Reference Voltage
+#define LCMD_GET_AI_REF_VOLT		0x0061	// Get AI Reference Voltage
 //#define LCMD_SET_AI_RESOLUTIOM	0x0062	// Set AI Resolution
 #define LCMD_GET_AI_RESOLUTION		0x0063	// Get AI Resolution
 #define LCMD_ANALOG_READ			0x0064	// Analog Read
@@ -98,7 +98,9 @@
 #define LCMD_UART_READ				0x00C3	// UART Read
 #define LCMD_UART_WRITE				0x00C4	// UART Write
 #define LCMD_UART_CLOSE				0x00C5	// UART Close
-//---0x00C6 to 0x00DF Reserved---
+#define LCMD_UART_OPEN_BY_NAME		0x00C6	// UART Open by Name
+#define LCMD_UART_SET_ATTRIBUTE		0x00C7	// UART SetAttribute (data bits, stop bits, parity)
+//---0x00C8 to 0x00DF Reserved---
 
 /****************************************************************************************
 ** I2C

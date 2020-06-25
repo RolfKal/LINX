@@ -8,9 +8,14 @@
 **
 ** BSD2 License.
 ****************************************************************************************/
+#include "LinxDefines.h"
 #include <stdio.h>
 #include <string.h>
-
+#if Posix
+#include <sys/stat.h>
+#elif Win32
+#include <windows.h>
+#endif
 #include "LinxUtilities.h"
 
 int WriteU8ToBuff(unsigned char *buffer, int offset, unsigned char val)
@@ -38,7 +43,7 @@ int WriteU32ToBuff(unsigned char *buffer, int offset, unsigned int val)
 int WriteU8ArrToBuff(unsigned char *buffer, int offset, unsigned char *arr, int length)
 {
 	if (length < 0)
-		length = (int)strlen(arr);
+		length = (int)strlen((char*)arr);
 	memcpy(buffer + offset, arr, length);
 	return offset + length;
 }
@@ -95,5 +100,115 @@ int ReadStringFromBuff(unsigned char *buffer, int offset, unsigned char *arr, in
 	memcpy(arr, buffer + offset, length);
 	buffer[offset + length] = 0;
 	return offset + length;
+}
+
+
+// Return true If file specified by path exists.
+int fileExists(const char* path)
+{
+#if Posix
+	struct stat buffer;
+	return (stat(path, &buffer) == 0);
+#elif Win32
+	return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
+#endif
+}
+
+#if Win32
+static LARGE_INTEGER g_Frequency = {0};
+static int isAvailable = -1;
+static int initializeFrequency()
+{
+	if (isAvailable < 0)
+	{
+		isAvailable = QueryPerformanceFrequency(&g_Frequency) != 0;
+		if (isAvailable)
+			g_Frequency.QuadPart /= 1000;
+	}
+	return isAvailable;
+}
+#endif
+
+unsigned long long getUsTicks()
+{
+#if Posix
+	timespec mTime;
+	clock_gettime(CLOCK_MONOTONIC, &mTime);
+	return (((unsigned long long)mTime.tv_sec * 1000000) + mTime.tv_nsec / 1000);
+#elif Win32
+	if (initializeFrequency())
+	{
+		LARGE_INTEGER counter;
+		if (QueryPerformanceCounter(&counter))
+		{
+			counter.QuadPart *= 1000;
+			counter.QuadPart /= g_Frequency.QuadPart;
+			return counter.QuadPart;
+		}
+	}
+	return GetTickCount();
+#endif
+}
+
+void delayMs(unsigned int ms)
+{
+#if Posix
+	usleep(ms * 1000);
+#elif Win32
+	Sleep(ms);
+#endif
+}
+
+int fileExists(const char* path, int *length)
+{
+#if Posix
+	struct stat buffer;
+	int ret = stat(path, &buffer);
+	if (ret == 0)
+		*length = buffer.st_size;
+	return (ret == 0);
+#elif Win32
+	WIN32_FIND_DATAA findBuf;
+	HANDLE findhandle = FindFirstFileA(path, &findBuf);
+    if (findhandle == INVALID_HANDLE_VALUE)
+		*length = findBuf.nFileSizeLow;
+	return findhandle != INVALID_HANDLE_VALUE;
+#endif
+}
+
+int fileExists(const char* directory, const char* fileName)
+{
+	char fullPath[260];
+	sprintf(fullPath, "%s%s", directory, fileName);
+#if Posix
+	struct stat buffer;
+	return (stat(fullPath, &buffer) == 0);
+#elif Win32
+	return GetFileAttributesA(fullPath) != INVALID_FILE_ATTRIBUTES;
+#endif
+}
+
+int fileExists(const char* directory, const char* fileName, unsigned int timeout)
+{
+	char fullPath[260];
+	sprintf(fullPath, "%s%s", directory, fileName);
+	unsigned int startTime = getMilliSeconds();
+#if Posix
+	struct stat buffer;
+	while (getMilliSeconds()) - startTime < timeout)
+	{
+		if (stat(fullPath, &buffer) == 0)
+			return TRUE;
+		delayMs(10);
+	}
+#elif Win32
+#endif
+	while (getMilliSeconds() - startTime < timeout)
+	{
+		if (GetFileAttributesA(fullPath) != INVALID_FILE_ATTRIBUTES)
+			return TRUE;
+		delayMs(10);
+	}
+	return FALSE;
 }
 

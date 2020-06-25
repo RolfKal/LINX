@@ -12,21 +12,22 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/		
+#include "LinxDefines.h"
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <map>
 #include <string.h>
-#ifndef _MSC_VER
+#ifndef Win32
 #include <dirent.h>
 #include <unistd.h>	
 #include <termios.h>
 #else
 #include <io.h>
-enum {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
 #endif
 #include "LinxDevice.h"
+#include "LinxUtilities.h"
 #include "LinxLinuxDevice.h"
 #include "LinxBeagleBoneBlack.h"
 
@@ -59,7 +60,7 @@ static const unsigned char m_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 
 
 //PWM - Default to 7.x Layout, Updated B
 static const unsigned char m_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
-static string m_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6/", "/sys/class/pwm/pwm5/", "/sys/class/pwm/pwm3/", "/sys/class/pwm/pwm4/"};
+static string m_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6", "/sys/class/pwm/pwm5", "/sys/class/pwm/pwm3", "/sys/class/pwm/pwm4"};
 static string m_EnableFileName;
 //static const string m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
 
@@ -68,31 +69,132 @@ static string m_EnableFileName;
 //None
 
 //SPI
-static const unsigned char m_SpiChans[NUM_SPI_CHANS] = {0};
-static string m_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev1.1"};
-static const string m_SpiDtoNames[NUM_SPI_CHANS] = { "BB-SPIDEV0"};
-static const unsigned int m_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
-static const int m_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 
 //I2C
-static const unsigned char m_I2cChans[NUM_I2C_CHANS] = {2};
-static string m_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1" };		//Out of order numbering is correct for BBB 7.x!!
-static const string m_I2cDtoNames[NUM_I2C_CHANS] = {"BB-I2C2"};
 
 //UART
-unsigned char m_UartChans[NUM_UART_CHANS] = {0, 1, 4};
-string m_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
-string m_UartDtoNames[NUM_UART_CHANS] = {"BB-UART0", "BB-UART1", "BB-UART4"};
-unsigned int m_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
-unsigned int m_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
 
 //SERVO
 //None
+//------------------------------------- Uart ------------------------------------
+static unsigned char g_UartChans[NUM_UART_CHANS] = {0, 1, 4};
+static const char *g_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
+static const char *g_UartDtoNames[NUM_UART_CHANS] = { "BB-UART0", "BB-UART1", "BB-UART4"};
+
+LinxBBBUartChannel::LinxBBBUartChannel(const char *channelName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath) : LinxUnixUartChannel(channelName, debug)
+{
+	m_DtoName = dtoName;
+	m_DtoSlotsPath = dtoSlotsPath;
+}
+
+LinxChannel *LinxBBBUartChannel::QueryInterface(int interfaceId)
+{
+	if (interfaceId == IID_LinxBBBUartChannel)
+	{
+		AddRef();
+		return this;
+	}
+	return LinxUnixUartChannel::QueryInterface(interfaceId);
+}
+
+int LinxBBBUartChannel::SmartOpen()
+{
+	//Load DTO If Needed
+	if (!fileExists(m_DeviceName) && m_DtoName)
+	{
+		if (!LinxBeagleBoneBlack::loadDto(m_DtoSlotsPath, m_DtoName))	
+		{
+			m_Debug->Write("UART Fail - Failed To Load ");
+			m_Debug->Write(m_DtoName);
+			m_Debug->Writeln(" DTO");
+			return  LUART_OPEN_FAIL;
+		}			
+	}
+	return LinxUnixUartChannel::SmartOpen();
+}
+
+//------------------------------------- I2c -------------------------------------
+static const unsigned char g_I2cChans[NUM_I2C_CHANS] = {2};
+static const char *g_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1" };		//Out of order numbering is correct for BBB 7.x!!
+static const char *g_I2cDtoNames[NUM_I2C_CHANS] = {"BB-I2C2"};
+
+LinxBBBI2cChannel::LinxBBBI2cChannel(const char *channelName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsI2cChannel(channelName, debug)
+{
+	m_DtoName = dtoName;
+	m_DtoSlotsPath = dtoSlotsPath;
+}
+
+LinxChannel *LinxBBBI2cChannel::QueryInterface(int interfaceId)
+{
+	if (interfaceId == IID_LinxBBBI2cChannel)
+	{
+		AddRef();
+		return this;
+	}
+	return LinxSysfsI2cChannel::QueryInterface(interfaceId);
+}
+
+int LinxBBBI2cChannel::Open()
+{
+	//Export Dev Tree Overlay If Device does not exist
+	if (!fileExists(m_ChannelName) && m_DtoName && m_DtoName[0])
+	{
+		m_Debug->Write("I2C - Loading DTO ");
+		m_Debug->Writeln(m_DtoName);
+		if (!LinxBeagleBoneBlack::loadDto(m_DtoSlotsPath, m_DtoName))
+		{
+			m_Debug->Writeln("I2C Fail - Failed To Load I2C DTO");
+			return  LI2C_OPEN_FAIL;
+		}
+
+	}
+	return LinxSysfsI2cChannel::Open();
+}
+
+//------------------------------------- SPI -------------------------------------
+static const unsigned char g_SpiChans[NUM_SPI_CHANS] = {0};
+static const char *g_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev1.1"};
+static const char *g_SpiDtoNames[NUM_SPI_CHANS] = { "BB-SPIDEV0"};
+static unsigned int g_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
+static int g_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
+
+LinxBBBSpiChannel::LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxLinuxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsSpiChannel(channelName, debug, device, speed)
+{
+	m_DtoName = dtoName;
+	m_DtoSlotsPath = dtoSlotsPath;
+	m_NumSpiSpeeds = NUM_SPI_SPEEDS;
+	m_SpiSupportedSpeeds = g_SpiSupportedSpeeds;
+	m_SpiSpeedCodes = g_SpiSpeedCodes;
+}
+
+LinxChannel *LinxBBBSpiChannel::QueryInterface(int interfaceId)
+{
+	if (interfaceId == IID_LinxBBBSpiChannel)
+	{
+		AddRef();
+		return this;
+	}
+	return LinxSysfsSpiChannel::QueryInterface(interfaceId);
+}
+
+int LinxBBBSpiChannel::Open()
+{
+	//Load SPI DTO if necessary
+	if (!fileExists(m_ChannelName))
+	{
+		if (!LinxBeagleBoneBlack::loadDto(m_DtoSlotsPath, m_DtoName))
+		{
+			m_Debug->Write("SPI Fail - Failed To Load SPI DTO");
+			return  LSPI_OPEN_FAIL;
+		}
+	}
+	return LinxSysfsSpiChannel::Open();
+}
 
 /****************************************************************************************
 **  Constructors /  Destructor
 ****************************************************************************************/
-LinxBeagleBoneBlack::LinxBeagleBoneBlack()
+LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug)
 {
 	//LINX Device Information
 	DeviceFamily = 0x06;	//TI Family Code
@@ -107,20 +209,20 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	if (fileExists("/sys/devices/bone_capemgr.9/slots"))
 	{
 		//7.x Layout
-		FilePathLayout = 7;
-		DtoSlotsPath = "/sys/devices/bone_capemgr.9/slots";
+		m_FilePathLayout = 7;
+		m_DtoSlotsPath = "/sys/devices/bone_capemgr.9/slots";
 	}
 	else if (fileExists("/sys/devices/platform/bone_capemgr/slots"))
 	{
 		//8.x Layout
-		FilePathLayout = 8;
-		DtoSlotsPath = "/sys/devices/platform/bone_capemgr/slots";
+		m_FilePathLayout = 8;
+		m_DtoSlotsPath = "/sys/devices/platform/bone_capemgr/slots";
 	}
 	else
 	{
 		//Assume 9.x Layout
-		DtoSlotsPath = "";
-		FilePathLayout = 9;
+		m_DtoSlotsPath = "";
+		m_FilePathLayout = 9;
 	}
 		
 		
@@ -149,24 +251,24 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	string m_PolarityFileName = "polarity";
 	
 	//7.x Only
-	string m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
+	const char *m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
 		
 	//8.x Only
-	string m_PwmMuxPaths[NUM_PWM_CHANS] = {"/sys/devices/platform/ocp/ocp:P8_13_pinmux/state", "/sys/devices/platform/ocp/ocp:P8_19_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_14_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_16_pinmux/state"};
-	string m_SpiMuxPaths[3] = {"/sys/devices/platform/ocp/ocp:P9_18_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_21_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_22_pinmux/state"};
-	string m_UartMuxPaths[4] = {"/sys/devices/platform/ocp/ocp:P9_24_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_26_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_11_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_13_pinmux/state"};
+	const char *m_PwmMuxPaths[NUM_PWM_CHANS] = {"/sys/devices/platform/ocp/ocp:P8_13_pinmux/state", "/sys/devices/platform/ocp/ocp:P8_19_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_14_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_16_pinmux/state"};
+	const char *m_SpiMuxPaths[3] = {"/sys/devices/platform/ocp/ocp:P9_18_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_21_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_22_pinmux/state"};
+	const char *m_UartMuxPaths[4] = {"/sys/devices/platform/ocp/ocp:P9_24_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_26_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_11_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_13_pinmux/state"};
 
 	
 	//Shared, Varying Components - Default To 7.x
-	string m_PwmExportPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export"};
+	std::string m_PwmExportPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export"};
 	unsigned char m_PwmExportVal[NUM_PWM_CHANS] = {6, 5, 3, 4};
-	string m_DutyCycleFileName = "duty_ns";
-	string m_PeriodFileName = "period_ns";
+	std::string m_DutyCycleFileName = "duty_ns";
+	std::string m_PeriodFileName = "period_ns";
 	m_EnableFileName = "run";
 
 
 	//Update to 8.x layout if necessary
-	if (FilePathLayout >= 8)
+	if (m_FilePathLayout >= 8)
 	{
 		string pwmBasePath = "/sys/class/pwm/";
 		
@@ -273,12 +375,12 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		m_EnableFileName = "enable";
 		
 		//Update I2C Path
-		m_I2cPaths[0] = "/dev/i2c-2";
+		g_I2cPaths[0] = "/dev/i2c-2";
 	}
 
 	// Updates to 9.x layout
-	if (FilePathLayout >= 9) {
-		m_SpiPaths[0] = "/dev/spidev0.0";
+	if (m_FilePathLayout >= 9) {
+		g_SpiPaths[0] = "/dev/spidev0.0";
 	}
 	
 	PwmDutyCycleFileName = m_DutyCycleFileName;
@@ -290,17 +392,10 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//QE
 		
 	//UART
-	UartMaxBaud = m_UartSupportedSpeeds[NUM_UART_SPEEDS - 1];
-	NumUartSpeeds = NUM_UART_SPEEDS;
-	UartSupportedSpeeds = m_UartSupportedSpeeds;
-	UartSupportedSpeedsCodes = m_UartSupportedSpeedsCodes;
 
 	//I2C
 		
 	//SPI
-	NumSpiSpeeds = NUM_SPI_SPEEDS;
-	SpiSupportedSpeeds = m_SpiSupportedSpeeds;
-	SpiSpeedCodes = m_SpiSpeedCodes;
 		
 	//CAN
 	
@@ -309,15 +404,15 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//------------------------------------- ANALOG -------------------------------------
 	//Export Dev Tree Overlay For AI If It DNE And Open AI Handles
 	bool dtoLoaded = false;
-	if(!fileExists("/sys/bus/iio/devices/iio:device0"))
+	if (!fileExists("/sys/bus/iio/devices/iio:device0"))
 	{
-		if (loadDto("BB-ADC"))
+		if (loadDto(m_DtoSlotsPath, "BB-ADC"))
 		{
 			dtoLoaded = true;			
 		}
 		else
 		{
-			DebugPrintln("AI Fail - Failed To Load BB-ADC DTO");
+			m_Debug->Writeln("AI Fail - Failed To Load BB-ADC DTO");
 		}
 	}
 	else
@@ -336,41 +431,25 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			
 			if (AiValueHandles[m_AiChans[i]] <= 0)
 			{
-				DebugPrintln("AI Fail - Failed Open AI Channel Handle");
+				m_Debug->Writeln("AI Fail - Failed Open AI Channel Handle");
 			}			
 		}
 	}	
 	
 	//------------------------------------- DIGITAL -------------------------------------
-	//Export GPIO - Set All Digital Handles To NULL
-	for (int i = 0; i < NUM_DIGITAL_CHANS; i++)
-	{
-		char gpioPath[64];
-		sprintf(gpioPath, "/sys/class/gpio/gpio%d", m_gpioChan[i]);
-		if (!fileExists(gpioPath)) {
-			FILE* digitalExportHandle = fopen("/sys/class/gpio/export", "w");
-			if(digitalExportHandle != NULL)
-			{
-				fprintf(digitalExportHandle, "%d", m_gpioChan[i]);
-				fclose(digitalExportHandle);
-			}
-		}
-		DigitalDirHandles[m_DigitalChans[i]] = NULL;
-		DigitalValueHandles[m_DigitalChans[i]] = NULL;
-		DigitalChannels[m_DigitalChans[i]] = m_gpioChan[i];
-	}
+	// Initialize the digital lookup map
 	
 	//------------------------------------- PWM -------------------------------------
 	
 	//PWM General Initialization
-	if (FilePathLayout == 7)
+	if (m_FilePathLayout == 7)
 	{
 		//Load AM33xx_PWM DTO If No PWM Channels Have Been Exported Since Boot
 		if (!fileExists(m_PwmDirPaths[NUM_PWM_CHANS - 1].c_str(), m_PeriodFileName.c_str()))
 		{
-			if(!loadDto("am33xx_pwm"))
+			if (!loadDto(m_DtoSlotsPath, "am33xx_pwm"))
 			{
-				DebugPrintln("PWM Fail - Failed To Load am33xx_pwm DTO");
+				m_Debug->Writeln("PWM Fail - Failed To Load am33xx_pwm DTO");
 			}
 			
 			//Export PWM Channels Before Loading Channel Specific DTOs Below
@@ -382,12 +461,12 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			*/
 		}
 	}
-	else if (FilePathLayout >= 8)
+	else if (m_FilePathLayout >= 8)
 	{
-		//Set Mux to PWM
+		// Set Mux to PWM
 		for (int i = 0; i < NUM_PWM_CHANS; i++)
 		{
-			FILE* pwmMuxHandle = fopen(m_PwmMuxPaths[i].c_str(), "r+w+");
+			FILE* pwmMuxHandle = fopen(m_PwmMuxPaths[i], "r+w+");
 			if (pwmMuxHandle != NULL)
 			{
 				fprintf(pwmMuxHandle, "pwm");
@@ -396,7 +475,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		}
 	}
 	
-	//Per Pin Initialization
+	// Per Pin Initialization
 	for (int i = 0; i < NUM_PWM_CHANS; i++)
 	{
 		//Store Default Values
@@ -414,7 +493,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			}
 			else
 			{
-				DebugPrintln("PWM Fail - Unable to open pwmExportHandle");
+				m_Debug->Writeln("PWM Fail - Unable to open pwmExportHandle");
 			}
 
 			//Set Default Period Only First Time
@@ -429,29 +508,29 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			}
 			else
 			{
-				DebugPrintln("PWM Fail - Unable to open pwmPeriodHandle");
+				m_Debug->Writeln("PWM Fail - Unable to open pwmPeriodHandle");
 			}
 		}
 		
 		//7.x Per Pin Init
-		if (FilePathLayout == 7)
+		if (m_FilePathLayout == 7)
 		{	
 			//Load Chip Specific PWM DTO If Not Already Loaded
-			if (!loadDto(m_PwmDtoNames[i].c_str()))
+			if (!loadDto(m_DtoSlotsPath, m_PwmDtoNames[i]))
 			{
-				DebugPrint("PWM Fail - Failed To Load PWM DTO ");
-				DebugPrintln(m_PwmDtoNames[i].c_str());
+				m_Debug->Write("PWM Fail - Failed To Load PWM DTO ");
+				m_Debug->Writeln(m_PwmDtoNames[i]);
 			}
 			
 			//Make Sure DTO Has Time To Load Before Opening Handles
 			else if (!fileExists(m_PwmDirPaths[i].c_str(), "period_ns", 3000))
 			{
-				DebugPrint("PWM Fail - PWM DTO Did Not Load Correctly: ");				
-				DebugPrintln(m_PwmDirPaths[i].c_str());				
+				m_Debug->Write("PWM Fail - PWM DTO Did Not Load Correctly: ");				
+				m_Debug->Writeln(m_PwmDirPaths[i].c_str());				
 			}		
 		}
 		//Export PWM Chans.  If 7.x layout this is done above.  This should probably be moved.
-		if (FilePathLayout >= 8)
+		if (m_FilePathLayout >= 8)
 		{
 			//Nothing 8.x Specific For Now
 		}
@@ -468,7 +547,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		}
 		else
 		{
-			DebugPrint("PWM Fail - Unable to open pwmPolarityHandle");				
+			m_Debug->Write("PWM Fail - Unable to open pwmPolarityHandle");				
 		}
 			
 		//Set Default Duty Cycle To 0	
@@ -483,7 +562,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		}
 		else
 		{
-			DebugPrint("PWM Fail - Unable to open pwmDutyCycleHandle");				
+			m_Debug->Write("PWM Fail - Unable to open pwmDutyCycleHandle");				
 		}		
 		
 		//Turn On PWM		
@@ -497,25 +576,25 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		}
 		else
 		{
-			DebugPrint("PWM Fail - Unable to open pwmEnableHandle");				
+			m_Debug->Write("PWM Fail - Unable to open pwmEnableHandle");				
 		}	
 	}	
 	
 	//------------------------------------- I2C -------------------------------------
-	//Store I2C Master Paths In Map
+	// Store I2C Master Paths In Map
 	for (int i = 0; i < NUM_I2C_CHANS; i++)
 	{	
-		I2cPaths[m_I2cChans[i]] = m_I2cPaths[i];
-		I2cDtoNames[m_I2cChans[i]] = m_I2cDtoNames[i];
+		LinxI2cChannel *chan = new LinxBBBI2cChannel(g_I2cPaths[i], m_Debug, m_FilePathLayout == 7 ? g_I2cDtoNames[i] : NULL, m_DtoSlotsPath);
+		RegisterChannel(IID_LinxI2cChannel, g_UartChans[i], chan);
 	}
-	
+
 	//------------------------------------- UART ------------------------------------
-	if (FilePathLayout >= 8)
+	if (m_FilePathLayout >= 8)
 	{
-		//Set Mux to UART
+		// Set Mux to UART
 		for (int i = 0; i < 4; i++)
 		{
-			FILE* uartMuxHandle = fopen(m_UartMuxPaths[i].c_str(), "r+w+");
+			FILE* uartMuxHandle = fopen(m_UartMuxPaths[i], "r+w+");
 			if (uartMuxHandle != NULL)
 			{
 				fprintf(uartMuxHandle, "uart");
@@ -524,32 +603,30 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		}
 	}
 	
+	// Store Uart Paths In Map
 	for (int i = 0; i < NUM_UART_CHANS; i++)
 	{
-		UartPaths[m_UartChans[i]] = m_UartPaths[i];
-		UartHandles[m_UartChans[i]] = 0;
-		UartDtoNames[m_UartChans[i]] = m_UartDtoNames[i];
+		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], new LinxBBBUartChannel(g_UartPaths[i], m_Debug, g_UartDtoNames[i], m_DtoSlotsPath));
 	}
 	
-	
 	//------------------------------------- SPI ------------------------------------
-	if (FilePathLayout >= 8)
+	if (m_FilePathLayout >= 8)
 	{
 		//Set Mux to SPI
 		for (int i = 0; i < 3; i++)
 		{
-			FILE* spiMuxHandle = fopen(m_SpiMuxPaths[i].c_str(), "r+w+");
+			FILE* spiMuxHandle = fopen(m_SpiMuxPaths[i], "r+w+");
 			if (spiMuxHandle != NULL)
 			{
 				// in later debian versions the state value for the clk line changed
-				if (FilePathLayout == 8)
+				if (m_FilePathLayout == 8)
 					fprintf(spiMuxHandle, "spi");
-				else if (FilePathLayout >= 9 && (i%3) < 2)
+				else if (m_FilePathLayout >= 9 && (i%3) < 2)
 					fprintf(spiMuxHandle, "spi");
-				else if (FilePathLayout >= 9 && (i%3) == 2)
+				else if (m_FilePathLayout >= 9 && (i%3) == 2)
 					fprintf(spiMuxHandle, "spi_sclk");  // assume last mux path is the sclk
 				else
-					DebugPrint("SPI Fail - Unexpected SpiMuxPath");
+					m_Debug->Write("SPI Fail - Unexpected SpiMuxPath");
 				fclose(spiMuxHandle);
 			}
 		}
@@ -560,11 +637,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	SpiDefaultSpeed = 3900000;
 	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
-		SpiDtoNames[m_SpiChans[i]] = m_SpiDtoNames[i];
-				
-		SpiBitOrders[m_SpiChans[i]] = MSBFIRST;		//MSB First
-		SpiSetSpeeds[m_SpiChans[i]] = SpiDefaultSpeed;
-		SpiPaths[m_SpiChans[i]] = m_SpiPaths[i];
+		RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxBBBSpiChannel(g_SpiPaths[i], m_Debug, this, SpiDefaultSpeed, g_SpiDtoNames[i], m_DtoSlotsPath));
 	}
 	
 	//If Debugging Is Enabled Call EnableDebug()
@@ -582,28 +655,6 @@ LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 		if (AiValueHandles[m_AiChans[i]] != 0)
 		{
 			fclose(AiValueHandles[m_AiChans[i]]);
-		}
-	}
-	
-	//Close GPIO Handles If Open
-	for (int i = 0; i < NUM_DIGITAL_CHANS; i++)
-	{
-		if (DigitalDirHandles[m_DigitalChans[i]] != NULL)
-		{			
-			fclose(DigitalDirHandles[m_DigitalChans[i]]);
-		}
-		if (DigitalValueHandles[m_DigitalChans[i]] != NULL)
-		{			
-			fclose(DigitalValueHandles[m_DigitalChans[i]]);
-		}
-	}
-	
-	//Close I2C Handles If Open
-	for (int i = 0; i<NUM_I2C_CHANS; i++)
-	{
-		if (I2cHandles[m_I2cChans[i]] != 0)
-		{	
-			close(I2cHandles[m_I2cChans[i]]);
 		}
 	}
 	
@@ -631,51 +682,26 @@ LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 		}
 		else
 		{
-			DebugPrint("PWM Fail - Unable to open pwmEnableHandle");
+			m_Debug->Write("PWM Fail - Unable to open pwmEnableHandle");
 		}
 	}
-	
-	
-	//Close SPI Handles If Open
-	for (int i = 0; i < NUM_SPI_CHANS; i++)
-	{
-		if(SpiHandles[m_SpiChans[i]] != 0)
-		{	
-			close(SpiHandles[m_SpiChans[i]]);
-		}
-	}
-	
-	//Close UART Handles If Open
-	for (int i = 0; i < NUM_UART_CHANS; i++)
-	{
-		if (UartHandles[m_UartChans[i]] != 0)
-		{	
-			close(UartHandles[m_UartChans[i]]);
-		}
-	}
-	
-
 }
 
 /****************************************************************************************
 **  Private Functions
 ****************************************************************************************/
 //Load Device Tree Overlay
-bool LinxBeagleBoneBlack::loadDto(const char* dtoName)
+bool LinxBeagleBoneBlack::loadDto(const char *slotsPath, const char* dtoName)
 {
-	if (DtoSlotsPath == "")
+	if (slotsPath[0] == '\0')
 		return true;
 
-	FILE* slotsHandle = fopen(DtoSlotsPath.c_str(), "r+w+");
+	FILE* slotsHandle = fopen(slotsPath, "r+w+");
 	if (slotsHandle != NULL)
 	{
 		fprintf(slotsHandle, "%s", dtoName);
 		fclose(slotsHandle);
 		return true;
-	}
-	else
-	{
-		DebugPrintln("Unable To Open slotsHandle");
 	}
 	return false;
 }
@@ -779,69 +805,19 @@ int LinxBeagleBoneBlack::PwmSetDutyCycle(unsigned char numChans, unsigned char* 
 		}
 
 		//Update Output
-		DebugPrint("Setting Duty Cycle = ");
-		DebugPrint(dutyCycle, DEC);
+		m_Debug->Write("Setting Duty Cycle = ");
+		m_Debug->Write(dutyCycle, DEC);
 		fprintf(PwmDutyCycleHandles[channels[i]], "%u", dutyCycle);
-		DebugPrint(" ... Duty Cycle Set ... ");
+		m_Debug->Write(" ... Duty Cycle Set ... ");
 		fflush(PwmDutyCycleHandles[channels[i]]);
-		DebugPrintln("Flushing.");
+		m_Debug->Writeln("Flushing.");
 	}
 	return L_OK;
 }
 
 
 //--------------------------------------------------------SPI-------------------------------------------------------
-int LinxBeagleBoneBlack::SpiOpenMaster(unsigned char channel)
-{
-	//Load SPI DTO If Necessary
-	if (!fileExists(SpiPaths[channel].c_str()))
-	{
-		if (!loadDto(SpiDtoNames[channel].c_str()))
-		{
-			DebugPrint("SPI Fail - Failed To Load SPI DTO");
-			return  LSPI_OPEN_FAIL;
-		}
-	}
-	return LinxLinuxDevice::SpiOpenMaster(channel);
-}
 
 //--------------------------------------------------------I2C-------------------------------------------------------
-int LinxBeagleBoneBlack::I2cOpenMaster(unsigned char channel)
-{
-	//Export Dev Tree Overlay If Device does not exist
-	if (!fileExists(I2cPaths[channel].c_str()))
-	{
-		DebugPrint("I2C - Loading DTO ");
-		DebugPrintln(I2cDtoNames[channel].c_str());
-		if (FilePathLayout == 7)
-		{
-			if (!loadDto(I2cDtoNames[channel].c_str()))
-			{
-				DebugPrintln("I2C Fail - Failed To Load I2C DTO");
-				return  LI2C_OPEN_FAIL;
-			}
-		}
-	}
-	return LinxLinuxDevice::I2cOpenMaster(channel);
-}
-
 
 //--------------------------------------------------------UART-------------------------------------------------------
-int LinxBeagleBoneBlack::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud)
-{
-	DebugPrintln("UART Open");
-
-	//Load DTO If Needed
-	if (!fileExists(UartPaths[channel].c_str()))
-	{
-		if (!loadDto(UartDtoNames[channel].c_str()))
-		{
-			DebugPrint("UART Fail - Failed To Load ");
-			DebugPrint(UartDtoNames[channel].c_str());
-			DebugPrintln(" DTO");
-			return  LUART_OPEN_FAIL;
-		}
-	}
-
-	return LinxLinuxDevice::UartOpen(channel, baudRate, actualBaud);
-}
