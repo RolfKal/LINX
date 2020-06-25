@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #if Unix
+#include <time.h>
 #include <sys/stat.h>
 #elif Win32
 #include <windows.h>
@@ -102,18 +103,6 @@ int ReadStringFromBuff(unsigned char *buffer, int offset, unsigned char *arr, in
 	return offset + length;
 }
 
-
-// Return true If file specified by path exists.
-int fileExists(const char* path)
-{
-#if Unix
-	struct stat buffer;
-	return (stat(path, &buffer) == 0);
-#elif Win32
-	return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
-#endif
-}
-
 #if Win32
 static LARGE_INTEGER g_Frequency = {0};
 static int isAvailable = -1;
@@ -156,6 +145,17 @@ void delayMs(unsigned int ms)
 	usleep(ms * 1000);
 #elif Win32
 	Sleep(ms);
+#endif
+}
+
+// Return true If file specified by path exists.
+int fileExists(const char* path)
+{
+#if Unix
+	struct stat buffer;
+	return (stat(path, &buffer) == 0);
+#elif Win32
+	return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
 #endif
 }
 

@@ -21,13 +21,10 @@
 
 #include <map>
 #include <fcntl.h>
-#include <time.h>
 #include <math.h>
 #include <errno.h>
 #include <string.h>
 #include <malloc.h>
-#include <iostream>
-#include <fstream>
 #if Unix
 #include <alloca.h>
 #include <poll.h>
