@@ -41,7 +41,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="../../core/device;../../core/device/utility;../../core/listener;../../core/client"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;LINXCONFIG;DEBUG_ENABLED=-1"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;LINXCONFIG;DEBUG_ENABLED=-1;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -116,7 +116,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;LINX_EXPORTS"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;LINX_EXPORTS;_CRT_SECURE_NO_WARNINGS"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -203,7 +203,15 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\core\device\utility\LinxChannel.cpp"
+					>
+				</File>
+				<File
 					RelativePath="..\..\core\device\utility\LinxDevice.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\core\device\utility\LinxLinuxChannel.cpp"
 					>
 				</File>
 				<File
@@ -257,6 +265,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\core\device\utility\LinxChannel.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\core\device\utility\LinxCommand.h"
 					>
 				</File>
@@ -266,6 +278,10 @@
 				</File>
 				<File
 					RelativePath="..\..\core\device\utility\LinxDevice.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\core\device\utility\LinxLinuxChannel.h"
 					>
 				</File>
 				<File

@@ -886,15 +886,13 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 
 		case LCMD_UART_OPEN_BY_NAME: // UART Open by Name
 			// Command parameters
-			// uint8  : device name length
 			// uint8[] : device name
 			// Response parameters
 			// uint8 : assigned channel
-			if (length >= 5)
+			if (length >= 3)
 			{
-				unsigned char channel = 0, nameLength = commandPacketBuffer[offset];
-				status = m_LinxDev->UartOpen((char*)commandPacketBuffer + offset + 1, nameLength, &channel);
-				WriteU32ToBuff(responsePacketBuffer, offset - 1, channel); 
+				commandPacketBuffer[offset + length] = 0;
+				status = m_LinxDev->UartOpen((char*)commandPacketBuffer + offset, responsePacketBuffer + offset - 1);
 				length = 1;
 				break;
 			}

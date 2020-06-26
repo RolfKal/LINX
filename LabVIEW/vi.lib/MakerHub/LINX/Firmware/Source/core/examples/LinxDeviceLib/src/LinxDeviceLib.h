@@ -12,26 +12,19 @@
 #ifndef LINX_DEVICELIB_H
 #define LINX_DEVICELIB_H
 
-#include <string>
-
-using namespace std;
 //------------------------------------- Constructor/Destructor -------------------------------------
 extern "C" int LinxOpen();
 extern "C" int LinxClose();
-
 
 //------------------------------------- Enumeration -------------------------------------
 extern "C" unsigned char LinxGetDeviceFamily();
 extern "C" unsigned char LinxGetDeviceId();
 extern "C" int LinxGetDeviceName(unsigned char *name);
 
-
 //------------------------------------- General -------------------------------------
 extern "C" unsigned int LinxGetMilliSeconds();
 
-
 //------------------------------------- Analog -------------------------------------
-
 extern "C" unsigned int LinxAiGetRefSetVoltage();
 extern "C" unsigned int LinxAoGetRefSetVoltage();
 extern "C" unsigned int LinxAiGetResolution();
@@ -43,11 +36,9 @@ extern "C" int LinxAoGetChans(unsigned char numChans, unsigned char* channels);
 extern "C" int LinxAnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
 extern "C" int LinxAnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values);
 
-
 //------------------------------------- CAN -------------------------------------
 extern "C" unsigned char LinxCanGetNumChans();
 extern "C" int LinxCanGetChans(unsigned char numChans, unsigned char* channels);
-
 
 //------------------------------------- Digital -------------------------------------
 extern "C" unsigned char LinxDigitalGetNumChans();
@@ -56,7 +47,6 @@ extern "C" int LinxDigitalWrite(unsigned char numChans, unsigned char* channels,
 extern "C" int LinxDigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);
 extern "C" int LinxDigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
 extern "C" int LinxDigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);
-
 
 //------------------------------------- I2C -------------------------------------
 extern "C" unsigned char LinxI2cGetNumChans();
@@ -67,7 +57,6 @@ extern "C" int LinxI2cWrite(unsigned char channel, unsigned char slaveAddress, u
 extern "C" int LinxI2cRead(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned int timeout, unsigned char* recBuffer);		
 extern "C" int LinxI2cClose(unsigned char channel);
 		
-		
 //------------------------------------- PWM -------------------------------------
 extern "C" unsigned char LinxPwmGetNumChans();
 extern "C" int LinxPwmGetChans(unsigned char numChans, unsigned char* channels);
@@ -77,11 +66,9 @@ extern "C" int LinxPwmSetDutyCycle(unsigned char numChans, unsigned char* channe
 extern "C" unsigned char LinxQeGetNumChans();
 extern "C" int LinxQeGetChans(unsigned char numChans, unsigned char* channels);
 
-
 //------------------------------------- Servo -------------------------------------
 extern "C" unsigned char LinxServoGetNumChans();
 extern "C" int LinxServoGetChans(unsigned char numChans, unsigned char* channels);
-
 
 //------------------------------------- SPI -------------------------------------
 extern "C" unsigned char LinxSpiGetNumChans();

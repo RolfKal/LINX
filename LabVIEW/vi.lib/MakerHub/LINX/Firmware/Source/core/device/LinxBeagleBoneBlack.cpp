@@ -149,6 +149,7 @@ static const char *g_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev1.1"};
 static const char *g_SpiDtoNames[NUM_SPI_CHANS] = { "BB-SPIDEV0"};
 static unsigned int g_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 static int g_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
+static int g_SpiDefaultSpeed = 3900000;
 
 LinxBBBSpiChannel::LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxLinuxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsSpiChannel(channelName, debug, device, speed)
 {
@@ -192,8 +193,8 @@ int LinxBBBSpiChannel::Open()
 LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 {
 	//LINX Device Information
-	DeviceFamily = 0x06;	//TI Family Code
-	DeviceId = 0x01;			//BeagleBone Black
+	DeviceFamily = 0x06;	// TI Family Code
+	DeviceId = 0x01;		// BeagleBone Black
 
 	//LINX API Version
 	LinxApiMajor = 2;
@@ -226,18 +227,18 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	
 	AiRefDefault = AI_REFV;
 	AiRefSet = AI_REFV;
-	AiRefCodes = NULL;
+//	AiRefCodes = NULL;
 	
-	NumAiRefIntVals = NUM_AI_INT_REFS;
-	AiRefIntVals = NULL;
+//	NumAiRefIntVals = NUM_AI_INT_REFS;
+//	AiRefIntVals = NULL;
 	
-	AiRefExtMin = 0;
-	AiRefExtMax = 0;
+//	AiRefExtMin = 0;
+//	AiRefExtMax = 0;
 	
 	//AO
-	AoResolution = 0;
-    AoRefDefault = 0;
-	AoRefSet = 0;
+//	AoResolution = 0;
+//  AoRefDefault = 0;
+//	AoRefSet = 0;
 	
 	//PWM
 	//Shared Non Varying Components
@@ -265,12 +266,12 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//Update to 8.x layout if necessary
 	if (m_FilePathLayout >= 8)
 	{
-		string pwmBasePath = "/sys/class/pwm/";
+		const char *pwmBasePath = "/sys/class/pwm/";
 		
-		string PwmP8ChipDir = "", PwmP9ChipDir = "";
+		const char *PwmP8ChipDir = "", *PwmP9ChipDir = "";
 		bool sawPwmChanLinks = false;
 		
-		DIR* pwmDirHandle = opendir(pwmBasePath.c_str());
+		DIR* pwmDirHandle = opendir(pwmBasePath);
 
 		dirent* dp;
 
@@ -291,7 +292,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 					if (isPwmChanLink)
 						sawPwmChanLinks = true;
 					
-					sprintf(pwmChipSymlink, "%s%s", pwmBasePath.c_str(), dp->d_name);
+					sprintf(pwmChipSymlink, "%s%s", pwmBasePath, dp->d_name);
 					readlink(pwmChipSymlink, pwmChipSymlinkTarget, 128);
 					
 					//Parse DTO Address
@@ -354,16 +355,16 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		
 		if (!sawPwmChanLinks)
 		{
-			m_PwmDirPaths[0] = PwmP8ChipDir + "/pwm1/";
-			m_PwmDirPaths[1] = PwmP8ChipDir + "/pwm0/";
-			m_PwmDirPaths[2] = PwmP9ChipDir + "/pwm0/";
-			m_PwmDirPaths[3] = PwmP9ChipDir + "/pwm1/";
+			m_PwmDirPaths[0] = std::string(PwmP8ChipDir, "/pwm1/");
+			m_PwmDirPaths[1] = std::string(PwmP8ChipDir, "/pwm0/");
+			m_PwmDirPaths[2] = std::string(PwmP9ChipDir, "/pwm0/");
+			m_PwmDirPaths[3] = std::string(PwmP9ChipDir, "/pwm1/");
 		}
 		
-		m_PwmExportPaths[0] = PwmP8ChipDir + "/export";
-		m_PwmExportPaths[1] = PwmP8ChipDir + "/export";
-		m_PwmExportPaths[2] = PwmP9ChipDir + "/export";
-		m_PwmExportPaths[3] = PwmP9ChipDir + "/export";
+		m_PwmExportPaths[0] = std::string(PwmP8ChipDir, "/export");
+		m_PwmExportPaths[1] = std::string(PwmP8ChipDir, "/export");
+		m_PwmExportPaths[2] = std::string(PwmP9ChipDir, "/export");
+		m_PwmExportPaths[3] = std::string(PwmP9ChipDir, "/export");
 		
 		m_DutyCycleFileName = "duty_cycle";
 		m_PeriodFileName = "period";
@@ -425,7 +426,8 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 			if (chan)
 				RegisterChannel(IID_LinxAiChannel, g_AiChans[i], chan);
 			else
-				m_Debug->Writeln("AI Fail - Failed Open AI Channel Handle");
+				m_Debug->Write("AI Fail - Failed to open AI channel handle: ");
+				m_Debug->Writeln(g_AiPaths[i]);
 		}
 	}	
 	
@@ -625,11 +627,10 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		}
 	}
 	
-	//Load SPI Paths and DTO Names, Configure SPI Master Default Values	
-	SpiDefaultSpeed = 3900000;
+	//Load SPI Paths and DTO Names, Configure SPI Master Default Values
 	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
-		RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxBBBSpiChannel(g_SpiPaths[i], m_Debug, this, SpiDefaultSpeed, g_SpiDtoNames[i], m_DtoSlotsPath));
+		RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxBBBSpiChannel(g_SpiPaths[i], m_Debug, this, g_SpiDefaultSpeed, g_SpiDtoNames[i], m_DtoSlotsPath));
 	}
 	
 	//If Debugging Is Enabled Call EnableDebug()

@@ -42,9 +42,8 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/
-#include <string>
-#include <map>
 #include "LinxDevice.h"
+#include "LinxLinuxChannel.h"
 #include "LinxLinuxDevice.h"
 #include "LinxRaspberryPi.h"
 
@@ -54,8 +53,8 @@ class LinxRaspiDioChannel : public LinxSysfsDioChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin);
-		virtual ~LinxRaspiDioChannel();
+		LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin) : LinxSysfsDioChannel(debug, linxPin, gpioPin) {};
+		virtual ~LinxRaspiDioChannel() {};
 
 		/****************************************************************************************
 		**  Functions

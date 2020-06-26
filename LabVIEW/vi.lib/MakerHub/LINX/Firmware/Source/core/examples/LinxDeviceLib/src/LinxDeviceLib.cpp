@@ -681,10 +681,10 @@ extern "C" int LinxUartOpen(unsigned char channel, unsigned int baudRate, unsign
 	return status;
 }
 
-extern "C" int LinxUartOpenByNameRef(LinxDevice *dev, const char *name, unsigned char nameLength, unsigned char *channel)
+extern "C" int LinxUartOpenByNameRef(LinxDevice *dev, const char *name, unsigned char *channel)
 {
 	if (dev)
-		return dev->UartOpen(name, nameLength, channel);
+		return dev->UartOpen(name, channel);
 	return LERR_BADPARAM;
 }
 

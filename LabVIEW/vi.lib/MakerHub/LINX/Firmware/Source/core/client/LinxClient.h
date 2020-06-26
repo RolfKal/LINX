@@ -15,7 +15,6 @@
 /****************************************************************************************
 ** Defines
 ****************************************************************************************/
-#define LINX_TIMOUT_INFINITE -1
 
 /****************************************************************************************
 **  Includes
@@ -44,16 +43,6 @@ class LinxClient : public LinxDevice
 		**  Functions
 		****************************************************************************************/
 		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetAiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetAoChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetDioChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetQeChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetPwmChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetSpiChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetI2cChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetUartChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetCanChans(unsigned char *buffer, unsigned char length);
-		virtual unsigned char GetServoChans(unsigned char *buffer, unsigned char length);
 
 		//Analog
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
@@ -126,36 +115,6 @@ class LinxClient : public LinxDevice
 		****************************************************************************************/
 		unsigned char *m_DeviceName;
 
-		//DIO
-		std::set<unsigned char> m_DigitalChans;
-
-		//AI
-		std::set<unsigned char> m_AiChans;
-
-		//AO
-		std::set<unsigned char> m_AoChans;
-
-		//PWM
-		std::set<unsigned char> m_PwmChans;
-
-		//QE
-		std::set<unsigned char> m_QeChans;
-
-		//UART
-		std::set<unsigned char> m_UartChans;
-
-		//I2C
-		std::set<unsigned char> m_I2cChans;
-
-		//SPI
-		std::set<unsigned char> m_SpiChans;
-
-		//CAN
-		std::set<unsigned char> m_CanChans;
-
-		//Servo
-		std::set<unsigned char> m_ServoChans;
-
 		unsigned int m_ListenerBufferSize;
 		unsigned short m_PacketNum;
 		int m_Timeout;
@@ -163,14 +122,15 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned short GetNextPacketNum();
-		virtual int PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int *headerLength);
-		virtual int WriteAndRead(unsigned char *buffer, int buffLength, int *headerLength, int dataLength, int *dataRead);
+		unsigned short GetNextPacketNum();
+		int PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int *headerLength);
+		int WriteAndRead(unsigned char *buffer, int buffLength, int *headerLength, int dataLength, int *dataRead);
+		void CopyArrayToSet(int type, unsigned char *arr, int length);
 
-		virtual int GetNoParameter(unsigned short command);
-		virtual int GetU8Parameter(unsigned short command, unsigned char *val);
-		virtual int GetU16Parameter(unsigned short command, unsigned short *val);
-		virtual int GetU32Parameter(unsigned short command, unsigned int *val);
-		virtual int GetU8ArrParameter(unsigned short command, unsigned char *val, int buffLength, int *headerLength, int *dataRead);
+		int GetNoParameter(unsigned short command);
+		int GetU8Parameter(unsigned short command, unsigned char *val);
+		int GetU16Parameter(unsigned short command, unsigned short *val);
+		int GetU32Parameter(unsigned short command, unsigned int *val);
+		int GetU8ArrParameter(unsigned short command, unsigned char *val, int buffLength, int *headerLength, int *dataRead);
 };
 #endif //LINX_CLIENT_H

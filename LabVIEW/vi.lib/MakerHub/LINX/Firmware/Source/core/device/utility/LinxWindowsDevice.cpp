@@ -210,19 +210,91 @@ LinxWindowsDevice::~LinxWindowsDevice()
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-int LinxWindowsDevice::UartOpen(const char *deviceName, unsigned char nameLength, unsigned char *channel, LinxUartChannel **chan)
+int LinxWindowsDevice::UartOpen(const char *deviceName, unsigned char *channel, LinxUartChannel **chan)
 {
 	return 0;
 }
 
-//------------------------------------- General -------------------------------------
 
-void LinxWindowsDevice::NonVolatileWrite(int address, unsigned char data)
+/****************************************************************************************
+**  Public Channel Registry Functions
+****************************************************************************************/
+unsigned char LinxWindowsDevice::EnumerateChannels(int type, unsigned char *buffer, unsigned char length)
 {
-
+	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	int i = 0, num = (int)m.size();
+	if (num && buffer)
+	{
+		for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		{
+			buffer[i] = it->first;
+		}
+	}
+	return (unsigned char)num;
 }
 
-unsigned char LinxWindowsDevice::NonVolatileRead(int address)
+/****************************************************************************************
+**  Protected Channel Registry Functions
+****************************************************************************************/
+unsigned char LinxWindowsDevice::RegisterChannel(int type, LinxChannel *chan)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	unsigned char channel = 0;
+	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin(); it != m.end(); it++)
+	{
+		if (it->first == channel)
+		{
+			channel = it->first + 1;
+		}
+		else
+		{
+			break;
+		}
+	}
+	m.insert(std::pair<unsigned char, LinxChannel*>(channel, chan));
+	return channel;
+}
+
+void LinxWindowsDevice::RegisterChannel(int type, unsigned char channel, LinxChannel *chan)
+{
+	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	std::pair<std::map<unsigned char, LinxChannel*>::iterator, bool> result = m.insert(std::pair<unsigned char, LinxChannel*>(channel, chan));
+	if (!result.second)
+	{
+		result.first->second->Release();
+		result.first->second = chan;
+		result.first->second->AddRef();
+	}
+}
+
+LinxChannel* LinxWindowsDevice::LookupChannel(int type, unsigned char channel)
+{
+	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	std::map<unsigned char, LinxChannel*>::iterator it = m.find(channel);
+	return it != m.end() ? it->second->QueryInterface(type) : NULL;
+}
+
+void LinxWindowsDevice::RemoveChannel(int type, unsigned char channel)
+{
+	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	std::map<unsigned char, LinxChannel*>::iterator it = m.find(channel);
+	if (it != m.end())
+	{
+		it->second->Release();
+		m.erase(it);
+	}
+}
+
+void LinxWindowsDevice::ClearChannels(int type)
+{
+	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin(); it != m.end(); it++)
+	{
+		int count = it->second->Release();
+		if (count)
+		{
+			m_Debug->Write("Channel not released! Bad refcount");
+		}
+	}
+	m.clear();
 }

@@ -40,7 +40,7 @@
 **  Includes
 ****************************************************************************************/	
 #include "LinxDevice.h"
-#include "LinxLinuxDevice.h"
+#include "LinxLinuxChannel.h"
 #include <map>
 #include <string>
 

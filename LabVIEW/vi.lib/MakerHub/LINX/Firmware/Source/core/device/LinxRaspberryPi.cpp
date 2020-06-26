@@ -92,15 +92,6 @@ static volatile int *gpio_map = (volatile int*)MAP_FAILED;
 static const unsigned char g_LinxDioChans[NUM_DIGITAL_CHANS] = {7, 11, 12, 13, 15, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40};
 static const unsigned char g_GpioDioChans[NUM_DIGITAL_CHANS] = {4, 17, 18, 27, 22, 23, 24, 25,  5,  6, 12, 13, 19, 16, 26, 20, 21};
 
-LinxRaspiDioChannel::LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin)
-: LinxSysfsDioChannel(debug, linxPin, gpioPin)
-{
-}
-
-LinxRaspiDioChannel::~LinxRaspiDioChannel()
-{
-}
-
 LinxChannel *LinxRaspiDioChannel::QueryInterface(int interfaceId)
 {
 	if (interfaceId == IID_LinxRaspiDioChannel)
@@ -249,6 +240,7 @@ void LinxRaspiDioChannel::setState(unsigned char state)
 //SPI
 static unsigned char g_SpiChans[NUM_SPI_CHANS] = {0, 1};
 static const char * g_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
+static int g_SpiDefaultSpeed = 3900000;
 
 //I2C
 static unsigned char g_I2cChans[NUM_I2C_CHANS] = {1};
@@ -345,13 +337,7 @@ LinxRaspberryPi::LinxRaspberryPi()
 	AiResolution = 0;
 	AiRefDefault = AI_REFV;
 	AiRefSet = AI_REFV;
-	AiRefCodes = NULL;
 	
-	AiRefIntVals = NULL;
-	
-	AiRefExtMin = 0;
-	AiRefExtMax = 0;
-
 	//------------------------------------- AO ---------------------------------------
 	AoResolution = 0;
 	AoRefDefault = 0;
@@ -398,12 +384,11 @@ LinxRaspberryPi::LinxRaspberryPi()
 
 	//------------------------------------- SPI -------------------------------------
 	// Store SPI channels in the registry map
-	SpiDefaultSpeed = 3900000;
 	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
 		if (fileExists(g_SpiPaths[i]))
 		{
-			RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxSysfsSpiChannel(g_SpiPaths[i], m_Debug, this, SpiDefaultSpeed));
+			RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxSysfsSpiChannel(g_SpiPaths[i], m_Debug, this, g_SpiDefaultSpeed));
 		}
 	}
 

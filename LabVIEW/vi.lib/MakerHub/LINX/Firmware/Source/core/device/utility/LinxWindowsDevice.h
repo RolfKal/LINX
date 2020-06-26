@@ -120,7 +120,7 @@ class LinxWindowsDevice : public LinxDevice
 
 		//UART
 		virtual int UartOpen(unsigned char channel, LinxUartChannel **chan);
-		virtual int UartOpen(const char *deviceName, unsigned char nameLength, unsigned char *channel, LinxUartChannel **chan);
+		virtual int UartOpen(const char *deviceName, unsigned char *channel, LinxUartChannel **chan);
 		virtual int UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
 		virtual int UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes);
 		virtual int UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead);
@@ -133,8 +133,7 @@ class LinxWindowsDevice : public LinxDevice
 		virtual int ServoClose(unsigned char numChans, unsigned char* chans);
 
 		// General
-		virtual void NonVolatileWrite(int address, unsigned char data);
-		virtual unsigned char NonVolatileRead(int address);
+		virtual unsigned char EnumerateChannels(int type, unsigned char *buffer, unsigned char length);
 
 	protected:
 		/****************************************************************************************
@@ -144,8 +143,18 @@ class LinxWindowsDevice : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+		virtual unsigned char RegisterChannel(int type, LinxChannel *chan);
+		virtual LinxChannel* LookupChannel(int type, unsigned char channel);
+		virtual void RegisterChannel(int type, unsigned char channel, LinxChannel *chan);
+		virtual void RemoveChannel(int type, unsigned char channel);
+		virtual void ClearChannels(int type);
+
 		virtual int pwmSmartOpen(unsigned char numChans, unsigned char* channels);
 
 	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		std::map<unsigned char, LinxChannel*> m_ChannelRegistry[LinxNumChanelTypes];
 };
 #endif //LINX_WINDOWSDEVICE_H

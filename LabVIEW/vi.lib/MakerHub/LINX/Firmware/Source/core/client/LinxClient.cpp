@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "LinxChannel.h"
 #include "LinxDevice.h"
 #include "LinxCommand.h"
 #include "LinxUtilities.h"
@@ -30,36 +31,6 @@ LinxClient::LinxClient()
 {
 	m_DeviceName = m_Unknown;
 
-	//DIO
-	m_DigitalChans.clear();
-
-	//AI
-	m_AiChans.clear();
-
-	//AO
-	m_AoChans.clear();
-
-	//PWM
-	m_PwmChans.clear();
-
-	//QE
-	m_QeChans.clear();
-
-	//UART
-	m_UartChans.clear();
-
-	//I2C
-	m_I2cChans.clear();
-
-	//SPI
-	m_SpiChans.clear();
-
-	//CAN
-	m_CanChans.clear();
-
-	//Servo
-	m_ServoChans.clear();
-
 	m_ListenerBufferSize = 255;
 
 	m_PacketNum = (unsigned int)((double)rand() / RAND_MAX * 0xFFFF);
@@ -69,26 +40,6 @@ LinxClient::~LinxClient()
 {
 	if (m_DeviceName != m_Unknown)
 		free(m_DeviceName);
-
-	//DIO
-
-	//AI
-
-	//AO
-
-	//PWM
-
-	//QE
-
-	//UART
-
-	//I2C
-
-	//SPI
-
-	//CAN
-
-	//Servo
 }
 
 /****************************************************************************************
@@ -247,24 +198,11 @@ int LinxClient::GetU8ArrParameter(unsigned short command, unsigned char *buffer,
 	return status;
 }
 
-static void CopyArrayToSet(std::set<unsigned char> &s, unsigned char *arr, int length) 
+void LinxClient::CopyArrayToSet(int type, unsigned char *arr, int length) 
 {
-	s.clear();
+	ClearChannels(type);
 	for (int i = 0; i < length; i++)
-		s.insert(arr[i]);
-}
-
-static int CopySetToArray(std::set<unsigned char> &s, unsigned char *arr, int length)
-{
-	int i = 0, len = (int)s.size();
-	if (arr)
-	{
-		if (len > length)
-			len = length;
-		for (std::set<unsigned char>::iterator it = s.begin(); i < len && it != s.end(); it++, i++)
-			arr[i] = *it;
-	}
-	return len;
+		RegisterChannel(type, arr[i], NULL);
 }
 
 /****************************************************************************************
@@ -321,43 +259,43 @@ int LinxClient::Initialize()
 
 		status = GetU8ArrParameter(LCMD_GET_AI_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_AiChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxAiChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_AO_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_AoChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxAoChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_DIO_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_DigitalChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxDioChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_PWM_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_PwmChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxPwmChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_QE_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_QeChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxQeChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_UART_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_UartChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxUartChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_I2C_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_I2cChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxI2cChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_SPI_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_SpiChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxSpiChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_CAN_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_CanChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxCanChannel, buffer, dataRead);
 
 		status = GetU8ArrParameter(LCMD_GET_SERVO_CHANS, buffer, 255, &offset, &dataRead);
 		if (!status)
-			CopyArrayToSet(m_ServoChans, buffer, dataRead);
+			CopyArrayToSet(IID_LinxServoChannel, buffer, dataRead);
 	}
 	//----Peripherals----
 	// Uart
@@ -372,7 +310,11 @@ int LinxClient::Initialize()
 	}
 	if (!status)
 	{
-		status = GetU32Parameter(LCMD_GET_AI_REF_VOLT, &AiRefSet);
+		status = GetU8Parameter(LCMD_GET_AI_RESOLUTION, &AiResolution);
+	}
+	if (!status)
+	{
+		status = GetU8Parameter(LCMD_GET_AO_RESOLUTION, &AoResolution);
 	}
 /*
 
@@ -424,54 +366,3 @@ unsigned char LinxClient::GetDeviceName(unsigned char *buffer, unsigned char len
 	}
 	return (unsigned char)len; 
 }
-
-unsigned char LinxClient::GetAiChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_AiChans, buffer, length);
-}
-
-unsigned char LinxClient::GetAoChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_AoChans, buffer, length);
-}
-
-unsigned char LinxClient::GetDioChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_DigitalChans, buffer, length);
-}
-
-unsigned char LinxClient::GetQeChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_QeChans, buffer, length);
-}
-
-unsigned char LinxClient::GetPwmChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_PwmChans, buffer, length);
-}
-
-unsigned char LinxClient::GetSpiChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_SpiChans, buffer, length);
-}
-
-unsigned char LinxClient::GetI2cChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_I2cChans, buffer, length);
-}
-
-unsigned char LinxClient::GetUartChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_UartChans, buffer, length);
-}
-
-unsigned char LinxClient::GetCanChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_CanChans, buffer, length);
-}
-
-unsigned char LinxClient::GetServoChans(unsigned char *buffer, unsigned char length)
-{
-	return (unsigned char)CopySetToArray(m_ServoChans, buffer, length);
-}
-
