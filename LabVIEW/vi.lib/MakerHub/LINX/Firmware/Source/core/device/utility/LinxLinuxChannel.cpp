@@ -30,6 +30,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <asm/termbits.h>
+#include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/spi/spidev.h>
 #elif Win32

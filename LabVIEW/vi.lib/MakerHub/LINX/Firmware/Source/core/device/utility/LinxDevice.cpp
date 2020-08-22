@@ -536,7 +536,7 @@ int LinxDevice::UartOpen(const char *deviceName, unsigned char *channel, LinxUar
 	if (!obj)
 	{
 #if Unix
-		obj = new LinxUartChannel(m_Debug, deviceName);
+		obj = new LinxUnixUartChannel(m_Debug, deviceName);
 #elif Win32
 		obj = new LinxWindowsUartChannel(m_Debug, deviceName);
 #endif

@@ -181,7 +181,7 @@ class LinxUnixUartChannel : public LinxUartChannel, virtual public LinxUnixSocke
 		**  Constructors
 		****************************************************************************************/
 		LinxUnixUartChannel(LinxFmtChannel *debug, const char *deviceName) : 
-		  LinxUartChannel(debug, deviceName), LinxUnixSocketChannel(debug, deviceName) {}
+		  LinxUnixSocketChannel(debug, deviceName), LinxUartChannel(debug, deviceName) {}
 		virtual ~LinxUnixUartChannel() {};
 
 		/****************************************************************************************
