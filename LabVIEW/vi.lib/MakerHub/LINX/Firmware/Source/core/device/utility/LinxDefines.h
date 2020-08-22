@@ -14,8 +14,19 @@
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
 #define Win32	1
+#define NetSocket SOCKET
+#elif ARDUINO_VERSION
+#define Arduino 1
+#if ARDUINO_VERSION >= 100
+	#include <Arduino.h>
+#else
+	#include <WProgram.h>
+#endif
 #elif defined(unix) || defined(__unix) || defined(__unix__)
 #define Unix	1
+#define NetSocket int
+#define INVALID_SOCKET -1
+#define closesocket(fd) close(fd)
 #elif defined(__APPLE__) && defined(__MACH__)
 #define MacOSX	1
 #elif defined(__WXWORKS__) || defined(__vxworks__)
@@ -140,7 +151,7 @@ typedef enum I2CStatus
 
 typedef enum UartStatus
 {
-	LUART_OPEN_FAIL=128,
+	LUART_OPEN_FAIL = 128,
 	LUART_SET_BAUD_FAIL,
 	LUART_AVAILABLE_FAIL,
 	LUART_READ_FAIL,

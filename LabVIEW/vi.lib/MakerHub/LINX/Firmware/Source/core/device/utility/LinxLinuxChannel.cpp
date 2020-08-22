@@ -31,6 +31,8 @@
 #include <linux/spi/spidev.h>
 #elif Win32
 #include <io.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 #define open	_open
 #define read	_read
@@ -220,23 +222,63 @@ struct termios2 {
 	speed_t c_ospeed;		/* output speed */
 };
 
-#define TCFLSH 0
-#define TCSETS 0
-#define TCGETS 0
-#define TCSETS2 0
-#define TCGETS2 0
-#define FIONREAD 0
+#define _IOC_NRBITS	8
+#define _IOC_TYPEBITS	8
+
+/*
+ * Let any architecture override either of the following before
+ * including this file.
+ */
+
+#define _IOC_SIZEBITS	14
+#define _IOC_DIRBITS	2
+
+#define _IOC_NRMASK	((1 << _IOC_NRBITS)-1)
+#define _IOC_TYPEMASK	((1 << _IOC_TYPEBITS)-1)
+#define _IOC_SIZEMASK	((1 << _IOC_SIZEBITS)-1)
+#define _IOC_DIRMASK	((1 << _IOC_DIRBITS)-1)
+
+#define _IOC_NRSHIFT	0
+#define _IOC_TYPESHIFT	(_IOC_NRSHIFT+_IOC_NRBITS)
+#define _IOC_SIZESHIFT	(_IOC_TYPESHIFT+_IOC_TYPEBITS)
+#define _IOC_DIRSHIFT	(_IOC_SIZESHIFT+_IOC_SIZEBITS)
+
+#define _IOC_NONE	0U
+#define _IOC_WRITE	1U
+#define _IOC_READ	2U
+
+#define _IOC(dir,type,nr,size) \
+	(((dir)  << _IOC_DIRSHIFT) | \
+	 ((type) << _IOC_TYPESHIFT) | \
+	 ((nr)   << _IOC_NRSHIFT) | \
+	 ((size) << _IOC_SIZESHIFT))
+
+#define _IOC_TYPECHECK(t) (sizeof(t))
+
+//#define _IO(type,nr)		_IOC(_IOC_NONE,(type),(nr),0)
+//#define _IOR(type,nr,size)	_IOC(_IOC_READ,(type),(nr),(_IOC_TYPECHECK(size)))
+//#define _IOW(type,nr,size)	_IOC(_IOC_WRITE,(type),(nr),(_IOC_TYPECHECK(size)))
+//#define _IOWR(type,nr,size)	_IOC(_IOC_READ|_IOC_WRITE,(type),(nr),(_IOC_TYPECHECK(size)))
+
+//#define FIONREAD	_IOR('f', 127, int)
+#define TCGETS		_IOR('t', 19, struct termios)
+#define TCSETS		_IOW('t', 20, struct termios)
+#define TCSBRK		_IO('t', 29)
+#define TCXONC		_IO('t', 30)
+#define TCFLSH		_IO('t', 31)
+#define TCGETS2		_IOR('T', 42, struct termios2)
+#define TCSETS2		_IOW('T', 43, struct termios2)
 
 int ioctl(int, unsigned int, ...);
 
-#define POLLIN 0
+//#define POLLIN 0
 
-struct pollfd
-{
-    int  fd;
-    short   events;
-    short   revents;
-};
+//struct pollfd
+//{
+//    int  fd;
+//    short   events;
+//   short   revents;
+//};
 
 int poll(struct pollfd *fdArray, unsigned int fds, int timeout);
 
@@ -376,16 +418,6 @@ LinxSysfsAiChannel::~LinxSysfsAiChannel()
 	}
 }
 
-LinxChannel *LinxSysfsAiChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxSysfsAiChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxAiChannel::QueryInterface(interfaceId);
-}
-
 // Open direction and value handles if it is not already open
 int LinxSysfsAiChannel::SmartOpen()
 {
@@ -451,16 +483,6 @@ LinxSysfsDioChannel::~LinxSysfsDioChannel()
 			}
 		}
 	}
-}
-
-LinxChannel *LinxSysfsDioChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxSysfsDioChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxDioChannel::QueryInterface(interfaceId);
 }
 
 // Open direction and value handles if it is not already open
@@ -566,31 +588,165 @@ int LinxSysfsDioChannel::ReadPulseWidth(unsigned char stimType, unsigned char re
 }
 
 //------------------------------------- UART -------------------------------------
-static unsigned int g_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
-static unsigned int g_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
+LinxSysfsPwmChannel::LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableName, const char *periodName, const char *dutyCycleName, unsigned int defaultPeriod) : LinxPwmChannel(deviceName, debug)
+{
+	m_PeriodHandle = NULL;
+	m_DutyCycleHandle = NULL;
+	m_EnableFileName = enableName;
+	m_PeriodFileName = periodName;
+	m_DutyCycleFileName = dutyCycleName;
+	m_DefaultPeriod = defaultPeriod;
+}
 
-LinxUnixUartChannel::LinxUnixUartChannel(const char *channelName, LinxFmtChannel *debug) : LinxUartChannel(channelName, debug)
+LinxSysfsPwmChannel::~LinxSysfsPwmChannel()
+{
+	if (m_DutyCycleHandle != NULL)
+	{
+		fclose(m_DutyCycleHandle);
+		m_DutyCycleHandle = NULL;
+	}
+	if (m_PeriodHandle != NULL)
+	{
+		char enablePath[64];
+		sprintf(enablePath, "%s%s", m_ChannelName, m_EnableFileName);
+		FILE* pwmEnableHandle = fopen(enablePath, "r+w+");
+		if (pwmEnableHandle != NULL)
+		{
+			fprintf(pwmEnableHandle, "0");
+			fclose(pwmEnableHandle);
+		}
+		else
+		{
+			m_Debug->Write("PWM Fail - Unable to open pwmEnableHandle");
+		}
+		fclose(m_PeriodHandle);
+		m_PeriodHandle = NULL;
+	}
+}
+
+int LinxSysfsPwmChannel::SmartOpen()
+{
+	char tempPath[64];
+	//Open Period Handle If It Is Not Already
+	if (m_PeriodHandle == NULL)
+	{
+		//Turn On PWM		
+		sprintf(tempPath, "%s%s", m_ChannelName, m_EnableFileName);			
+		FILE* pwmEnableHandle = fopen(tempPath, "r+w+");
+		if (pwmEnableHandle != NULL)
+		{
+			fprintf(pwmEnableHandle, "1");
+			fclose(pwmEnableHandle);		
+		}
+		else
+		{
+			m_Debug->Write("PWM Fail - Unable to open pwmEnableHandle");				
+		}	
+
+		sprintf(tempPath, "%s%s", m_ChannelName, m_PeriodFileName);
+		m_Debug->Write("Opening ");
+		m_Debug->Writeln(tempPath);
+		m_PeriodHandle = fopen(tempPath, "r+w+");
+
+		//Initialize PWM Period
+		fprintf(m_PeriodHandle, "%u", m_DefaultPeriod);
+		m_Period = m_DefaultPeriod;
+		fflush(m_PeriodHandle);
+	}
+
+	//Open Duty Cycle Handle If It Is Not Already
+	if (m_DutyCycleHandle == NULL)
+	{
+		sprintf(tempPath, "%s%s", m_ChannelName, m_DutyCycleFileName);
+		m_Debug->Write("Opening ");
+		m_Debug->Writeln(tempPath);
+		m_DutyCycleHandle = fopen(tempPath, "r+w+");
+		fprintf(m_DutyCycleHandle, "0");
+	}
+	return L_OK;
+}
+
+int LinxSysfsPwmChannel::SetDutyCycle(unsigned char value)
+{
+	//unsigned int period = 500000;		//Period Defaults To 500,000 nS. To Do Update This When Support For Changing Period / Frequency Is Added
+	unsigned int dutyCycle = 0;
+
+	if (value == 0)
+	{
+		dutyCycle = 0;
+	}
+	else if (value == 255)
+	{
+		dutyCycle = m_Period;
+	}
+	else
+	{
+		dutyCycle = (unsigned int)(m_Period * (value / 255.0));
+	}
+
+	//Update Output
+	m_Debug->Write("Setting Duty Cycle = ");
+	m_Debug->Write(dutyCycle, DEC);
+	fprintf(m_DutyCycleHandle, "%u", dutyCycle);
+	m_Debug->Write(" ... Duty Cycle Set ... ");
+	fflush(m_DutyCycleHandle);
+	m_Debug->Writeln("Flushing.");
+	return L_OK;
+}
+
+
+
+//------------------------------------- UART -------------------------------------
+LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *deviceName) : LinxCommChannel(deviceName, debug)
 {
 	m_Fd = -1;
 }
 
-LinxUnixUartChannel::~LinxUnixUartChannel()
+LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *deviceName, int fd) : LinxCommChannel(deviceName, debug)
+{
+	m_Fd = fd;
+}
+
+LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *address, unsigned short port) : LinxCommChannel(address, debug)
+{
+    struct addrinfo hints, *result, *rp;
+	char str[10];
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
+    hints.ai_flags = AI_NUMERICSERV;
+
+	if (!getaddrinfo(address, itoa(port, str, 10), &hints, &result))
+	{
+		for (rp = result; rp != NULL; rp = rp->ai_next)
+		{
+			NetSocket m_Fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+			if (m_Fd < 0)
+				continue;
+
+            if (connect(m_Fd, rp->ai_addr, (socklen_t)rp->ai_addrlen) != -1)
+				break;
+
+			closesocket(m_Fd);
+		}
+		freeaddrinfo(result);
+		if (rp == NULL)
+		{       
+			m_Debug->Write("Could not connect to TCP/IP address: ");
+			m_Debug->Writeln(address);
+		}
+	}
+}
+
+LinxUnixSocketChannel::~LinxUnixSocketChannel()
 {
 	if (m_Fd >= 0)
 		close(m_Fd);
 }
 
-LinxChannel *LinxUnixUartChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxUnixUartChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxUartChannel::QueryInterface(interfaceId);
-}
-
-int LinxUnixUartChannel::SmartOpen()
+int LinxUnixSocketChannel::SmartOpen()
 {
 	if (m_Fd < 0)
 	{
@@ -600,7 +756,7 @@ int LinxUnixUartChannel::SmartOpen()
 		m_Fd = open(m_ChannelName, O_RDWR | O_NOCTTY | O_NONBLOCK);
 		if (m_Fd < 0)
 		{
-			m_Debug->Write("UART Fail - Failed To Open UART Handle - ");
+			m_Debug->Write("Unix Socket Fail - Failed to open file handle - ");
 			m_Debug->Writeln(m_ChannelName);
 			return  LUART_OPEN_FAIL;
 		}
@@ -612,6 +768,71 @@ int LinxUnixUartChannel::SmartOpen()
 	}
 	return L_OK;
 }
+
+int LinxUnixSocketChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+{
+	int status = SmartOpen();
+	if (status)
+		return status;
+
+	*numBytesRead = 0;
+
+	if (recBuffer && numBytes)
+	{
+		struct pollfd fds[1];
+		int retval, offset = 0;
+		unsigned long long start = getMsTicks();
+
+		fds[0].fd = m_Fd;
+		fds[0].events = POLLIN ;
+
+		while (*numBytesRead < numBytes)
+		{
+			retval = poll(fds, 1, timeout < 0 ? -1 : min(timeout - (int)(getMsTicks() - start), 0));
+			if (retval <= 0)
+				return retval ? LUART_READ_FAIL : LUART_TIMEOUT;
+
+			// Read bytes from input buffer
+			retval = read(m_Fd, recBuffer + offset, numBytes - offset);
+			if (retval < 0)
+				return LUART_READ_FAIL;
+			*numBytesRead += retval;
+		}
+	}
+	else
+	{
+		// Check how many bytes are available
+		if (ioctl(m_Fd, FIONREAD, numBytesRead) < 0)
+			return LUART_READ_FAIL;
+	}
+	return status;
+}
+
+int LinxUnixSocketChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+{
+	int status = SmartOpen();
+	if (status)
+		return status;
+
+	int bytesSent = write(m_Fd, sendBuffer, numBytes);
+	if (bytesSent != numBytes)
+	{
+		return LUART_WRITE_FAIL;
+	}
+	return  L_OK;
+}
+
+int LinxUnixSocketChannel::Close()
+{
+	if (m_Fd >= 0)
+		close(m_Fd);
+	m_Fd = -1;
+	return L_OK;
+}
+
+//------------------------------------- UART -------------------------------------
+static unsigned int g_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+static unsigned int g_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
 
 int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBaud)
 {
@@ -662,7 +883,6 @@ int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBau
 	ioctl(m_Fd, TCFLSH, TCIFLUSH);
 	if (ioctl(m_Fd, ioctlval, &options) < 0)
 		return LERR_IO;
-	m_init = false;
 	return  L_OK;
 }
 
@@ -737,74 +957,6 @@ int LinxUnixUartChannel::SetParity(LinxUartParity parity)
 	return LERR_IO;
 }
 
-int LinxUnixUartChannel::GetBytesAvail(int* numBytesAvailable)
-{
-	// Read the number of bytes that are available at the input queue
-	if (ioctl(m_Fd, FIONREAD, numBytesAvailable) < 0)
-		return LUART_READ_FAIL;
-	return L_OK;
-}
-
-int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
-{
-	int status = SmartOpen();
-	if (status)
-		return status;
-
-	*numBytesRead = 0;
-
-	if (recBuffer && numBytes)
-	{
-		struct pollfd fds[1];
-		int retval, offset = 0;
-		unsigned long long start = getUsTicks();
-
-		fds[0].fd = m_Fd;
-		fds[0].events = POLLIN ;
-
-		while (*numBytesRead < numBytes)
-		{
-			retval = poll(fds, 1, timeout < 0 ? -1 : std::min(timeout - (int)(getUsTicks() - start), 0));
-			if (retval <= 0)
-				return retval ? LUART_READ_FAIL : LUART_TIMEOUT;
-
-			// Read bytes from input buffer
-			retval = read(m_Fd, recBuffer + offset, numBytes - offset);
-			if (retval < 0)
-				return LUART_READ_FAIL;
-			*numBytesRead += retval;
-		}
-	}
-	else
-	{
-		// Check how many bytes are available
-		if (ioctl(m_Fd, FIONREAD, numBytesRead) < 0)
-			return LUART_READ_FAIL;
-	}
-	return status;
-}
-
-int LinxUnixUartChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
-{
-	int status = SmartOpen();
-	if (status)
-		return status;
-
-	int bytesSent = write(m_Fd, sendBuffer, numBytes);
-	if (bytesSent != numBytes)
-	{
-		return LUART_WRITE_FAIL;
-	}
-	return  L_OK;
-}
-
-int LinxUnixUartChannel::Close()
-{
-	if (m_Fd >= 0)
-		close(m_Fd);
-	return L_OK;
-}
-
 //------------------------------------- I2C -------------------------------------
 LinxSysfsI2cChannel::LinxSysfsI2cChannel(const char *channelName, LinxFmtChannel *debug) : LinxI2cChannel(channelName, debug)
 {
@@ -816,16 +968,6 @@ LinxSysfsI2cChannel::~LinxSysfsI2cChannel()
 {
 	if (m_Fd >= 0)
 		close(m_Fd);
-}
-
-LinxChannel *LinxSysfsI2cChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxSysfsI2cChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxI2cChannel::QueryInterface(interfaceId);
 }
 
 int LinxSysfsI2cChannel::Open()
@@ -956,7 +1098,6 @@ int LinxSysfsI2cChannel::Close()
 //------------------------------------- SPI -------------------------------------
 LinxSysfsSpiChannel::LinxSysfsSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int maxSpeed) : LinxSpiChannel(channelName, debug)
 {
-//	device->AddRef();
 	m_Device = device;
 	m_CurrentSpeed = maxSpeed;
 	m_MaxSpeed = maxSpeed;
@@ -967,17 +1108,6 @@ LinxSysfsSpiChannel::~LinxSysfsSpiChannel()
 {
 	if (m_Fd >= 0)
 		close(m_Fd);
-//	m_Device->Release();
-}
-
-LinxChannel *LinxSysfsSpiChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxSysfsSpiChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxSpiChannel::QueryInterface(interfaceId);
 }
 
 int LinxSysfsSpiChannel::Open()
@@ -1083,12 +1213,7 @@ int LinxSysfsSpiChannel::WriteRead(unsigned char frameSize, unsigned char numFra
 
 	//SPI hardware only supports MSB First transfer. If  Configured for LSB First reverse bits in software
 	if (m_BitOrder == LSBFIRST)
-	{
-		for (int i = 0; i < frameSize * numFrames; i++)
-		{
-			sendBuffer[i] = m_Device->ReverseBits(sendBuffer[i]);
-		}
-	}
+		ReverseBits(sendBuffer, frameSize);
 
 	struct spi_ioc_transfer transfer = {0};
 

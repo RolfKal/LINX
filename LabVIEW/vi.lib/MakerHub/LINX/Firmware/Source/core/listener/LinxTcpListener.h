@@ -36,6 +36,29 @@
 /****************************************************************************************
 **  Classes
 ****************************************************************************************/
+class LinxTcpChannel : public LinxCommChannel
+{
+	public:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxTcpChannel(LinxFmtChannel *debug, NetSocket socket, int timeout);
+		virtual ~LinxTcpChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual LinxChannel *QueryInterface(int interfaceId);
+
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Close();
+};
+
 class LinxTcpListener : public LinxListener
 {
 	public:
@@ -46,8 +69,8 @@ class LinxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Constructors/Destructor
 		****************************************************************************************/
-		LinxTcpListener(LinxDevice* device, LinxFmtChannel* debug);
-		~LinxTcpListener();
+		LinxTcpListener(LinxDevice* device);
+		virtual ~LinxTcpListener();
 
 		/****************************************************************************************
 		**  Functions

@@ -16,14 +16,10 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/	
+#include "LinxDefines.h"
+#include "LinxChannel.h"
 #include "LinxDevice.h"
 #include "LinxWiringDevice.h"
-
-#if ARDUINO_VERSION >= 100
-	#include <Arduino.h>
-#else
-	#include <WProgram.h>
-#endif
 
 //Not all wiring devices have these...
 #ifndef EXTERNAL
@@ -57,11 +53,9 @@ LinxWiringDevice::LinxWiringDevice()
 	
 }
 
-
 /****************************************************************************************
 **  Functions
 ****************************************************************************************/
-
 void LinxWiringDevice::DelayMs(unsigned long ms)
 {
 	delay(ms);

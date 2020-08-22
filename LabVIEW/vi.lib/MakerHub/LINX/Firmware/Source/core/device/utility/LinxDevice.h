@@ -20,6 +20,8 @@
 #ifndef LINXCONFIG
 	#include "../config/LinxConfig.h"
 #endif
+#include <stddef.h>
+#include <map>
 #include "LinxChannel.h"
 
 /****************************************************************************************
@@ -109,12 +111,12 @@ class LinxDevice
 
 		// DIGITAL
 		virtual int DigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char *states);		// direction and pull-up/down
-		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values) = 0;		// Values Are Bit Packed
+		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);			// Values Are Bit Packed
 		virtual int DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);	// Values Are Not Bit Packed
-		virtual int DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values) = 0;
+		virtual int DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);	// Response Not Bit Packed
-		virtual int DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration) = 0;
-		virtual int DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width) = 0;
+		virtual int DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration);
+		virtual int DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
 
 		// QE
 
@@ -123,7 +125,7 @@ class LinxDevice
 		virtual int PwmSetFrequency(unsigned char numChans, unsigned char* channels, unsigned int* values);
 
 		// SPI
-		virtual int SpiOpenMaster(unsigned char channel) = 0;
+		virtual int SpiOpenMaster(unsigned char channel);
 		virtual int SpiOpenMaster(const char *deviceName, unsigned char *channel);
 		virtual int SpiSetBitOrder(unsigned char channel, unsigned char bitOrder);
 		virtual int SpiSetMode(unsigned char channel, unsigned char mode);
@@ -132,7 +134,7 @@ class LinxDevice
 		virtual int SpiCloseMaster(unsigned char channel);
 
 		// I2C
-		virtual int I2cOpenMaster(unsigned char channel) = 0;
+		virtual int I2cOpenMaster(unsigned char channel);
 		virtual int I2cSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed);
 		virtual int I2cWrite(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned char* sendBuffer);
 		virtual int I2cRead(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned int timeout, unsigned char* recBuffer);
@@ -172,13 +174,10 @@ class LinxDevice
 		virtual unsigned int GetSeconds();
 		virtual void DelayMs(unsigned int ms);
 
-		virtual unsigned char ReverseBits(unsigned char b);
-
 		virtual bool ChecksumPassed(unsigned char* buffer, int length);
 		virtual unsigned char ComputeChecksum(unsigned char* buffer, int length);
 
-		virtual unsigned char EnumerateChannels(int type, unsigned char *buffer, unsigned char length) = 0;
-
+		virtual unsigned char EnumerateChannels(int type, unsigned char *buffer, unsigned char length);
 
 		// Debug
 		virtual int EnableDebug(LinxCommChannel *channel);
@@ -194,16 +193,18 @@ class LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned char RegisterChannel(int type, LinxChannel *chan) = 0;
-		virtual LinxChannel* LookupChannel(int type, unsigned char channel) = 0;
-		virtual void RegisterChannel(int type, unsigned char channel, LinxChannel *chan) = 0;
-		virtual void RemoveChannel(int type, unsigned char channel) = 0;
-		virtual void ClearChannels(int type) = 0;
+		virtual LinxChannel* LookupChannel(int type, unsigned char channel);
+		virtual LinxChannel* LookupChannel(int type, const char *channelName, unsigned char *channel);
+		virtual unsigned char RegisterChannel(int type, LinxChannel *chan);
+		virtual void RegisterChannel(int type, unsigned char channel, LinxChannel *chan);
+		virtual void RemoveChannel(int type, unsigned char channel);
+		virtual void ClearChannels(int type);
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
+		std::map<unsigned char, LinxChannel*> m_ChannelRegistry[LinxNumChanelTypes];
 
 		/****************************************************************************************
 		**  Functions

@@ -36,7 +36,9 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxClient();
+		LinxClient(unsigned char uartChannel, int timeout);
+		LinxClient(const char *uartDevice, int timeout);
+		LinxClient(const char *address, unsigned short port, int timeout);
 		virtual ~LinxClient();
 
 		/****************************************************************************************
@@ -93,6 +95,10 @@ class LinxClient : public LinxDevice
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 
+		// After the LinxClient class has been instantiated call this function to initialize the 
+		// various private data elements that this library will cache for quick information gathering
+		virtual int Initialize();	
+
 	protected:
 		/****************************************************************************************
 		**  Variables
@@ -101,22 +107,17 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		// After the derived class established a connection it needs to call this function to initialize
-		// the various private data elements this library will cache for quick information gathering
-		virtual int Initialize();	
-
-		// These two function need to be implemented by any derived class to do the actual data transfers
-		virtual int ReadData(unsigned char *buffer, unsigned int startTime, int timeout, int bytesToRead, int *numBytesRead) = 0;
-		virtual int WriteData(unsigned char *buffer, unsigned int startTime, int timeout, int bytesToWrite) = 0;
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
 		unsigned char *m_DeviceName;
+		LinxCommChannel *m_CommChannel;
 
 		unsigned int m_ListenerBufferSize;
 		unsigned short m_PacketNum;
+
 		int m_Timeout;
 
 		/****************************************************************************************

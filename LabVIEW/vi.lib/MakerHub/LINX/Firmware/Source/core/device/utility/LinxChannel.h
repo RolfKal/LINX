@@ -33,22 +33,6 @@
 #define IID_LinxSpiChannel			8
 #define IID_LinxCanChannel			9
 #define IID_LinxServoChannel		10
-
-#define IID_LinxSysfsAiChannel		20
-#define IID_LinxSysfsAoChannel		21
-
-#define IID_LinxSysfsDioChannel		30
-#define IID_LinxRaspiDioChannel		31
-
-#define IID_LinxCommChannel			60
-#define IID_LinxFmtChannel			61
-#define IID_LinxUnixUartChannel		62
-#define IID_LinxWinUartChannel		63
-
-#define IID_LinxSysfsI2cChannel		70
-
-#define IID_LinxSysfsSpiChannel		80
-
 #define LinxNumChanelTypes			IID_LinxServoChannel
 
 // Forward declaration
@@ -72,12 +56,11 @@ class LinxChannel
 		****************************************************************************************/
 		virtual unsigned int AddRef();
 		virtual unsigned int Release();
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
 
 		virtual int GetName(char* buffer, unsigned char numBytes);
 
 	protected:
-		const char *m_ChannelName;
+		char *m_ChannelName;
 		LinxFmtChannel *m_Debug;
 
 	private:
@@ -101,8 +84,6 @@ class LinxAiChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int Read(unsigned int *value) = 0;
 };
 
@@ -122,8 +103,6 @@ class LinxAoChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int Write(int value) = 0;
 };
 
@@ -143,8 +122,6 @@ class LinxDioChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int SetState(unsigned char state) = 0;		// direction and pull-up/down
 		virtual int Read(unsigned char *value) = 0;
 		virtual int Write(unsigned char value) = 0;
@@ -168,8 +145,6 @@ class LinxPwmChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int SetDutyCycle(unsigned char value) = 0;
 		virtual int SetFrequency(unsigned int value) = 0;
 };
@@ -190,8 +165,6 @@ class LinxQeChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int Read(unsigned int *value) = 0;
 };
 
@@ -211,11 +184,9 @@ class LinxCommChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
-		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead) = 0;
-		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout) = 0;
-		virtual int Close() = 0;
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Close();
 };
 
 class LinxUartChannel : public LinxCommChannel
@@ -228,21 +199,15 @@ class LinxUartChannel : public LinxCommChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxUartChannel(const char *channelName, LinxFmtChannel *debug) : LinxCommChannel(channelName, debug) {};
+		LinxUartChannel(LinxFmtChannel *debug, const char *deviceName) : LinxCommChannel(deviceName, debug) {};
 		virtual ~LinxUartChannel() {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed) = 0;
 		virtual int SetBitSizes(unsigned char dataBits, unsigned char stopBits) = 0;
 		virtual int SetParity(LinxUartParity parity) = 0;
-		virtual int GetBytesAvail(int* numBytesAvailable) = 0;
-		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead) = 0;
-		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout) = 0;
-		virtual int Close() = 0;
 };
 
 class LinxI2cChannel : public LinxChannel
@@ -261,8 +226,6 @@ class LinxI2cChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int Open() = 0;
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed) = 0;
 		virtual int Read(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned int timeout, unsigned char* recBuffer) = 0;
@@ -287,8 +250,6 @@ class LinxSpiChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int Open() = 0;
 		virtual int SetBitOrder(unsigned char bitOrder) = 0;
 		virtual int SetMode(unsigned char mode) = 0;
@@ -313,8 +274,7 @@ class LinxCanChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
+		/* Just a placeholder currently, actual methods will need to be determined later */
 		virtual int Read(double *value) = 0;
 		virtual int Write(double *value) = 0;
 };
@@ -335,13 +295,11 @@ class LinxServoChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId) = 0;
-
 		virtual int SetPulseWidth(unsigned short width) = 0;
 		virtual int Close() = 0;
 };
 
-// A channel that can wrap a LinxCommChannel and provide formatting functions for easy debug output
+// A channel that can wrap a LinxCommChannel and provide formatting functions for simple debug output
 class LinxFmtChannel : public LinxCommChannel
 {
 	public:
@@ -359,8 +317,6 @@ class LinxFmtChannel : public LinxCommChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
 		virtual int GetName(char* buffer, unsigned char numBytes);
 		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
 		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);

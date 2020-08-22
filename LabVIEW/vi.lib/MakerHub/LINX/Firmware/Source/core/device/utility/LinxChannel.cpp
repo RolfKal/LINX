@@ -30,13 +30,15 @@ LinxChannel::LinxChannel(const char *channelName, LinxFmtChannel *debug)
 		m_Debug = new LinxFmtChannel();
 	else
 		m_Debug->AddRef();
-	m_ChannelName = channelName;
+	m_ChannelName = (char*)malloc(strlen(channelName) + 1);
+	strcpy(m_ChannelName, channelName);
 	// Start with refcount 1
 	m_Refcount = 1;
 }
 
 LinxChannel::~LinxChannel()
 {
+	free(m_ChannelName);
 	m_Debug->Release();
 }
 
@@ -62,66 +64,6 @@ unsigned int LinxChannel::Release()
 	return refcount;
 }
 
-LinxChannel* LinxChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxChannel::QueryInterface(interfaceId);
-}
-
-LinxChannel *LinxDioChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxDioChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxChannel::QueryInterface(interfaceId);
-}
-
-LinxChannel *LinxI2cChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxI2cChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxChannel::QueryInterface(interfaceId);
-}
-
-LinxChannel *LinxSpiChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxSpiChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxChannel::QueryInterface(interfaceId);
-}
-
-LinxChannel *LinxCommChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxCommChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxChannel::QueryInterface(interfaceId);
-}
-
-LinxChannel *LinxUartChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxUartChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxCommChannel::QueryInterface(interfaceId);
-}
-
 LinxFmtChannel::LinxFmtChannel() : LinxCommChannel("FormatChannel", NULL)
 {
 	m_Channel = NULL;
@@ -141,16 +83,6 @@ LinxFmtChannel::~LinxFmtChannel()
 		m_Channel->Close();
 		m_Channel->Release();
 	}
-}
-
-LinxChannel *LinxFmtChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxFmtChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxCommChannel::QueryInterface(interfaceId);
 }
 
 int LinxFmtChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)

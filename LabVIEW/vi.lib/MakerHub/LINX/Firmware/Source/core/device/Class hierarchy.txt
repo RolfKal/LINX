@@ -1,0 +1,47 @@
+Class Name								Declaration			Implemented		Description
+
+LinxChannel								LinxChannel.h			A			Generic Channel
+	LinxAiChannel						LinxChannel.h			A	R		Analog Input channel
+		LinxSysfsAiChannel				LinxLinuxChannel.h		Y			 For Linux like systems
+		LinxWiringAiChannel				LinxWiringChannel.h					 For Arduino
+	LinxAoChannel						LinxChannel.h			A	R		Analog Output channel
+		LinxSysfsAoChannel				LinxLinuxChannel.h		Y			 For Linux like systems
+		LinxWiringAoChannel				LinxWiringChannel.h					 For Arduino
+	LinxDioChannel						LinxChannel.h			A	R		Digital IO channel
+		LinxSysfsDioChannel				LinxLinuxChannel.h		Y			 For Linux like systems
+			LixRaspiDioChannel			LinxRaspberryPi.h		Y			 For Raspberry Pi, using direct memory mapped register access
+		LinxWiringDioChannel			LinxWiringChannel.h					 For Arduino
+	LinxPwmChannel						LinxChannel.h			A	R		Generic Puls Witch Modulation channel
+		LinxSysfsPwmChannel				LinxLinuxChannel.h					 For Linux like systems
+			LinxBBBPwmChannel			LinxBeagleboneBlack.h				 For Beaglebone Black, special DTO handling
+		LinxWiringPwmChannel			LinxWiringChannel.h					 For Arduino
+	LinxQeChannel						LinxChannel.h			A	R		Generic Quadrature Encoder channel
+	LinxCommChannel						LinxChannel.h			A			Generic communication channel with read and write
+		LinxUartChannel					LinxChannel.h			A	R		Generic serial port channel with baudrate etc.
+			LinxUnixUartChannel			LinxLinuxChannel.h		Y			 For Unix termio based systems
+				LinxBBBUartChannel		LinxBeagleboneBlack.h	Y			 For Beaglebone Black, special DTO handling
+			LinxWindowsUartChannel		LinxWindowsDevice.h					 For Windows, using Windows COMM API
+			LinxWiringDioChannel		LinxWiringChannel.h					 For Arduino
+		LinxUnixTcpChannel				LinxLinuxChannel.h					 For Unix BSD sockets
+		LinxWindowsTcpChannel			LinxWindowsDevice.h					 For Windows sockets
+		LinxWiringTcpChannel			LinxWiringChannel.h					 For Arduino TCP connections
+		LinxFmtChannel					LinxChannel.h			Y			 Output channel with formatting, pass through to composited LinxCommChannel or /dev/nul
+	LinxI2cChannel						LinxChannel.h			A	R		Generic I2C channel
+		LinxSysfsI2cChannel				LinxLinuxChannel.h					 For Linux like systems
+			LinxBBBI2cChannel			LinxBeagleboneBlack.h				 For Beaglebone Black, special DTO handling
+		LinxWiringI2cChannel			LinxWiringChannel.h					 For Arduino
+	LinxSpiChannel						LinxChannel.h			A	R		Generic SPI channel
+		LinxSysfsSpiChannel				LinxLinuxChannel.h					 For Linux like systems
+			LinxBBBSpiChannel			LinxBeagleboneBlack.h				 For Beaglebone Black, special DTO handling
+		LinxWiringSpiChannel			LinxWiringChannel.h					 For Arduino
+	LinxCanChannel						LinxChannel.h			A	R		Generic CAN channel
+	LinxServoChannel					LinxChannel.h			A	R		Generic Servo channel
+
+
+LinxDevice							LinxDevice.h			A			
+	LinxLinuxDevice					LinxLinuxDevice.h		A			
+		LinxBeagleboneBlack			LinxBeagleboneBlack.h	Y			
+		LinxRaspberryPi				LinxRaspberryPi.h		Y			
+	LinxWindowsDevice				LinxWindowsDevice.h		Y			
+	LinxWiringDevice				LinxWiringDevice.h		Y			
+	

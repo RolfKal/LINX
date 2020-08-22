@@ -9,8 +9,8 @@
 ** BSD2 License.
 ****************************************************************************************/
 
-#ifndef LINX_WINDOWSDEVICE_H
-#define LINX_WINDOWSDEVICE_H
+#ifndef LINX_WINDOWSCHANNEL_H
+#define LINX_WINDOWSCHANNEL_H
 
 /****************************************************************************************
 **  Defines
@@ -20,42 +20,71 @@
 **  Includes
 ****************************************************************************************/
 #include <stdio.h>
-#include <map>
-#include <string>
 #include <windows.h>
 #include "LinxDefines.h"
 #include "LinxDevice.h"
 
-/****************************************************************************************
-**  Variables
-****************************************************************************************/
+using namespace std;
 
-class LinxWindowsDevice : public LinxDevice
+class LinxWindowsTcpChannel : public LinxCommChannel
 {
 	public:
 		/****************************************************************************************
-		**  Variables
-		****************************************************************************************/
-
-		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxWindowsDevice();
-		~LinxWindowsDevice();
+		LinxWindowsTcpChannel(LinxFmtChannel *debug, SOCKET fd);
+		LinxWindowsTcpChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
+		~LinxWindowsTcpChannel();
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Close();
 
 	protected:
 		/****************************************************************************************
-		**  Variables
+		**  Functions
 		****************************************************************************************/
+		virtual int SmartOpen();
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
+		SOCKET m_Socket;
 };
-#endif //LINX_WINDOWSDEVICE_H
+
+class LinxWindowsUartChannel : public LinxUartChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxWindowsUartChannel(LinxFmtChannel *debug, const char *deviceName);
+		~LinxWindowsUartChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
+		virtual int SetBitSizes(unsigned char dataBits, unsigned char stopBits);
+		virtual int SetParity(LinxUartParity parity);
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Close();
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int SmartOpen();
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		HANDLE m_Handle;
+};
+#endif //LINX_WINDOWSCHANNEL_H

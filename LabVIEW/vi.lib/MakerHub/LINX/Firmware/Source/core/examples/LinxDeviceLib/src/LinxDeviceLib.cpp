@@ -13,26 +13,26 @@
 #include <iostream>
 #include <string.h>
 
+#include "LinxDefines.h"
+#include "LinxChannel.h"
 #include "LinxDevice.h"
+#include "LinxClient.h"
 
-//------------------------------------- Raspberry Pi -------------------------------------
 #if LINX_DEVICE_FAMILY == 4 
+//------------------------------------- Raspberry Pi -------------------------------------
 	#if LINX_DEVICE_ID >= 3	//RPI 2 B
 			#define LINXDEVICETYPE LinxRaspberryPi
-			#include "LinxLinuxDevice.h"
 			#include "LinxRaspberryPi.h"
 	#endif
-//------------------------------------- Beagle Bone -------------------------------------
 #elif LINX_DEVICE_FAMILY == 6
+//------------------------------------- Beagle Bone -------------------------------------
 	#if LINX_DEVICE_ID == 1
 			#define LINXDEVICETYPE LinxBeagleBoneBlack
-			#include "LinxLinuxDevice.h"
 			#include "LinxBeagleBoneBlack.h"
 	#endif
-#else
+#elif Win32
 			#define LINXDEVICETYPE LinxWindowsDevice
 			#include "LinxWindowsDevice.h"
-
 #endif
 
 LinxDevice* LinxDev;
@@ -51,16 +51,20 @@ extern "C" int LinxOpen()
 	return L_OK;
 }
 
-extern "C" LinxDevice * LinxOpenTCP(char *address, short port, int timeout)
+extern "C" LinxDevice * LinxOpenSerialDevice(const char *deviceName, int timeout)
 {
-	// return new LinxTCPClient(address, port, timeout);
-	return NULL;
+	LinxClient *client = new LinxClient(deviceName, timeout);
+	if (client)
+		client->Initialize();
+	return client;
 }
 
-extern "C" LinxDevice * LinxOpenSerial(char *device, int timeout)
+extern "C" LinxDevice * LinxOpenTCP(const char *address, unsigned short port, int timeout)
 {
-	// return new LinxSerialClient(device, timeout);
-	return NULL;
+	LinxClient *client = new LinxClient(address, port, timeout);
+	if (client)
+		client->Initialize();
+	return client;
 }
 
 extern "C" int LinxCloseRef(LinxDevice *dev)

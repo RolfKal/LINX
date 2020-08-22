@@ -2,10 +2,10 @@ CXX ?= g++
 
 INC=-I../core/device/utility -I../core/device/ -I../core/listener -I../core/client
 
-CORE_LINX=../core/device/utility/LinxDevice.cpp ../core/device/utility/LinxUtilities.cpp
+CORE_LINX=../core/device/utility/LinxChannel.cpp ../core/device/utility/LinxDevice.cpp ../core/device/utility/LinxUtilities.cpp
 CORE_LISTENER=../core/listener/utility/LinxListener.cpp
-CORE_LINUX=../core/device/utility/LinxLinuxDevice.cpp
-CORE_CLIENT=../core/client/LinxClient.cpp ../core/client/LinxSerialClient.cpp ../core/client/LinxTcpClient.cpp
+CORE_LINUX=../core/device/utility/LinxLinuxChannel.cpp
+CORE_CLIENT=../core/client/LinxClient.cpp
 CORE_RPI=$(CORE_LINX) $(CORE_LINUX) ../core/device/LinxRaspberryPi.cpp
 CORE_BBB=$(CORE_LINX) $(CORE_LINUX) ../core/device/LinxBeagleBoneBlack.cpp
 

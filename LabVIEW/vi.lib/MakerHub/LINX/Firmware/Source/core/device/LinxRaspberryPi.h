@@ -30,7 +30,7 @@
 
 #define NUM_PWM_CHANS 0
 
-#define NUM_SPI_CHANS 2
+#define NUM_SPI_CHANS 5
 #define NUM_SPI_SPEEDS 13
 
 #define NUM_I2C_CHANS 1
@@ -44,7 +44,6 @@
 ****************************************************************************************/
 #include "LinxDevice.h"
 #include "LinxLinuxChannel.h"
-#include "LinxLinuxDevice.h"
 #include "LinxRaspberryPi.h"
 
 class LinxRaspiDioChannel : public LinxSysfsDioChannel
@@ -59,8 +58,6 @@ class LinxRaspiDioChannel : public LinxSysfsDioChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
 		virtual int SetState(unsigned char state);		// direction and pull-up/down
 		virtual int Write(unsigned char value);
 		virtual int Read(unsigned char *value);
@@ -75,7 +72,7 @@ class LinxRaspiDioChannel : public LinxSysfsDioChannel
 
 using namespace std;
 
-class LinxRaspberryPi : public LinxLinuxDevice
+class LinxRaspberryPi : public LinxDevice
 {
 	public:
 		/****************************************************************************************

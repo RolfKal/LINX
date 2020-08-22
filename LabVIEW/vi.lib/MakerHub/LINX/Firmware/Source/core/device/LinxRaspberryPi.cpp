@@ -12,19 +12,18 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/		
-#include "LinxDefines.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "LinxDefines.h"
 #ifdef Unix
 #include <unistd.h>
 #include <termios.h>
 #include <sys/mman.h>
 
 #define __nop()   		asm volatile("nop");
-
 #elif Win32
 #include <io.h>
 #include <intrin.h>  // for __nop
@@ -43,9 +42,9 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 void munmap(void *addr, size_t length);
 enum {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
 #endif
+
 #include "LinxUtilities.h"
 #include "LinxDevice.h"
-#include "LinxLinuxDevice.h"
 #include "LinxRaspberryPi.h"
 
 /****************************************************************************************
@@ -91,16 +90,6 @@ static volatile int *gpio_map = (volatile int*)MAP_FAILED;
 // Raspberry Pi GPIO pins
 static const unsigned char g_LinxDioChans[NUM_DIGITAL_CHANS] = {7, 11, 12, 13, 15, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40};
 static const unsigned char g_GpioDioChans[NUM_DIGITAL_CHANS] = {4, 17, 18, 27, 22, 23, 24, 25,  5,  6, 12, 13, 19, 16, 26, 20, 21};
-
-LinxChannel *LinxRaspiDioChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxRaspiDioChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxSysfsDioChannel::QueryInterface(interfaceId);
-}
 
 int LinxRaspiDioChannel::SetState(unsigned char state)
 {
@@ -238,8 +227,8 @@ void LinxRaspiDioChannel::setState(unsigned char state)
 }
 
 //SPI
-static unsigned char g_SpiChans[NUM_SPI_CHANS] = {0, 1};
-static const char * g_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev0.0", "/dev/spidev0.1"};
+static unsigned char g_SpiChans[NUM_SPI_CHANS] = {0, 1, 2, 3, 4};
+static const char * g_SpiPaths[NUM_SPI_CHANS] = {"/dev/spidev0.0", "/dev/spidev0.1", "/dev/spidev1.0", "/dev/spidev1.1", "/dev/spidev1.2"};
 static int g_SpiDefaultSpeed = 3900000;
 
 //I2C
@@ -372,7 +361,7 @@ LinxRaspberryPi::LinxRaspberryPi()
 	// Store Uart channels in the registry map
 	for (int i = 0; i < NUM_UART_CHANS; i++)
 	{
-		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], new LinxUnixUartChannel(g_UartPaths[i], m_Debug));
+		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], (LinxUartChannel*)new LinxUnixUartChannel(m_Debug, g_UartPaths[i]));
 	}
 
 	//------------------------------------- I2C -------------------------------------

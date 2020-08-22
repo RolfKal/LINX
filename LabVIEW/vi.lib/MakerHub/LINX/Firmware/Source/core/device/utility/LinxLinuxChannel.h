@@ -39,12 +39,33 @@ class LinxSysfsAiChannel : public LinxAiChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
 		virtual int Read(unsigned int *value);
 
 	protected:
-		char m_State;			// Current DIO Direction and Pull-State
+//		char m_State;			// Current DIO Direction and Pull-State
+
+	private:
+		FILE *m_ValHandle;	// File Handles For Digital Pin Value
+
+		int SmartOpen();
+};
+
+class LinxSysfsAoChannel : public LinxAoChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxSysfsAoChannel(LinxFmtChannel *debug, const char *channelName);
+		virtual ~LinxSysfsAoChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int Write(unsigned int value);
+
+	protected:
+//		char m_State;			// Current DIO Direction and Pull-State
 
 	private:
 		FILE *m_ValHandle;	// File Handles For Digital Pin Value
@@ -64,8 +85,6 @@ class LinxSysfsDioChannel : public LinxDioChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
 		virtual int SetState(unsigned char state);		// direction and pull-up/down
 		virtual int Write(unsigned char value);
 		virtual int Read(unsigned char *value);
@@ -85,24 +104,60 @@ class LinxSysfsDioChannel : public LinxDioChannel
 		int SmartOpen();
 };
 
-class LinxUnixUartChannel : public LinxUartChannel
+class LinxSysfsPwmChannel : public LinxPwmChannel
 {
 	public:
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxUnixUartChannel(const char *channelName, LinxFmtChannel *debug);
-		virtual ~LinxUnixUartChannel();
+		LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableFileName, const char *periodName, const char *dutyCycleName, unsigned int defaultPeriod);
+		virtual ~LinxSysfsPwmChannel();
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
+		virtual int SetDutyCycle(unsigned char values);
+		virtual int SetFrequency(unsigned int values);
 
-		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
-		virtual int SetBitSizes(unsigned char dataBits, unsigned char stopBits);
-		virtual int SetParity(LinxUartParity parity);
-		virtual int GetBytesAvail(int* numBytesAvailable);
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		FILE *m_PeriodHandle;		// File Handles For Period
+		FILE *m_DutyCycleHandle;	// File Handles For Duty Cycle
+		const char *m_EnableFileName; 
+		const char *m_PeriodFileName;
+		const char *m_DutyCycleFileName;
+		unsigned int m_DefaultPeriod;
+		unsigned int m_Period;
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		int SmartOpen();
+};
+
+class LinxUnixSocketChannel : public LinxCommChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		/* Create a character device channel for the device name, used to access tty uart devices */
+		LinxUnixSocketChannel(LinxFmtChannel *debug, const char *deviceName);
+
+		/* Wrap a channel around the passed in file descriptor (which can be also a socket).
+		   Used to wrap a connected socket returned from accept()  */
+		LinxUnixSocketChannel(LinxFmtChannel *debug, const char *deviceName, int fd);
+
+		/* Create a connected TCP/IP socket channel with the address and port */
+		LinxUnixSocketChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
+
+		virtual ~LinxUnixSocketChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
 		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
 		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
 		virtual int Close();
@@ -111,14 +166,36 @@ class LinxUnixUartChannel : public LinxUartChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SmartOpen();
+		virtual int SmartOpen() = 0;
 
-	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
 		int m_Fd;
-		bool m_init;
+};
+
+class LinxUnixUartChannel : public LinxUartChannel, virtual public LinxUnixSocketChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxUnixUartChannel::LinxUnixUartChannel(LinxFmtChannel *debug, const char *deviceName) : 
+		  LinxUartChannel(debug, deviceName), LinxUnixSocketChannel(debug, deviceName) {}
+		virtual ~LinxUnixUartChannel() {};
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
+		virtual int SetBitSizes(unsigned char dataBits, unsigned char stopBits);
+		virtual int SetParity(LinxUartParity parity);
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int SmartOpen();
 };
 
 class LinxSysfsI2cChannel : public LinxI2cChannel
@@ -133,8 +210,6 @@ class LinxSysfsI2cChannel : public LinxI2cChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
 		virtual int Open();
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
 		virtual int Read(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned int timeout, unsigned char* recBuffer);
@@ -165,14 +240,12 @@ class LinxSysfsSpiChannel : public LinxSpiChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int speed);
+		LinxSysfsSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int maxSpeed);
 		virtual ~LinxSysfsSpiChannel();
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
 		virtual int Open();
 		virtual int SetBitOrder(unsigned char bitOrder);
 		virtual int SetMode(unsigned char mode);
@@ -196,8 +269,9 @@ class LinxSysfsSpiChannel : public LinxSpiChannel
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		LinxDevice *m_Device;
+//		LinxDevice *m_Device;
 		int m_Fd;
+		LinxDevice *m_Device;
 		unsigned char m_BitOrder;
 		unsigned int m_CurrentSpeed;
 		unsigned int m_MaxSpeed;

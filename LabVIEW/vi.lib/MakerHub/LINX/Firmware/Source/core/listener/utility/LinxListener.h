@@ -35,8 +35,8 @@ class LinxListener
 		/****************************************************************************************
 		**  Constructors/Destructors
 		****************************************************************************************/
-		LinxListener(LinxDevice *device, LinxFmtChannel *debug = NULL);
-		~LinxListener();
+		LinxListener(LinxDevice *deviceL);
+		virtual ~LinxListener();
 
 		/****************************************************************************************
 		** Functions
@@ -47,6 +47,8 @@ class LinxListener
 		virtual int WaitForConnection() = 0;			// Wait for incoming connection, child needs to implement this
 		virtual int CheckForCommand();					// Check for next command and decode it to relay it to the device
 		virtual int Close();
+
+		virtual int EnableDebug(LinxCommChannel *chan);
 
 		// Attach a custom command callback function. The class allows up to MAX_CUSTOM_CMDS to be installed and
 		// any message with the command word being 0xFCxx whit xx being the command number between 0 and 15 is then
@@ -65,10 +67,6 @@ class LinxListener
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
-		// Convinience functions which relay to the m_Channel
-		virtual int ReadData(unsigned char *buffer, int bytesToRead, int timeout, int *numBytesRead);
-		virtual int WriteData(unsigned char *buffer, int bytesToWrite, int timeout);
-		virtual int FlushData();
 
 	private:
 		/****************************************************************************************

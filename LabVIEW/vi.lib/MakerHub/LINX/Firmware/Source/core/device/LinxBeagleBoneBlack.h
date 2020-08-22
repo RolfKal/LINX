@@ -44,10 +44,6 @@
 #include <map>
 #include <string>
 
-#define IID_LinxBBBUartChannel	64
-#define IID_LinxBBBI2cChannel	71
-#define IID_LinxBBBSpiChannel	81
-
 class LinxBBBUartChannel : public LinxUnixUartChannel
 {
 	public:
@@ -60,7 +56,6 @@ class LinxBBBUartChannel : public LinxUnixUartChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
 
 	protected:
 		/****************************************************************************************
@@ -88,8 +83,6 @@ class LinxBBBI2cChannel : public LinxSysfsI2cChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
 		virtual int Open();
 
 	protected:
@@ -111,14 +104,12 @@ class LinxBBBSpiChannel : public LinxSysfsSpiChannel
 		/****************************************************************************************
 		**  Constructor
 		****************************************************************************************/
-		LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxLinuxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath);
+		LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath);
 		virtual ~LinxBBBSpiChannel() {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
 		virtual int Open();
 
 	protected:
@@ -136,7 +127,7 @@ class LinxBBBSpiChannel : public LinxSysfsSpiChannel
 
 using namespace std;
 	
-class LinxBeagleBoneBlack : public LinxLinuxDevice
+class LinxBeagleBoneBlack : public LinxDevice
 {
 	public:	
 		/****************************************************************************************
@@ -153,15 +144,6 @@ class LinxBeagleBoneBlack : public LinxLinuxDevice
 		**  Functions
 		****************************************************************************************/
 		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
-
-		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned long* values);
-
-		virtual int PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values);
-
-		virtual int SpiOpenMaster(unsigned char channel);
-
-		virtual int I2cOpenMaster(unsigned char channel);
 
 		static bool loadDto(const char *slotsPath, const char* dtoName);				
 

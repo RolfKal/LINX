@@ -12,8 +12,8 @@
 #ifndef LINX_UTILITIES_H
 #define LINX_UTILITIES_H
 
-#define getMilliSeconds()	(unsigned int)(getUsTicks() / 1000)
-#define getSeconds()		(unsigned int)(getUsTicks() / 1000000)
+#define getMilliSeconds()	(unsigned int)(getMsTicks())
+#define getSeconds()		(unsigned int)(getMsTicks())
 #include <list>
 #include <string>
 
@@ -32,7 +32,10 @@ int ReadU32FromBuff(unsigned char *buffer, int offset, unsigned int *val);
 int ReadU8ArrFromBuff(unsigned char *buffer, int offset, unsigned char *arr, int length);
 int ReadStringFromBuff(unsigned char *buffer, int offset, unsigned char *arr, int length);
 
-unsigned long long getUsTicks();
+unsigned char ReverseBits(unsigned char b);
+void ReverseBits(unsigned char *buffer, int length);
+
+unsigned long long getMsTicks();
 void delayMs(unsigned int ms);
 
 int fileExists(const char* path);

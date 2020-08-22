@@ -215,10 +215,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\..\core\device\utility\LinxLinuxDevice.cpp"
-					>
-				</File>
-				<File
 					RelativePath="..\..\core\device\LinxRaspberryPi.cpp"
 					>
 				</File>
@@ -227,7 +223,15 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\core\device\utility\LinxWindowsChannel.cpp"
+					>
+				</File>
+				<File
 					RelativePath="..\..\core\device\utility\LinxWindowsDevice.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\core\device\utility\LinxWiringDevice.cpp"
 					>
 				</File>
 			</Filter>
@@ -285,10 +289,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\..\core\device\utility\LinxLinuxDevice.h"
-					>
-				</File>
-				<File
 					RelativePath="..\..\core\device\LinxRaspberryPi.h"
 					>
 				</File>
@@ -297,7 +297,15 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\core\device\utility\LinxWindowsChannel.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\core\device\utility\LinxWindowsDevice.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\core\device\utility\LinxWiringDevice.h"
 					>
 				</File>
 			</Filter>

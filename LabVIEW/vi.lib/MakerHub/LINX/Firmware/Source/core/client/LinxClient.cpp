@@ -16,8 +16,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "LinxDefines.h"
 #include "LinxChannel.h"
 #include "LinxDevice.h"
+#if Unix
+#include "LinxLinuxChannel.h"
+#include "LinxLinuxDevice.h"
+#elif Win32
+#include "LinxWindowsChannel.h"
+#include "LinxWindowsDevice.h"
+#endif
 #include "LinxCommand.h"
 #include "LinxUtilities.h"
 #include "LinxClient.h"
@@ -27,17 +35,37 @@ static unsigned char m_Unknown[] = "Uninitialized Device Client";
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
-LinxClient::LinxClient()
+LinxClient::LinxClient(const char *uartDevice, int timeout)
 {
 	m_DeviceName = m_Unknown;
-
 	m_ListenerBufferSize = 255;
-
 	m_PacketNum = (unsigned int)((double)rand() / RAND_MAX * 0xFFFF);
+
+	m_Timeout = timeout;
+#if Unix
+	m_CommChannel = new LinxLinuxSocketChannel(m_Debug, uaertDevice);
+#elif Win32
+	m_CommChannel = new LinxWindowsUartChannel(m_Debug, uartDevice);
+#endif
+}
+
+LinxClient::LinxClient(const char *address, unsigned short port, int timeout)
+{
+	m_DeviceName = m_Unknown;
+	m_ListenerBufferSize = 255;
+	m_PacketNum = (unsigned int)((double)rand() / RAND_MAX * 0xFFFF);
+
+	m_Timeout = timeout;
+#if Unix
+	m_CommChannel = new LinxLinuxSocketChannel(m_Debug, address, port);
+#elif Win32
+	m_CommChannel = new LinxWindowsTcpChannel(m_Debug, address, port);
+#endif
 }
 
 LinxClient::~LinxClient()
 {
+	m_CommChannel->Release();
 	if (m_DeviceName != m_Unknown)
 		free(m_DeviceName);
 }
@@ -53,7 +81,7 @@ unsigned short LinxClient::GetNextPacketNum()
 int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int *headerLength)
 {
 	dataLength += 7;
-	if (dataLength >= (int)m_ListenerBufferSize || dataLength > 0xFFFFFF - 2)
+	if (dataLength >= (int)m_ListenerBufferSize || dataLength > 0xFFFFFD)
 		return LERR_MSG_TO_LONG;
 
 	if (dataLength <= 255)
@@ -72,14 +100,21 @@ int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, int
 int LinxClient::WriteAndRead(unsigned char *buffer, int buffLength, int *headerLength, int dataLength, int *dataRead)
 {
 	unsigned short packetNum = GetU16FromBuff(buffer, *headerLength - 2);
-	unsigned int start = GetMilliSeconds();
+	unsigned int start = getMilliSeconds();
+	int timeout = m_Timeout;
 
 	dataLength += *headerLength;
 	buffer[dataLength] = ComputeChecksum(buffer, dataLength);
-	int status = WriteData(buffer, start,  m_Timeout, dataLength + 1);
+	int status = m_CommChannel->Write(buffer, dataLength + 1, timeout);
 	if (!status)
 	{
-		status = ReadData(buffer, start,  m_Timeout, 4, dataRead);
+		if (m_Timeout >= 0)
+		{
+			timeout = m_Timeout - (getMilliSeconds() - start);
+			if (timeout < 0)
+				timeout = 0;
+		}
+		status = m_CommChannel->Read(buffer, 4, timeout, dataRead);
 		if (!status)
 		{
 			if ((buffer[0] & 0xFE) != 0xFE)
@@ -97,7 +132,14 @@ int LinxClient::WriteAndRead(unsigned char *buffer, int buffLength, int *headerL
 			}
 			if (buffLength < dataLength)
 				dataLength = buffLength;
-			status = ReadData(buffer + 4, start,  m_Timeout, dataLength - 4, dataRead);
+
+			if (m_Timeout >= 0)
+			{
+				timeout = m_Timeout - (getMilliSeconds() - start);
+				if (timeout < 0)
+					timeout = 0;
+			}
+			status = m_CommChannel->Read(buffer + 4, dataLength - 4, timeout, dataRead);
 			if (!status)
 			{
 				*dataRead += 4;

@@ -15,9 +15,8 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/		
+#include "LinxDefines.h"
 #include "LinxDevice.h"
-#include <Servo.h>
-
 
 /****************************************************************************************
 **  Variables
@@ -45,11 +44,12 @@ class LinxWiringDevice : public LinxDevice
 		
 		unsigned char* I2cRefCount;						//Number Opens - Closes On I2C Channel
 		
-		Servo** Servos;										//Array Servo Pointers
+//		Servo** Servos;										//Array Servo Pointers
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
 		LinxWiringDevice();
+		virtual ~LinxWiringDevice(){};
 			
 		/****************************************************************************************
 		**  Functions
@@ -96,15 +96,11 @@ class LinxWiringDevice : public LinxDevice
 		virtual int ServoClose(unsigned char numChans, unsigned char* chans);
 		
 		//General - 
-		virtual unsigned long GetMilliSeconds();
-		virtual unsigned long GetSeconds();
-		virtual void DelayMs(unsigned long ms);
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 		
-		//Debug
-		
-		
+		virtual unsigned char EnumerateChannels(int type, unsigned char *buffer, unsigned char length);
+
 	protected:
 		/****************************************************************************************
 		**  Variables
@@ -113,6 +109,11 @@ class LinxWiringDevice : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+		virtual LinxChannel* LookupChannel(int type, unsigned char channel);
+		virtual unsigned char RegisterChannel(int type, LinxChannel *chan);
+		virtual void RegisterChannel(int type, unsigned char channel, LinxChannel *chan);
+		virtual void RemoveChannel(int type, unsigned char channel);
+		virtual void ClearChannels(int type);
 		
 	private:
 	/****************************************************************************************

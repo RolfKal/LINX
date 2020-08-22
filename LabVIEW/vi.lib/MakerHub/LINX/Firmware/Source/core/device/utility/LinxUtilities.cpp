@@ -104,6 +104,23 @@ int ReadStringFromBuff(unsigned char *buffer, int offset, unsigned char *arr, in
 	return offset + length;
 }
 
+unsigned char ReverseBits(unsigned char b) 
+{
+	b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+	b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+	b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+	return b;
+}
+
+void ReverseBits(unsigned char *buffer, int length) 
+{
+	for (int i = 0; i < length; i++)
+	{
+		buffer[i] = ReverseBits(buffer[i]);
+	}
+}
+
+
 #if Win32
 static LARGE_INTEGER g_Frequency = {0};
 static int isAvailable = -1;
@@ -119,24 +136,25 @@ static int initializeFrequency()
 }
 #endif
 
-unsigned long long getUsTicks()
+unsigned long long getMsTicks()
 {
 #if Unix
 	timespec mTime;
 	clock_gettime(CLOCK_MONOTONIC, &mTime);
-	return (((unsigned long long)mTime.tv_sec * 1000000) + mTime.tv_nsec / 1000);
+	return (((unsigned long long)mTime.tv_sec * 1000) + mTime.tv_nsec / 1000000);
 #elif Win32
 	if (initializeFrequency())
 	{
 		LARGE_INTEGER counter;
 		if (QueryPerformanceCounter(&counter))
 		{
-			counter.QuadPart *= 1000;
 			counter.QuadPart /= g_Frequency.QuadPart;
 			return counter.QuadPart;
 		}
 	}
-	return GetTickCount();
+	return (unsigned long long)GetTickCount();
+#elif Arduino
+
 #endif
 }
 
@@ -146,6 +164,8 @@ void delayMs(unsigned int ms)
 	usleep(ms * 1000);
 #elif Win32
 	Sleep(ms);
+#elif Arduino
+	delay(ms);
 #endif
 }
 
@@ -211,3 +231,45 @@ int fileExists(const char* directory, const char* fileName, unsigned int timeout
 	return false;
 }
 
+int listDirectory(const char* path, std::list<std::string> &list)
+{
+#if Unix
+	dirent* dp;
+	DIR* handle = opendir(path);
+	if (handle == NULL)
+		return false;
+
+	// Loop over all entries in directory path
+	while ((dp = readdir(handle)) != NULL)
+	{
+		//Make Sure Dir Is Not . or ..
+		if ((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
+		{
+			list.push_back(std::string(dp->d_name));
+		}
+	}
+	closedir(handle);
+#elif Win32
+	WIN32_FIND_DATAA findData;
+	size_t len = strlen(path);
+	char *temp = (char*)alloca(len + 6);
+	strcpy(temp, path);
+	if (temp[len] == '\\') len--;
+	strcpy(temp + len, "\\*.*");
+	HANDLE handle = FindFirstFileA(temp, &findData);
+	if (handle == INVALID_HANDLE_VALUE)
+		return false;
+
+	do
+	{
+		//Make Sure Dir Is Not . or ..
+		if ((strcmp(findData.cFileName, ".") != 0) && (strcmp(findData.cFileName, "..") != 0))
+		{
+			list.push_back(std::string(findData.cFileName));
+		}
+	}
+	while (FindNextFileA(handle, &findData));
+	FindClose(handle);
+#endif
+	return true;
+}

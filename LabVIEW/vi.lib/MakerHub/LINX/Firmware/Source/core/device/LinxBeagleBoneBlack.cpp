@@ -12,13 +12,13 @@
 /****************************************************************************************
 **  Includes
 ****************************************************************************************/		
-#include "LinxDefines.h"
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <map>
 #include <string.h>
+#include "LinxDefines.h"
 #ifndef Win32
 #include <dirent.h>
 #include <unistd.h>	
@@ -28,10 +28,9 @@
 #endif
 #include "LinxDevice.h"
 #include "LinxUtilities.h"
-#include "LinxLinuxDevice.h"
 #include "LinxBeagleBoneBlack.h"
 
-using namespace std;
+//using namespace std;
 
 /****************************************************************************************
 **  Channel implementations
@@ -55,16 +54,18 @@ static const char *g_AiPaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:device0/
 //None
 
 //-------------------------------------- DIO ------------------------------------
-static const unsigned char m_DigitalChans[NUM_DIGITAL_CHANS] = { 7,  8,  9, 10, 11, 12, 15, 16, 17, 18, 26, 58, 61, 69,  73,  76};
-static const unsigned char m_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61, 60, 48, 49, 115, 112};
+static const unsigned char g_DigitalChans[NUM_DIGITAL_CHANS] = { 7,  8,  9, 10, 11, 12, 15, 16, 17, 18, 26, 58, 61, 69,  73,  76};
+static const unsigned char g_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61, 60, 48, 49, 115, 112};
 
 
 //-------------------------------------- PWM ------------------------------------
 // Default to 7.x Layout, Updated in Constructor if newer
-static const unsigned char m_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
-static string m_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6", "/sys/class/pwm/pwm5", "/sys/class/pwm/pwm3", "/sys/class/pwm/pwm4"};
-static string m_EnableFileName;
+static const unsigned char g_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
+static string g_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6", "/sys/class/pwm/pwm5", "/sys/class/pwm/pwm3", "/sys/class/pwm/pwm4"};
 //static const string m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
+static const char *g_DutyCycleFileName = "duty_ns";
+static const char *g_PeriodFileName = "period_ns";
+static const char *g_EnableFileName = "run";
 
 
 //------------------------------------- Uart ------------------------------------
@@ -72,20 +73,11 @@ static unsigned char g_UartChans[NUM_UART_CHANS] = {0, 1, 4};
 static const char *g_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
 static const char *g_UartDtoNames[NUM_UART_CHANS] = { "BB-UART0", "BB-UART1", "BB-UART4"};
 
-LinxBBBUartChannel::LinxBBBUartChannel(const char *channelName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath) : LinxUnixUartChannel(channelName, debug)
+LinxBBBUartChannel::LinxBBBUartChannel(const char *deviceName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath) : 
+	LinxUnixUartChannel(debug, deviceName), LinxUnixSocketChannel(debug, deviceName)
 {
 	m_DtoName = dtoName;
 	m_DtoSlotsPath = dtoSlotsPath;
-}
-
-LinxChannel *LinxBBBUartChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxBBBUartChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxUnixUartChannel::QueryInterface(interfaceId);
 }
 
 int LinxBBBUartChannel::SmartOpen()
@@ -95,15 +87,13 @@ int LinxBBBUartChannel::SmartOpen()
 	{
 		if (!LinxBeagleBoneBlack::loadDto(m_DtoSlotsPath, m_DtoName))	
 		{
-			m_Debug->Write("UART Fail - Failed To Load ");
-			m_Debug->Write(m_DtoName);
-			m_Debug->Writeln(" DTO");
+			LinxUartChannel::m_Debug->Write("UART Fail - Failed To Load Device Tree Overlay ");
+			LinxUartChannel::m_Debug->Write(m_DtoName);
 			return  LUART_OPEN_FAIL;
 		}			
 	}
-	return LinxUnixUartChannel::SmartOpen();
+	return LinxUnixSocketChannel::SmartOpen();
 }
-
 
 //------------------------------------- I2c -------------------------------------
 static const unsigned char g_I2cChans[NUM_I2C_CHANS] = {2};
@@ -114,16 +104,6 @@ LinxBBBI2cChannel::LinxBBBI2cChannel(const char *channelName, LinxFmtChannel *de
 {
 	m_DtoName = dtoName;
 	m_DtoSlotsPath = dtoSlotsPath;
-}
-
-LinxChannel *LinxBBBI2cChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxBBBI2cChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxSysfsI2cChannel::QueryInterface(interfaceId);
 }
 
 int LinxBBBI2cChannel::Open()
@@ -151,23 +131,13 @@ static unsigned int g_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 
 static int g_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 static int g_SpiDefaultSpeed = 3900000;
 
-LinxBBBSpiChannel::LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxLinuxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsSpiChannel(channelName, debug, device, speed)
+LinxBBBSpiChannel::LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsSpiChannel(channelName, debug, device, speed)
 {
 	m_DtoName = dtoName;
 	m_DtoSlotsPath = dtoSlotsPath;
 	m_NumSpiSpeeds = NUM_SPI_SPEEDS;
 	m_SpiSupportedSpeeds = g_SpiSupportedSpeeds;
 	m_SpiSpeedCodes = g_SpiSpeedCodes;
-}
-
-LinxChannel *LinxBBBSpiChannel::QueryInterface(int interfaceId)
-{
-	if (interfaceId == IID_LinxBBBSpiChannel)
-	{
-		AddRef();
-		return this;
-	}
-	return LinxSysfsSpiChannel::QueryInterface(interfaceId);
 }
 
 int LinxBBBSpiChannel::Open()
@@ -183,7 +153,6 @@ int LinxBBBSpiChannel::Open()
 	}
 	return LinxSysfsSpiChannel::Open();
 }
-
 
 //----------------------------------- Device ------------------------------------
 
@@ -243,24 +212,21 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//PWM
 	//Shared Non Varying Components
 	
-	unsigned int m_PwmDefaultPeriod = 500000;	
-	string m_PolarityFileName = "polarity";
+	unsigned int g_PwmDefaultPeriod = 500000;	
+	const char *g_PolarityFileName = "polarity";
 	
 	//7.x Only
-	const char *m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
+	const char *g_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
 		
 	//8.x Only
-	const char *m_PwmMuxPaths[NUM_PWM_CHANS] = {"/sys/devices/platform/ocp/ocp:P8_13_pinmux/state", "/sys/devices/platform/ocp/ocp:P8_19_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_14_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_16_pinmux/state"};
-	const char *m_SpiMuxPaths[3] = {"/sys/devices/platform/ocp/ocp:P9_18_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_21_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_22_pinmux/state"};
-	const char *m_UartMuxPaths[4] = {"/sys/devices/platform/ocp/ocp:P9_24_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_26_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_11_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_13_pinmux/state"};
+	const char *g_PwmMuxPaths[NUM_PWM_CHANS] = {"/sys/devices/platform/ocp/ocp:P8_13_pinmux/state", "/sys/devices/platform/ocp/ocp:P8_19_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_14_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_16_pinmux/state"};
+	const char *g_SpiMuxPaths[3] = {"/sys/devices/platform/ocp/ocp:P9_18_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_21_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_22_pinmux/state"};
+	const char *g_UartMuxPaths[4] = {"/sys/devices/platform/ocp/ocp:P9_24_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_26_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_11_pinmux/state", "/sys/devices/platform/ocp/ocp:P9_13_pinmux/state"};
 
 	
 	//Shared, Varying Components - Default To 7.x
-	std::string m_PwmExportPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export"};
-	unsigned char m_PwmExportVal[NUM_PWM_CHANS] = {6, 5, 3, 4};
-	std::string m_DutyCycleFileName = "duty_ns";
-	std::string m_PeriodFileName = "period_ns";
-	m_EnableFileName = "run";
+	std::string g_PwmExportPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export", "/sys/class/pwm/export"};
+	unsigned char g_PwmExportVal[NUM_PWM_CHANS] = {6, 5, 3, 4};
 
 
 	//Update to 8.x layout if necessary
@@ -270,105 +236,93 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		
 		const char *PwmP8ChipDir = "", *PwmP9ChipDir = "";
 		bool sawPwmChanLinks = false;
-		
-		DIR* pwmDirHandle = opendir(pwmBasePath);
 
-		dirent* dp;
+		std::list<std::string> dirList;
 
-		//Loop Over All Dirs In PWM Base Dir
-		while (pwmDirHandle)
+		if (listDirectory(pwmBasePath, dirList))
 		{
-			if ((dp = readdir(pwmDirHandle)) != NULL)
+			for (std::list<std::string>::iterator it = dirList.begin(); it != dirList.end(); it++)
 			{
-				//Make Sure Dir Is Not . or ..
-				if ((strcmp(dp->d_name, ".") != 0) && (strcmp(dp->d_name, "..") != 0))
-				{
-					//PWM Chip Dir, Check Where Symlink Points
-					char pwmChipSymlink[256];
-					char pwmChipSymlinkTarget[256];
-					bool isPwmChanLink = (strchr(dp->d_name, ':') != NULL);
+				//PWM Chip Dir, Check Where Symlink Points
+				char pwmChipSymlink[256];
+				char pwmChipSymlinkTarget[256];
+				bool isPwmChanLink = (strchr(it->c_str(), ':') != NULL);
 
-					// Debian 9/stretch has direct links to PWM chans (e.g. "pwm7:0"); the chip dir does not have pwm0/pwm1 subdirs
-					if (isPwmChanLink)
-						sawPwmChanLinks = true;
+				// Debian 9/stretch has direct links to PWM chans (e.g. "pwm7:0"); the chip dir does not have pwm0/pwm1 subdirs
+				if (isPwmChanLink)
+					sawPwmChanLinks = true;
 					
-					sprintf(pwmChipSymlink, "%s%s", pwmBasePath, dp->d_name);
-					readlink(pwmChipSymlink, pwmChipSymlinkTarget, 128);
+				sprintf(pwmChipSymlink, "%s%s", pwmBasePath, it->c_str());
+				readlink(pwmChipSymlink, pwmChipSymlinkTarget, 128);
 					
-					//Parse DTO Address
-					//fprintf(stdout, pwmChipSymlinkTarget);	//Debug
-					//fprintf(stdout, "\n");	//Debug
-					char* token = strtok(pwmChipSymlinkTarget, "\\/");
-					while(token != NULL)
+				//Parse DTO Address
+				//fprintf(stdout, pwmChipSymlinkTarget);	//Debug
+				//fprintf(stdout, "\n");	//Debug
+				char* token = strtok(pwmChipSymlinkTarget, "\\/");
+				while(token != NULL)
+				{
+					unsigned int val = 0;
+					sscanf(token, "%u", &val);
+					//printf("%u\n", val);
+					if (val == 48304200)
 					{
-						unsigned int val = 0;
-						sscanf(token, "%u", &val);
-						//printf("%u\n", val);
-						if (val == 48304200)
+						if (isPwmChanLink)
 						{
-							if (isPwmChanLink)
-							{
-								string pwmLink = pwmChipSymlink;
-								pwmLink += "/";
-					 			if (strchr(dp->d_name, '1') != NULL)
-									m_PwmDirPaths[0] = pwmLink;
-								else
-									m_PwmDirPaths[1] = pwmLink;
-							}
+							string pwmLink = pwmChipSymlink;
+							pwmLink += "/";
+				 			if (strchr(it->c_str(), '1') != NULL)
+								g_PwmDirPaths[0] = pwmLink;
 							else
-							{
-								PwmP8ChipDir = pwmChipSymlink;
-							}
+								g_PwmDirPaths[1] = pwmLink;
 						}
-						else if (val == 48302200)
+						else
 						{
-							if (isPwmChanLink)
-							{
-								string pwmLink = pwmChipSymlink;
-								pwmLink += "/";
-					 			if (strchr(dp->d_name, '0') != NULL)
-									m_PwmDirPaths[2] = pwmLink;
-								else
-									m_PwmDirPaths[3] = pwmLink;
-							}
-							else
-							{
-								PwmP9ChipDir = pwmChipSymlink;
-							}
+							PwmP8ChipDir = pwmChipSymlink;
 						}
-						token = strtok(NULL, "\\/");
 					}
+					else if (val == 48302200)
+					{
+						if (isPwmChanLink)
+						{
+							string pwmLink = pwmChipSymlink;
+							pwmLink += "/";
+				 			if (strchr(it->c_str(), '0') != NULL)
+								g_PwmDirPaths[2] = pwmLink;
+							else
+								g_PwmDirPaths[3] = pwmLink;
+						}
+						else
+						{
+							PwmP9ChipDir = pwmChipSymlink;
+						}
+					}
+					token = strtok(NULL, "\\/");
 				}
-			}
-			else
-			{
-				closedir(pwmDirHandle);
-				break;
 			}
 		}
 				
 		//Build  PWM Paths
-		m_PwmExportVal[0] = 1;
-		m_PwmExportVal[1] = 0;
-		m_PwmExportVal[2] = 0;
-		m_PwmExportVal[3] = 1;
+		g_PwmExportVal[0] = 1;
+		g_PwmExportVal[1] = 0;
+		g_PwmExportVal[2] = 0;
+		g_PwmExportVal[3] = 1;
 		
 		if (!sawPwmChanLinks)
 		{
-			m_PwmDirPaths[0] = std::string(PwmP8ChipDir, "/pwm1/");
-			m_PwmDirPaths[1] = std::string(PwmP8ChipDir, "/pwm0/");
-			m_PwmDirPaths[2] = std::string(PwmP9ChipDir, "/pwm0/");
-			m_PwmDirPaths[3] = std::string(PwmP9ChipDir, "/pwm1/");
+			g_PwmDirPaths[0] = std::string(PwmP8ChipDir, "/pwm1/");
+			g_PwmDirPaths[1] = std::string(PwmP8ChipDir, "/pwm0/");
+			g_PwmDirPaths[2] = std::string(PwmP9ChipDir, "/pwm0/");
+			g_PwmDirPaths[3] = std::string(PwmP9ChipDir, "/pwm1/");
 		}
 		
-		m_PwmExportPaths[0] = std::string(PwmP8ChipDir, "/export");
-		m_PwmExportPaths[1] = std::string(PwmP8ChipDir, "/export");
-		m_PwmExportPaths[2] = std::string(PwmP9ChipDir, "/export");
-		m_PwmExportPaths[3] = std::string(PwmP9ChipDir, "/export");
+		g_PwmExportPaths[0] = std::string(PwmP8ChipDir, "/export");
+		g_PwmExportPaths[1] = std::string(PwmP8ChipDir, "/export");
+		g_PwmExportPaths[2] = std::string(PwmP9ChipDir, "/export");
+		g_PwmExportPaths[3] = std::string(PwmP9ChipDir, "/export");
 		
-		m_DutyCycleFileName = "duty_cycle";
-		m_PeriodFileName = "period";
-		m_EnableFileName = "enable";
+		g_DutyCycleFileName = "duty_cycle";
+		g_PeriodFileName = "period";
+		g_EnableFileName = "enable";
 		
 		//Update I2C Path
 		g_I2cPaths[0] = "/dev/i2c-2";
@@ -379,11 +333,11 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		g_SpiPaths[0] = "/dev/spidev0.0";
 	}
 	
-	PwmDutyCycleFileName = m_DutyCycleFileName;
-	PwmPeriodFileName = m_PeriodFileName;
-	PwmEnableFileName = m_EnableFileName;
+//	PwmDutyCycleFileName = g_DutyCycleFileName;
+//	PwmPeriodFileName = g_PeriodFileName;
+//	PwmEnableFileName = g_EnableFileName;
 		
-	PwmDefaultPeriod = m_PwmDefaultPeriod;
+//	PwmDefaultPeriod = g_PwmDefaultPeriod;
 		
 	//QE
 		
@@ -440,7 +394,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	if (m_FilePathLayout == 7)
 	{
 		//Load AM33xx_PWM DTO If No PWM Channels Have Been Exported Since Boot
-		if (!fileExists(m_PwmDirPaths[NUM_PWM_CHANS - 1].c_str(), m_PeriodFileName.c_str()))
+		if (!fileExists(g_PwmDirPaths[NUM_PWM_CHANS - 1].c_str(), g_PeriodFileName))
 		{
 			if (!loadDto(m_DtoSlotsPath, "am33xx_pwm"))
 			{
@@ -461,7 +415,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		// Set Mux to PWM
 		for (int i = 0; i < NUM_PWM_CHANS; i++)
 		{
-			FILE* pwmMuxHandle = fopen(m_PwmMuxPaths[i], "r+w+");
+			FILE* pwmMuxHandle = fopen(g_PwmMuxPaths[i], "r+w+");
 			if (pwmMuxHandle != NULL)
 			{
 				fprintf(pwmMuxHandle, "pwm");
@@ -474,36 +428,22 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	for (int i = 0; i < NUM_PWM_CHANS; i++)
 	{
 		//Store Default Values
-		PwmDirPaths[m_PwmChans[i]] = m_PwmDirPaths[i];
-		PwmPeriods[m_PwmChans[i]] = m_PwmDefaultPeriod;
+//		PwmDirPaths[g_PwmChans[i]] = g_PwmDirPaths[i];
+//		PwmPeriods[g_PwmChans[i]] = g_PwmDefaultPeriod;
+		RegisterChannel(IID_LinxPwmChannel, g_PwmChans[i], (LinxPwmChannel*)new LinxSysfsPwmChannel(m_Debug, g_PwmDirPaths[i].c_str(), g_EnableFileName, g_PeriodFileName, g_DutyCycleFileName, g_PwmDefaultPeriod));
 		
 		//Export PWM Channels - This Must Happend Before 7.x Loads Channel Specific DTOs
-		if (!fileExists(m_PwmDirPaths[i].c_str(), m_PeriodFileName.c_str()))
+		if (!fileExists(g_PwmDirPaths[i].c_str(), g_PeriodFileName))
 		{
-			FILE* pwmExportHandle = fopen(m_PwmExportPaths[i].c_str(), "w");
+			FILE* pwmExportHandle = fopen(g_PwmExportPaths[i].c_str(), "w");
 			if (pwmExportHandle != NULL)
 			{
-				fprintf(pwmExportHandle, "%u", m_PwmExportVal[i]);
+				fprintf(pwmExportHandle, "%u", g_PwmExportVal[i]);
 				fclose(pwmExportHandle);
 			}
 			else
 			{
 				m_Debug->Writeln("PWM Fail - Unable to open pwmExportHandle");
-			}
-
-			//Set Default Period Only First Time
-			char periodPath[64];
-			sprintf(periodPath, "%s%s", m_PwmDirPaths[i].c_str(), m_PeriodFileName.c_str());
-			
-			FILE* pwmPeriodleHandle = fopen(periodPath, "r+w+");
-			if (pwmPeriodleHandle != NULL)
-			{
-				fprintf(pwmPeriodleHandle, "%u", m_PwmDefaultPeriod);
-				fclose(pwmPeriodleHandle);							
-			}
-			else
-			{
-				m_Debug->Writeln("PWM Fail - Unable to open pwmPeriodHandle");
 			}
 		}
 		
@@ -511,17 +451,17 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		if (m_FilePathLayout == 7)
 		{	
 			//Load Chip Specific PWM DTO If Not Already Loaded
-			if (!loadDto(m_DtoSlotsPath, m_PwmDtoNames[i]))
+			if (!loadDto(m_DtoSlotsPath, g_PwmDtoNames[i]))
 			{
 				m_Debug->Write("PWM Fail - Failed To Load PWM DTO ");
-				m_Debug->Writeln(m_PwmDtoNames[i]);
+				m_Debug->Writeln(g_PwmDtoNames[i]);
 			}
 			
 			//Make Sure DTO Has Time To Load Before Opening Handles
-			else if (!fileExists(m_PwmDirPaths[i].c_str(), "period_ns", 3000))
+			else if (!fileExists(g_PwmDirPaths[i].c_str(), "period_ns", 3000))
 			{
 				m_Debug->Write("PWM Fail - PWM DTO Did Not Load Correctly: ");				
-				m_Debug->Writeln(m_PwmDirPaths[i].c_str());				
+				m_Debug->Writeln(g_PwmDirPaths[i].c_str());				
 			}		
 		}
 		//Export PWM Chans.  If 7.x layout this is done above.  This should probably be moved.
@@ -532,7 +472,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		
 		//Set Polarity To 0 So PWM Value Corresponds To 'Percent On' Rather Than 'Percent Off'
 		char polarityPath[64];
-		sprintf(polarityPath, "%s%s", PwmDirPaths[m_PwmChans[i]].c_str(), m_PolarityFileName.c_str());
+		sprintf(polarityPath, "%s%s", g_PwmDirPaths[i].c_str(), g_PolarityFileName);
 		
 		FILE* pwmPolarityHandle = fopen(polarityPath, "w");
 		if (pwmPolarityHandle != NULL)
@@ -544,35 +484,6 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		{
 			m_Debug->Write("PWM Fail - Unable to open pwmPolarityHandle");				
 		}
-			
-		//Set Default Duty Cycle To 0	
-		char dutyCyclePath[64];
-		sprintf(dutyCyclePath, "%s%s", PwmDirPaths[m_PwmChans[i]].c_str(), m_DutyCycleFileName.c_str());			
-		
-		FILE* pwmDutyCycleHandle = fopen(dutyCyclePath, "r+w+");
-		if (pwmDutyCycleHandle != NULL)
-		{
-			fprintf(pwmDutyCycleHandle, "0");
-			fclose(pwmDutyCycleHandle);
-		}
-		else
-		{
-			m_Debug->Write("PWM Fail - Unable to open pwmDutyCycleHandle");				
-		}		
-		
-		//Turn On PWM		
-		char enablePath[64];
-		sprintf(enablePath, "%s%s", PwmDirPaths[m_PwmChans[i]].c_str(), m_EnableFileName.c_str());			
-		FILE* pwmEnableHandle = fopen(enablePath, "r+w+");
-		if (pwmEnableHandle != NULL)
-		{
-			fprintf(pwmEnableHandle, "1");
-			fclose(pwmEnableHandle);		
-		}
-		else
-		{
-			m_Debug->Write("PWM Fail - Unable to open pwmEnableHandle");				
-		}	
 	}	
 	
 	//------------------------------------- I2C -------------------------------------
@@ -589,7 +500,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		// Set Mux to UART
 		for (int i = 0; i < 4; i++)
 		{
-			FILE* uartMuxHandle = fopen(m_UartMuxPaths[i], "r+w+");
+			FILE* uartMuxHandle = fopen(g_UartMuxPaths[i], "r+w+");
 			if (uartMuxHandle != NULL)
 			{
 				fprintf(uartMuxHandle, "uart");
@@ -601,7 +512,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	// Store Uart Paths In Map
 	for (int i = 0; i < NUM_UART_CHANS; i++)
 	{
-		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], new LinxBBBUartChannel(g_UartPaths[i], m_Debug, g_UartDtoNames[i], m_DtoSlotsPath));
+		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], (LinxUartChannel*)new LinxBBBUartChannel(g_UartPaths[i], m_Debug, g_UartDtoNames[i], m_DtoSlotsPath));
 	}
 	
 	//------------------------------------- SPI ------------------------------------
@@ -610,7 +521,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 		//Set Mux to SPI
 		for (int i = 0; i < 3; i++)
 		{
-			FILE* spiMuxHandle = fopen(m_SpiMuxPaths[i], "r+w+");
+			FILE* spiMuxHandle = fopen(g_SpiMuxPaths[i], "r+w+");
 			if (spiMuxHandle != NULL)
 			{
 				// in later debian versions the state value for the clk line changed
@@ -642,33 +553,6 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 //Destructor
 LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
 {	
-	//Close PWM Handles If Open
-	for (int i = 0; i < NUM_PWM_CHANS; i++)
-	{
-		if (PwmPeriodHandles[m_PwmChans[i]] != NULL)
-		{
-			fclose(PwmPeriodHandles[m_PwmChans[i]]);
-		}
-		if (PwmDutyCycleHandles[m_PwmChans[i]] != NULL)
-		{
-			fprintf(PwmDutyCycleHandles[m_PwmChans[i]], "0");
-			fclose(PwmDutyCycleHandles[m_PwmChans[i]]);
-		}
-		
-		//Turn Off PWM		
-		char enablePath[64];
-		sprintf(enablePath, "%s%s", m_PwmDirPaths[i].c_str(), m_EnableFileName.c_str());
-		FILE* pwmEnableHandle = fopen(enablePath, "r+w+");
-		if (pwmEnableHandle != NULL)
-		{
-			fprintf(pwmEnableHandle, "0");
-			fclose(pwmEnableHandle);
-		}
-		else
-		{
-			m_Debug->Write("PWM Fail - Unable to open pwmEnableHandle");
-		}
-	}
 }
 
 /****************************************************************************************
@@ -701,40 +585,6 @@ unsigned char LinxBeagleBoneBlack::GetDeviceName(unsigned char* buffer, unsigned
 }
 
 //--------------------------------------------------------PWM-------------------------------------------------------
-int LinxBeagleBoneBlack::PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values)
-{
-	//unsigned int period = 500000;		//Period Defaults To 500,000 nS. To Do Update This When Support For Changing Period / Frequency Is Added
-	unsigned int dutyCycle = 0;
-
-	//Smart Open PWM Channels
-	pwmSmartOpen(numChans, channels);
-
-	for (int i = 0; i < numChans; i++)
-	{
-		if (values[i] == 0)
-		{
-			dutyCycle = 0;
-		}
-		else if (values[i] == 255)
-		{
-			dutyCycle = PwmPeriods[channels[i]];
-		}
-		else
-		{
-			dutyCycle = (unsigned int)(PwmPeriods[channels[i]] * (values[i] / 255.0));
-		}
-
-		//Update Output
-		m_Debug->Write("Setting Duty Cycle = ");
-		m_Debug->Write(dutyCycle, DEC);
-		fprintf(PwmDutyCycleHandles[channels[i]], "%u", dutyCycle);
-		m_Debug->Write(" ... Duty Cycle Set ... ");
-		fflush(PwmDutyCycleHandles[channels[i]]);
-		m_Debug->Writeln("Flushing.");
-	}
-	return L_OK;
-}
-
 
 //--------------------------------------------------------SPI-------------------------------------------------------
 

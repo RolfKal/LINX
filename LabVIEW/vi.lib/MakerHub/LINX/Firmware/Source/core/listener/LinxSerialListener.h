@@ -40,7 +40,7 @@ class LinxSerialListener : public LinxListener
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSerialListener(LinxDevice *device, LinxFmtChannel* debug = NULL) : LinxListener(device, debug){};
+		LinxSerialListener(LinxDevice *device) : LinxListener(device){};
 
 		/****************************************************************************************
 		**  Functions

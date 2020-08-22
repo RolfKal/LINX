@@ -27,11 +27,11 @@
 /****************************************************************************************
 **  Constructors/Destructors
 ****************************************************************************************/
-LinxListener::LinxListener(LinxDevice *device, LinxFmtChannel *debug)
+LinxListener::LinxListener(LinxDevice *device)
 {
 	unsigned char buffer[255];
 
-	m_Debug = debug ? debug : new LinxFmtChannel();
+	m_Debug = new LinxFmtChannel();
 	m_LinxDev = device;
 	m_Channel = NULL;
 	m_PeriodicTask = NULL;
@@ -51,7 +51,8 @@ LinxListener::LinxListener(LinxDevice *device, LinxFmtChannel *debug)
 LinxListener::~LinxListener()
 {
 	if (m_Channel)
-		m_Channel->Close();
+		m_Channel->Release();
+	m_Debug->Release();
 	free(m_SendBuffer);
 	free(m_RecBuffer);
 }
@@ -78,21 +79,6 @@ int LinxListener::Start(LinxCommChannel *channel, int bufferSize)
 	return status;
 }
 
-int LinxListener::ReadData(unsigned char *buffer, int bytesToRead, int timeout, int *numBytesRead)
-{
-	return m_Channel->Read(buffer, bytesToRead, timeout, numBytesRead);
-}
-
-int LinxListener::WriteData(unsigned char *buffer, int bytesToWrite, int timeout)
-{
-	return m_Channel->Write(buffer, bytesToWrite, timeout);
-}
-
-int LinxListener::FlushData()
-{
-	return m_Channel->Read(m_RecBuffer, m_ListenerBufferSize, 0, NULL);
-}
-
 int LinxListener::Close()
 {
 	if (m_Channel)
@@ -107,7 +93,7 @@ int LinxListener::CheckForCommand()
 {
 	int dataRead = 0;
 	// Try to read first 4 bytes
-	int status = ReadData(m_SendBuffer, 4, TIMEOUT_INFINITE, &dataRead);
+	int status = m_Channel->Read(m_SendBuffer, 4, TIMEOUT_INFINITE, &dataRead);
 	if (!status)
 	{
 		unsigned short command;
@@ -126,14 +112,14 @@ int LinxListener::CheckForCommand()
 		else
 		{
 			// invalid data frame, flush buffer and return
-			return FlushData();
+			return m_Channel->Read(m_RecBuffer, m_ListenerBufferSize, 0, NULL);
 		}
 		
 		// if expected msgLength is greater than the data already received then read the remainder
 		while (msgLength > length)
 		{
 			dataRead = 0;
-			status = ReadData(m_SendBuffer + dataRead, msgLength - dataRead, TIMEOUT_INFINITE, &dataRead);
+			status = m_Channel->Read(m_SendBuffer + dataRead, msgLength - dataRead, TIMEOUT_INFINITE, &dataRead);
 			if (status)
 				return status;
 
@@ -206,7 +192,7 @@ int LinxListener::PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned 
 	responsePacketBuffer[offset] = m_LinxDev->ComputeChecksum(responsePacketBuffer, offset);
 
 	// Send it off
-	return WriteData(responsePacketBuffer, offset + 1, TIMEOUT_INFINITE);
+	return m_Channel->Write(responsePacketBuffer, offset + 1, TIMEOUT_INFINITE);
 }
 
 int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset, int length, unsigned short command, unsigned char* responsePacketBuffer)

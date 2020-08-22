@@ -16,12 +16,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <string.h>
 #if Unix
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#define INVALID_SOCKET -1
 #define closesocket(s) close(s)
 #elif Win32
 #include <io.h>
@@ -35,10 +34,8 @@
 /****************************************************************************************
 **  Constructors
 ****************************************************************************************/
-LinxTcpListener::LinxTcpListener(LinxDevice* device, LinxFmtChannel* debug) : LinxListener(device, debug)
+LinxTcpListener::LinxTcpListener(LinxDevice* device) : LinxListener(device)
 {
-	m_TcpTimeout.tv_sec = 10;		//Set Socket Time-out To Default Value
-	m_TcpTimeout.tv_usec = 0;
 	m_ServerSocket = INVALID_SOCKET;
 	m_ClientSocket = INVALID_SOCKET;
 #if Win32
@@ -67,10 +64,10 @@ int LinxTcpListener::Start(unsigned int interfaceAddress, unsigned short port)
 {
 
 	//Construct the server sockaddr_in structure
-	memset(&m_TcpServer, 0, sizeof(struct sockaddr_in));	//Clear Struct
-	m_TcpServer.sin_family = AF_INET;						//Internet/IP
-	m_TcpServer.sin_addr.s_addr = htonl(interfaceAddress); //Incoming Addr
-	m_TcpServer.sin_port = htons(port);						//Server Port
+	memset(&m_TcpServer, 0, sizeof(struct sockaddr_in));	// Clear Struct
+	m_TcpServer.sin_family = AF_INET;						// Internet/IP
+	m_TcpServer.sin_addr.s_addr = htonl(interfaceAddress);  // Incoming Addr
+	m_TcpServer.sin_port = htons(port);						// Server Port
 
 	m_Debug->Write("Starting Listener on TCP/IP Address: ");
 	m_Debug->Write(inet_ntoa(m_TcpServer.sin_addr));
@@ -144,40 +141,3 @@ int LinxTcpListener::Close()
 /****************************************************************************************
 **  Protected Functions
 ****************************************************************************************/
-int LinxTcpListener::ReadData(unsigned char *buffer, int bytesToRead, int *numBytesRead)
-{
-	int retval = recv(m_ClientSocket, (char*)buffer, bytesToRead, MSG_WAITALL);
-	if (retval > 0)
-	{
-		*numBytesRead = retval;
-		return L_OK;
-	}
-	if (!retval)
-	{
-		closesocket(m_ClientSocket);
-		m_ClientSocket = INVALID_SOCKET;
-		return LERR_CLOSED_BY_PEER;
-	}
-	return LERR_IO;
-}
-
-int LinxTcpListener::WriteData(unsigned char *buffer, int bytesToWrite)
-{
-	int retval = send(m_ClientSocket, (char*)buffer, bytesToWrite, 0);
-	if (retval > 0)
-	{
-		return L_OK;
-	}
-	if (!retval)
-	{
-		closesocket(m_ClientSocket);
-		m_ClientSocket = INVALID_SOCKET;
-		return LERR_CLOSED_BY_PEER;
-	}
-	return LERR_IO;
-}
-
-int LinxTcpListener::FlushData()
-{
-	return L_OK;
-}
