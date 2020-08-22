@@ -31,3 +31,10 @@ LinxWindowsDevice::~LinxWindowsDevice()
 {
 }
 
+unsigned char LinxWindowsDevice::GetDeviceName(unsigned char *buffer, unsigned char length)
+{
+	DWORD len = length;
+	if (!GetComputerNameExA(ComputerNamePhysicalDnsFullyQualified, (LPSTR)buffer, &len))
+		return L_UNKNOWN_ERROR;
+	return L_OK;
+}

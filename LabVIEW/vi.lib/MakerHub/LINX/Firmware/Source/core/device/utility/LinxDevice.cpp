@@ -202,6 +202,13 @@ int LinxDevice::AnalogReadNoPacking(unsigned char numChans, unsigned char* chann
 	return status;
 }
 
+int LinxDevice::AnalogSetRef(unsigned char mode, unsigned int voltage)
+{
+	int status = L_FUNCTION_NOT_SUPPORTED;
+
+	return status;
+}
+
 int LinxDevice::AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	int status = L_OK;
@@ -335,6 +342,16 @@ int LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* chan
 		chan->Release();
 	}
 	return status;
+}
+
+int LinxDevice::DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxDevice::DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
 }
 
 // ---------------- PWM Functions ------------------ 

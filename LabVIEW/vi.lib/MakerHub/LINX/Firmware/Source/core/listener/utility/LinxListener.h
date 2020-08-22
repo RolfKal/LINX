@@ -48,8 +48,6 @@ class LinxListener
 		virtual int CheckForCommand();					// Check for next command and decode it to relay it to the device
 		virtual int Close();
 
-		virtual int EnableDebug(LinxCommChannel *chan);
-
 		// Attach a custom command callback function. The class allows up to MAX_CUSTOM_CMDS to be installed and
 		// any message with the command word being 0xFCxx whit xx being the command number between 0 and 15 is then
 		// forwarded to this callback function to be processed

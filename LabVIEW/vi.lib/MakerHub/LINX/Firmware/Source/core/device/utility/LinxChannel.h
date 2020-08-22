@@ -33,7 +33,7 @@
 #define IID_LinxSpiChannel			8
 #define IID_LinxCanChannel			9
 #define IID_LinxServoChannel		10
-#define LinxNumChanelTypes			IID_LinxServoChannel
+#define LinxNumChannelTypes			IID_LinxServoChannel
 
 // Forward declaration
 class LinxFmtChannel;
@@ -184,9 +184,9 @@ class LinxCommChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
-		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
-		virtual int Close();
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead) = 0;
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout) = 0;
+		virtual int Close() = 0;
 };
 
 class LinxUartChannel : public LinxCommChannel
@@ -317,7 +317,6 @@ class LinxFmtChannel : public LinxCommChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int GetName(char* buffer, unsigned char numBytes);
 		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
 		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
 		virtual int Write(char c);

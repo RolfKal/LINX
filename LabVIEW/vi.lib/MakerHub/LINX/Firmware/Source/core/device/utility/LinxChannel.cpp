@@ -64,6 +64,16 @@ unsigned int LinxChannel::Release()
 	return refcount;
 }
 
+int LinxChannel::GetName(char* buffer, unsigned char numBytes)
+{
+	size_t len = strlen(m_ChannelName);
+	if (numBytes > len)
+		strcpy(buffer, m_ChannelName);
+	else
+		strncpy(buffer, m_ChannelName, numBytes);
+	return L_OK;
+}
+
 LinxFmtChannel::LinxFmtChannel() : LinxCommChannel("FormatChannel", NULL)
 {
 	m_Channel = NULL;

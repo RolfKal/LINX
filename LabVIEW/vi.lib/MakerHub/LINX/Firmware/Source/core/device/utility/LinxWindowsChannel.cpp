@@ -188,3 +188,38 @@ int LinxWindowsUartChannel::Close()
 		CloseHandle(m_Handle);
 	return L_OK;
 }
+
+LinxWindowsTcpChannel::LinxWindowsTcpChannel(LinxFmtChannel *debug, SOCKET fd) : LinxCommChannel("TCPSocket", debug)
+{
+}
+
+LinxWindowsTcpChannel::LinxWindowsTcpChannel(LinxFmtChannel *debug, const char *address, unsigned short port) : LinxCommChannel(address, debug)
+{
+}
+		
+LinxWindowsTcpChannel::~LinxWindowsTcpChannel()
+{
+}
+
+/****************************************************************************************
+**  Functions
+****************************************************************************************/
+int LinxWindowsTcpChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+{
+	return 0;
+}
+
+int LinxWindowsTcpChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+{
+	return 0;
+}
+
+int LinxWindowsTcpChannel::Close()
+{
+	return 0;
+}
+
+int LinxWindowsTcpChannel::SmartOpen()
+{
+	return 0;
+}

@@ -126,7 +126,6 @@ class LinxDevice
 
 		// SPI
 		virtual int SpiOpenMaster(unsigned char channel);
-		virtual int SpiOpenMaster(const char *deviceName, unsigned char *channel);
 		virtual int SpiSetBitOrder(unsigned char channel, unsigned char bitOrder);
 		virtual int SpiSetMode(unsigned char channel, unsigned char mode);
 		virtual int SpiSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed);
@@ -204,7 +203,7 @@ class LinxDevice
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		std::map<unsigned char, LinxChannel*> m_ChannelRegistry[LinxNumChanelTypes];
+		std::map<unsigned char, LinxChannel*> m_ChannelRegistry[LinxNumChannelTypes];
 
 		/****************************************************************************************
 		**  Functions

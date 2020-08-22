@@ -408,3 +408,181 @@ unsigned char LinxClient::GetDeviceName(unsigned char *buffer, unsigned char len
 	}
 	return (unsigned char)len; 
 }
+
+int LinxClient::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::AnalogSetRef(unsigned char mode, unsigned int voltage)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned int* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+//DIGITAL
+int LinxClient::DigitalSetDirection(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+//PWM
+int LinxClient::PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+//SPI
+int LinxClient::SpiOpenMaster(unsigned char channel)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::SpiSetBitOrder(unsigned char channel, unsigned char bitOrder)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::SpiSetMode(unsigned char channel, unsigned char mode)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::SpiSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::SpiWriteRead(unsigned char channel, unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::SpiCloseMaster(unsigned char channel)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+//I2C
+int LinxClient::I2cOpenMaster(unsigned char channel)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::I2cSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::I2cWrite(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned char* sendBuffer)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::I2cRead(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned int timeout, unsigned char* recBuffer)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::I2cClose(unsigned char channel)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+//UART
+int LinxClient::UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::UartWrite(unsigned char channel, unsigned char numBytes, unsigned char* sendBuffer)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::UartClose(unsigned char channel)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+//Servo
+int LinxClient::ServoOpen(unsigned char numChans, unsigned char* chans)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::ServoSetPulseWidth(unsigned char numChans, unsigned char* chans, unsigned short* pulseWidths)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+int LinxClient::ServoClose(unsigned char numChans, unsigned char* chans)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+// General
+void LinxClient::NonVolatileWrite(int address, unsigned char data)
+{
+	return;
+}
+
+unsigned char LinxClient::NonVolatileRead(int address)
+{
+	return L_FUNCTION_NOT_SUPPORTED;
+}
+

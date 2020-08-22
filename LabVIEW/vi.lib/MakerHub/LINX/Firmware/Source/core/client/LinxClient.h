@@ -50,6 +50,7 @@ class LinxClient : public LinxDevice
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values);		//Values Are ADC Ticks And Not Bit Packed
 		virtual int AnalogSetRef(unsigned char mode, unsigned int voltage);
+		virtual int AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned int* values);
 
 		//DIGITAL
 		virtual int DigitalSetDirection(unsigned char numChans, unsigned char* channels, unsigned char* values);

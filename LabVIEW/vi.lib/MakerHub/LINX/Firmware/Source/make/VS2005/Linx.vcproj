@@ -61,6 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -199,12 +200,15 @@
 				Name="Device"
 				>
 				<File
-					RelativePath="..\..\core\device\LinxBeagleBoneBlack.cpp"
-					>
-				</File>
-				<File
 					RelativePath="..\..\core\device\utility\LinxChannel.cpp"
 					>
+					<FileConfiguration
+						Name="Debug|Win32"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+						/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\core\device\utility\LinxDevice.cpp"
@@ -213,10 +217,14 @@
 				<File
 					RelativePath="..\..\core\device\utility\LinxLinuxChannel.cpp"
 					>
-				</File>
-				<File
-					RelativePath="..\..\core\device\LinxRaspberryPi.cpp"
-					>
+					<FileConfiguration
+						Name="Debug|Win32"
+						ExcludedFromBuild="true"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+						/>
+					</FileConfiguration>
 				</File>
 				<File
 					RelativePath="..\..\core\device\utility\LinxUtilities.cpp"
@@ -233,6 +241,14 @@
 				<File
 					RelativePath="..\..\core\device\utility\LinxWiringDevice.cpp"
 					>
+					<FileConfiguration
+						Name="Debug|Win32"
+						ExcludedFromBuild="true"
+						>
+						<Tool
+							Name="VCCLCompilerTool"
+						/>
+					</FileConfiguration>
 				</File>
 			</Filter>
 		</Filter>
@@ -265,10 +281,6 @@
 				Name="Device"
 				>
 				<File
-					RelativePath="..\..\core\device\LinxBeagleBoneBlack.h"
-					>
-				</File>
-				<File
 					RelativePath="..\..\core\device\utility\LinxChannel.h"
 					>
 				</File>
@@ -286,10 +298,6 @@
 				</File>
 				<File
 					RelativePath="..\..\core\device\utility\LinxLinuxChannel.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\core\device\LinxRaspberryPi.h"
 					>
 				</File>
 				<File
