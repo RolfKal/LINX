@@ -13,6 +13,7 @@
 **  Includes
 ****************************************************************************************/
 #include <stddef.h>
+#include <string.h>
 #include "LinxDefines.h"
 #if Unix
 #include "LinxLinuxChannel.h"
@@ -535,7 +536,7 @@ int LinxDevice::UartOpen(const char *deviceName, unsigned char *channel, LinxUar
 	if (!obj)
 	{
 #if Unix
-		obj = new LinxLinxUartChannel(m_Debug, deviceName);
+		obj = new LinxUartChannel(m_Debug, deviceName);
 #elif Win32
 		obj = new LinxWindowsUartChannel(m_Debug, deviceName);
 #endif
@@ -811,7 +812,7 @@ LinxChannel* LinxDevice::LookupChannel(int type, unsigned char channel)
 LinxChannel* LinxDevice::LookupChannel(int type, const char *channelName, unsigned char *channel)
 {
 	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	int i = 0, num = (int)m.size();
+	int num = (int)m.size();
 	if (num)
 	{
 		char buffer[32];

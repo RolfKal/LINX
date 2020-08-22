@@ -24,8 +24,11 @@
 #include <alloca.h>
 #include <poll.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <asm/ioctls.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <asm/termbits.h>
 #include <linux/i2c-dev.h>
 #include <linux/spi/spidev.h>

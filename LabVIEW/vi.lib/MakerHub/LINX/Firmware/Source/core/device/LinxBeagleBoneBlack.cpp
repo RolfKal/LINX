@@ -19,11 +19,10 @@
 #include <map>
 #include <string.h>
 #include "LinxDefines.h"
-#ifndef Win32
-#include <dirent.h>
+#if Unix
 #include <unistd.h>	
 #include <termios.h>
-#else
+#elif Win32
 #include <io.h>
 #endif
 #include "LinxDevice.h"

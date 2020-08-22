@@ -13,6 +13,7 @@
 #include <string.h>
 #if Unix
 #include <time.h>
+#include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #elif Win32
