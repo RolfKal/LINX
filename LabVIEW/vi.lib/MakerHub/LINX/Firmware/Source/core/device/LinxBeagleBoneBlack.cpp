@@ -73,7 +73,7 @@ static const char *g_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "
 static const char *g_UartDtoNames[NUM_UART_CHANS] = { "BB-UART0", "BB-UART1", "BB-UART4"};
 
 LinxBBBUartChannel::LinxBBBUartChannel(const char *deviceName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath) : 
-	LinxUnixUartChannel(debug, deviceName), LinxUnixSocketChannel(debug, deviceName)
+	LinxUnixSocketChannel(debug, deviceName), LinxUnixUartChannel(debug, deviceName)
 {
 	m_DtoName = dtoName;
 	m_DtoSlotsPath = dtoSlotsPath;
