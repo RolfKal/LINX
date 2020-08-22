@@ -22,7 +22,7 @@
 #if Unix
 #include <string.h>
 #include <alloca.h>
-#include <poll.h>min
+#include <poll.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -793,7 +793,7 @@ int LinxUnixSocketChannel::Read(unsigned char* recBuffer, int numBytes, int time
 
 		while (*numBytesRead < numBytes)
 		{
-			retval = poll(fds, 1, timeout < 0 ? -1 : min(timeout - (int)(getMsTicks() - start), 0));
+			retval = poll(fds, 1, timeout < 0 ? -1 : Min(timeout - (int)(getMsTicks() - start), 0));
 			if (retval <= 0)
 				return retval ? LUART_READ_FAIL : LUART_TIMEOUT;
 

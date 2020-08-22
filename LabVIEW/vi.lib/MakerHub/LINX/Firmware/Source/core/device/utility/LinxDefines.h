@@ -27,7 +27,6 @@
 #define NetSocket int
 #define INVALID_SOCKET -1
 #define closesocket(fd) close(fd)
-#define min(a, b) (((a) < (b)) ? (a) : (b) 
 #elif defined(__APPLE__) && defined(__MACH__)
 #define MacOSX	1
 #elif defined(__WXWORKS__) || defined(__vxworks__)
@@ -170,5 +169,8 @@ typedef enum LinxUartParity
 	Mark,
 	Space,
 } LinxUartParity;
+
+#define Min(a, b) (((a) < (b)) ? (a) : (b) 
+#define Max(a, b) (((a) > (b)) ? (a) : (b) 
 
 #endif
