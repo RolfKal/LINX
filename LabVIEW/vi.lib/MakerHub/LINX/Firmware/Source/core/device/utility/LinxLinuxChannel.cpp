@@ -20,9 +20,9 @@
 #include <fcntl.h>
 #include "LinxDefines.h"
 #if Unix
-#include <stdlib.h>
+#include <string.h>
 #include <alloca.h>
-#include <poll.h>
+#include <poll.h>min
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -722,7 +722,8 @@ LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *
     hints.ai_protocol = 0;
     hints.ai_flags = AI_NUMERICSERV;
 
-	if (!getaddrinfo(address, itoa(port, str, 10), &hints, &result))
+	sprintf(str, "%hu", port);
+	if (!getaddrinfo(address,  str, &hints, &result))
 	{
 		for (rp = result; rp != NULL; rp = rp->ai_next)
 		{
