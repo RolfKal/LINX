@@ -18,9 +18,9 @@
 **  Includes
 ****************************************************************************************/
 #include <fcntl.h>
-#include <algorithm>
 #include "LinxDefines.h"
 #if Unix
+#include <stdlib.h>
 #include <alloca.h>
 #include <poll.h>
 #include <unistd.h>
