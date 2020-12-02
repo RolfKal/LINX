@@ -4,7 +4,7 @@
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
 **  
-**  Written By Sam Kristoff
+**  Written by Rolf Kalbermatter
 **
 ** BSD2 License.
 ****************************************************************************************/	
@@ -15,12 +15,218 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h>
 
-#include "LinxDefines.h"
-#include "LinxChannel.h"
 #include "LinxWindowsChannel.h"
-#include "LinxDevice.h"
+#include "LinxUtilities.h"
+
+/***************************************** Socket ****************************************/
+
+/****************************************************************************************
+**  Constructor/Destructors
+****************************************************************************************/
+LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const char *channelName, OSSocket socket) : LinxCommChannel(debug, channelName)
+{
+	u_long nonBlocking = 1;
+	m_Socket = socket;
+	ioctlsocket(m_Socket, FIONBIO, &nonBlocking);
+}
+
+LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const char *address, unsigned short port) : LinxCommChannel(debug, address)
+{
+	struct addrinfo hints, *result, *rp;
+	char str[10];
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = AF_UNSPEC;
+    hints.ai_flags = AI_NUMERICSERV;
+
+	sprintf(str, "%hu", port);
+	if (!getaddrinfo(address,  str, &hints, &result))
+	{
+		for (rp = result; rp != NULL; rp = rp->ai_next)
+		{
+			m_Socket = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+			if (m_Socket < 0)
+				continue;
+
+			switch (rp->ai_addr->sa_family)
+			{
+				case AF_INET:
+					((sockaddr_in*)rp->ai_addr)->sin_port = port;
+					break;
+				case AF_INET6:
+					((sockaddr_in6*)rp->ai_addr)->sin6_port = port;
+					break;
+				default:
+					continue;
+			}
+            if (connect(m_Socket, rp->ai_addr, (socklen_t)rp->ai_addrlen) != -1)
+			{
+				u_long nonBlocking = 1;
+				if (ioctlsocket(m_Socket, FIONBIO, &nonBlocking) >= 0)
+					break;
+			}
+			closesocket(m_Socket);
+		}
+		freeaddrinfo(result);
+		if (rp == NULL)
+		{       
+			m_Debug->Write("Could not connect to TCP/IP address: ");
+			m_Debug->Writeln(address);
+		}
+	}
+}
+
+LinxWindowsCommChannel::~LinxWindowsCommChannel()
+{
+	if (m_Socket != INVALID_SOCKET)
+		closesocket(m_Socket);
+}
+
+#define kRetryLimit 25
+
+int LinxWindowsCommChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+{
+	*numBytesRead = 0;
+
+	if (recBuffer && numBytes)
+	{
+		unsigned long long start = getMsTicks();
+		struct timeval tout, *pto = timeout < 0 ? NULL : &tout;
+ 		int retval, syserr;
+        fd_set readfds;     /* read sockets */
+
+		FD_ZERO(&readfds);
+		FD_SET(m_Socket, &readfds);
+
+		while (*numBytesRead < numBytes)
+		{
+			int i = 0;
+			do
+			{
+				if (pto)
+				{
+					int elapsed = (int)(getMsTicks() - start);
+					if (elapsed < timeout)
+					{
+						elapsed = timeout - elapsed;
+						pto->tv_sec = elapsed / 1000;
+						pto->tv_usec = (elapsed % 1000) * 1000;
+					}
+					else
+					{
+						pto->tv_sec = 0;
+						pto->tv_usec = 0;
+					}
+				}
+			
+				retval = select(0, &readfds, NULL, NULL, pto);
+				if (retval < 0)
+				{
+					syserr = WSAGetLastError();
+					if ((syserr & 0xFFFF) != WSAEINTR || ++i >= kRetryLimit)
+						return LUART_READ_FAIL;
+				}
+			}
+			while (retval < 0);
+
+			if (!retval)
+				return LUART_TIMEOUT;
+
+			// some socket event was triggered, check which one
+			if (FD_ISSET(m_Socket, &readfds))
+			{
+				// Read bytes from input buffer
+				retval = recv(m_Socket, (char*)recBuffer + *numBytesRead, numBytes - *numBytesRead, 0);
+				if (retval < 0)
+					return LUART_READ_FAIL;
+				else if (!retval)
+					return LERR_CLOSED_BY_PEER;
+
+				*numBytesRead += retval;
+			}
+		}
+	}
+	else
+	{
+		// Check how many bytes are available
+		if (ioctlsocket(m_Socket, FIONREAD, (u_long*)numBytesRead) < 0)
+			return LUART_READ_FAIL;
+	}
+	return L_OK;
+}
+
+int LinxWindowsCommChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+{
+	if (sendBuffer && numBytes)
+	{
+		unsigned long long start = getMsTicks();
+		struct timeval tout, *pto = timeout < 0 ? NULL : &tout;
+ 		int bytesSent = 0, retval, syserr;
+        fd_set writefds;     /* write sockets */
+
+		FD_ZERO(&writefds);
+		FD_SET(m_Socket, &writefds);
+
+		while (bytesSent < numBytes)
+		{
+			int i = 0;
+			do
+			{
+				if (pto)
+				{
+					int elapsed = (int)(getMsTicks() - start);
+					if (elapsed < timeout)
+					{
+						elapsed = timeout - elapsed;
+						pto->tv_sec = elapsed / 1000;
+						pto->tv_usec = (elapsed % 1000) * 1000;
+					}
+					else
+					{
+						pto->tv_sec = 0;
+						pto->tv_usec = 0;
+					}
+				}
+			
+				retval = select(0, NULL, &writefds, NULL, pto);
+				if (retval < 0)
+				{
+					syserr = WSAGetLastError();
+					if (!pto || (syserr & 0xFFFF) != WSAEINTR || ++i >= kRetryLimit)
+						return LUART_READ_FAIL;
+				}
+			}
+			while (retval < 0);
+
+			if (!retval)
+				return LUART_TIMEOUT;
+
+			// some socket event was triggered, check which one
+			if (FD_ISSET(m_Socket, &writefds))
+			{
+				retval = send(m_Socket, (char*)sendBuffer + bytesSent, numBytes - bytesSent, 0);
+				if (retval < 0)
+					return LUART_WRITE_FAIL;
+
+				bytesSent += retval;
+			}
+		}
+	}
+	return L_OK;
+}
+
+int LinxWindowsCommChannel::Close()
+{
+	if (m_Socket != INVALID_SOCKET)
+		closesocket(m_Socket);
+	m_Socket = INVALID_SOCKET;
+	return L_OK;
+}
+
+/***************************************** Uart ****************************************/
 
 /****************************************************************************************
 **  Constructor/Destructors
@@ -187,39 +393,4 @@ int LinxWindowsUartChannel::Close()
 	if (m_Handle != INVALID_HANDLE_VALUE)
 		CloseHandle(m_Handle);
 	return L_OK;
-}
-
-LinxWindowsTcpChannel::LinxWindowsTcpChannel(LinxFmtChannel *debug, SOCKET fd) : LinxCommChannel("TCPSocket", debug)
-{
-}
-
-LinxWindowsTcpChannel::LinxWindowsTcpChannel(LinxFmtChannel *debug, const char *address, unsigned short port) : LinxCommChannel(address, debug)
-{
-}
-		
-LinxWindowsTcpChannel::~LinxWindowsTcpChannel()
-{
-}
-
-/****************************************************************************************
-**  Functions
-****************************************************************************************/
-int LinxWindowsTcpChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
-{
-	return 0;
-}
-
-int LinxWindowsTcpChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
-{
-	return 0;
-}
-
-int LinxWindowsTcpChannel::Close()
-{
-	return 0;
-}
-
-int LinxWindowsTcpChannel::SmartOpen()
-{
-	return 0;
 }

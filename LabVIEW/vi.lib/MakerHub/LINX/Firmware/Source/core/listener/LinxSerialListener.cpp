@@ -4,7 +4,8 @@
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
 **
-**  Written By Sam Kristoff
+**  Written by Sam Kristoff
+**  Modifications by Rolf Kalbermatter
 **
 ** BSD2 License.
 ****************************************************************************************/

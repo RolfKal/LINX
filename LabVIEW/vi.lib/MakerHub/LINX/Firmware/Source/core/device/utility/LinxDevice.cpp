@@ -4,7 +4,8 @@
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
 **  
-**  Written By Sam Kristoff
+**  Written by Sam Kristoff
+**  Modifications by Rolf Kalbermatter
 **
 ** BSD2 License.
 ****************************************************************************************/	
@@ -113,30 +114,28 @@ int LinxDevice::EnableDebug(LinxCommChannel *channel)
 
 void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* packetBuffer)
 {
-	#if DEBUG_ENABLED >= 0
-		if(direction == RX)
-		{
-			DebugPrint("Received :: ");
-		}
-		else if(direction == TX)
-		{
-			DebugPrint("Sending  :: ");
-		}
+	if (direction == RX)
+	{
+		m_Debug->Write("Received :: ");
+	}
+	else if(direction == TX)
+	{
+		m_Debug->Write("Sending  :: ");
+	}
 		
-		for (int i = 0; i<packetBuffer[1]; i++)
-		{
-			DebugPrint("[");
-			DebugPrint(packetBuffer[i], HEX);
-			DebugPrint("]");
-		}
-		DebugPrintln();
+	for (int i = 0; i<packetBuffer[1]; i++)
+	{
+		m_Debug->Write("[");
+		m_Debug->Write(packetBuffer[i], HEX);
+		m_Debug->Write("]");
+	}
+	m_Debug->Writeln();
 		
-		if (direction == TX)
-		{
-			//Add Second New Line After TX
-			DebugPrintln();
-		}
-	#endif
+	if (direction == TX)
+	{
+		//Add Second New Line After TX
+		m_Debug->Writeln();
+	}
 }
 
 
@@ -306,7 +305,7 @@ int LinxDevice::DigitalRead(unsigned char numChans, unsigned char* channels, uns
 		if (!chan)
 			return LERR_BADCHAN;
 
-		//If bitOffset Is 0 We Have To Start A New Byte, Store Old Byte And Increment OFfsets
+		//If bitOffset is 0 we have to start a new byte, store old byte and increment offset
 		if (bitOffset == 0)
 		{
 			//Insert retVal Into Response Buffer
@@ -321,7 +320,7 @@ int LinxDevice::DigitalRead(unsigned char numChans, unsigned char* channels, uns
 		}
 		status = chan->Read(&diVal);
 		if (!status)
-			retVal |= (diVal << bitOffset);	//Read Pin And Insert Value Into retVal
+			retVal |= (diVal << bitOffset);	//Read pin and insert value into retVal
 		chan->Release();
 	}
 	//Store Last Byte

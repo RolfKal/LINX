@@ -13,17 +13,22 @@
 **  Includes
 ****************************************************************************************/
 #include <string.h>
-#include "LinxDefines.h"
-#if Win32
-#include <malloc.h>
-#include <windows.h>
-#else
 #include <stdlib.h>
+#include <stdio.h>
+#include "LinxDefines.h"
+#if Unix
 #include <alloca.h>
+//#include <sys/types.h>
+#include <sys/socket.h>
+//#include <unistd.h>
+#include <arpa/inet.h>
+#elif Win32
+#include <malloc.h>
 #endif
 #include "LinxChannel.h" 
+#include "LinxUtilities.h"
 
-LinxChannel::LinxChannel(const char *channelName, LinxFmtChannel *debug)
+LinxChannel::LinxChannel(LinxFmtChannel *debug, const char *channelName)
 {
 	m_Debug = debug;
 	if (!m_Debug)
@@ -74,12 +79,12 @@ int LinxChannel::GetName(char* buffer, unsigned char numBytes)
 	return L_OK;
 }
 
-LinxFmtChannel::LinxFmtChannel() : LinxCommChannel("FormatChannel", NULL)
+LinxFmtChannel::LinxFmtChannel() : LinxCommChannel(NULL, "FormatChannel")
 {
 	m_Channel = NULL;
 }
 
-LinxFmtChannel::LinxFmtChannel(LinxCommChannel *channel) : LinxCommChannel("FormatChannel", NULL)
+LinxFmtChannel::LinxFmtChannel(LinxCommChannel *channel) : LinxCommChannel(NULL, "FormatChannel")
 {
 	if (channel)
 		channel->AddRef();
@@ -302,6 +307,7 @@ int LinxFmtChannel::SetChannel(LinxCommChannel *channel)
 	if (m_Channel)
 		m_Channel->Release();
 	m_Channel = channel;
-	m_Channel->AddRef();
+	if (m_Channel)
+		m_Channel->AddRef();
 	return L_OK;
 }

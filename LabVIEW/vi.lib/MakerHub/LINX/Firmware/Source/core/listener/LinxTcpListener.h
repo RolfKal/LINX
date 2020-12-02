@@ -25,10 +25,6 @@
 #if Unix
 #include <sys/time.h>
 #include <netinet/in.h>
-#define NetSocket int
-#elif Win32
-#include <winsock.h>
-#define NetSocket SOCKET
 #endif
 #include "utility\LinxListener.h"
 #include "LinxDevice.h"
@@ -36,29 +32,6 @@
 /****************************************************************************************
 **  Classes
 ****************************************************************************************/
-class LinxTcpChannel : public LinxCommChannel
-{
-	public:
-		/****************************************************************************************
-		**  Variables
-		****************************************************************************************/
-
-		/****************************************************************************************
-		**  Constructors
-		****************************************************************************************/
-		LinxTcpChannel(LinxFmtChannel *debug, NetSocket socket, int timeout);
-		virtual ~LinxTcpChannel();
-
-		/****************************************************************************************
-		**  Functions
-		****************************************************************************************/
-		virtual LinxChannel *QueryInterface(int interfaceId);
-
-		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
-		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
-		virtual int Close();
-};
-
 class LinxTcpListener : public LinxListener
 {
 	public:
@@ -83,10 +56,6 @@ class LinxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		int ReadData(unsigned char *buffer, int bytesToRead, int *numBytesRead);
-		int WriteData(unsigned char *buffer, int bytesToWrite);
-		int FlushData();
-
 	private:
 		/****************************************************************************************
 		**  Variables
@@ -94,8 +63,7 @@ class LinxTcpListener : public LinxListener
 		unsigned int m_TcpUpdateTime;
 		struct timeval m_TcpTimeout;
 
-		NetSocket m_ServerSocket;
-		NetSocket m_ClientSocket;
+		OSSocket m_ServerSocket;
 
 		struct sockaddr_in m_TcpServer;
 		struct sockaddr_in m_TcpClient;

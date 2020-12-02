@@ -36,9 +36,9 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxClient(unsigned char uartChannel, int timeout);
-		LinxClient(const char *uartDevice, int timeout);
-		LinxClient(const char *address, unsigned short port, int timeout);
+		LinxClient(unsigned char uartChannel, unsigned int baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout);
+		LinxClient(const char *uartDevice, unsigned int baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout);
+		LinxClient(const char *netAddress, unsigned short port, int timeout);
 		virtual ~LinxClient();
 
 		/****************************************************************************************
@@ -53,7 +53,7 @@ class LinxClient : public LinxDevice
 		virtual int AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned int* values);
 
 		//DIGITAL
-		virtual int DigitalSetDirection(unsigned char numChans, unsigned char* channels, unsigned char* values);
+		virtual int DigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);
 		virtual int DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Values Not Bit Packed
 		virtual int DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
@@ -125,7 +125,7 @@ class LinxClient : public LinxDevice
 		**  Functions
 		****************************************************************************************/
 		unsigned short GetNextPacketNum();
-		int PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int *headerLength);
+		int PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int expLength, int *headerLength);
 		int WriteAndRead(unsigned char *buffer, int buffLength, int *headerLength, int dataLength, int *dataRead);
 		void CopyArrayToSet(int type, unsigned char *arr, int length);
 

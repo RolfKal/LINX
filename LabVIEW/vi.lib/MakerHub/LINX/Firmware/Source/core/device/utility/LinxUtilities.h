@@ -12,8 +12,8 @@
 #ifndef LINX_UTILITIES_H
 #define LINX_UTILITIES_H
 
-#define getMilliSeconds()	(unsigned int)(getMsTicks())
-#define getSeconds()		(unsigned int)(getMsTicks())
+#define getMilliSeconds()	(unsigned int)(getMsTicks() & UINT_MAX)
+#define getSeconds()		(unsigned int)(getMsTicks() / 1000)
 #include <list>
 #include <string>
 

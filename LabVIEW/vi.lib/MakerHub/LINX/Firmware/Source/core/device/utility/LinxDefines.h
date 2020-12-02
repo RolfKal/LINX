@@ -14,7 +14,13 @@
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
 #define Win32	1
-#define NetSocket SOCKET
+#if defined(_WIN64)
+#define Win64   1
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#define OSSocket SOCKET
 #elif ARDUINO_VERSION
 #define Arduino 1
 #if ARDUINO_VERSION >= 100
@@ -24,13 +30,19 @@
 #endif
 #elif defined(unix) || defined(__unix) || defined(__unix__)
 #define Unix	1
-#define NetSocket int
+#define OSSocket int
 #define INVALID_SOCKET -1
 #define closesocket(fd) close(fd)
 #elif defined(__APPLE__) && defined(__MACH__)
 #define MacOSX	1
+#define OSSocket int
+#define INVALID_SOCKET -1
+#define closesocket(fd) close(fd)
 #elif defined(__WXWORKS__) || defined(__vxworks__)
 #define VxWorks 1
+#define OSSocket int
+#define INVALID_SOCKET -1
+#define closesocket(fd) close(fd)
 #endif
 
 // GPIO Values
@@ -40,8 +52,8 @@
 #define GPIO_INPUT		0x00
 #define GPIO_OUTPUT		0x01
 #define GPIO_ALT0		0x04
-#define GPIO_IOMASK		0x07
-#define GPIO_DIRMASK	0x07
+#define GPIO_IOMASK		0x06
+#define GPIO_DIRMASK	0x01
 
 #define GPIO_PULLNONE	0x00
 #define GPIO_PULLDOWN	0x10

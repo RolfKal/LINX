@@ -137,23 +137,15 @@ class LinxSysfsPwmChannel : public LinxPwmChannel
 		int SmartOpen();
 };
 
-class LinxUnixSocketChannel : public LinxCommChannel
+class LinxUnixCommChannel : public LinxCommChannel
 {
 	public:
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		/* Create a character device channel for the device name, used to access tty uart devices */
-		LinxUnixSocketChannel(LinxFmtChannel *debug, const char *deviceName);
-
-		/* Wrap a channel around the passed in file descriptor (which can be also a socket).
-		   Used to wrap a connected socket returned from accept()  */
-		LinxUnixSocketChannel(LinxFmtChannel *debug, const char *deviceName, int fd);
-
-		/* Create a connected TCP/IP socket channel with the address and port */
-		LinxUnixSocketChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
-
-		virtual ~LinxUnixSocketChannel();
+		LinxUnixCommChannel(LinxFmtChannel *debug, const char *channelName, OSSocket socket);
+		LinxUnixCommChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
+		virtual ~LinxUnixCommChannel();
 
 		/****************************************************************************************
 		**  Functions
@@ -162,26 +154,17 @@ class LinxUnixSocketChannel : public LinxCommChannel
 		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
 		virtual int Close();
 
-	protected:
-		/****************************************************************************************
-		**  Functions
-		****************************************************************************************/
-		virtual int SmartOpen() = 0;
+	private:
+		OSSocket m_Socket;
+}
 
-		/****************************************************************************************
-		**  Variables
-		****************************************************************************************/
-		int m_Fd;
-};
-
-class LinxUnixUartChannel : public LinxUartChannel, virtual public LinxUnixSocketChannel
+class LinxUnixUartChannel : public LinxUartChannel
 {
 	public:
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxUnixUartChannel(LinxFmtChannel *debug, const char *deviceName) : 
-		  LinxUnixSocketChannel(debug, deviceName), LinxUartChannel(debug, deviceName) {}
+		LinxUnixUartChannel(LinxFmtChannel *debug, const char *deviceName);
 		virtual ~LinxUnixUartChannel() {};
 
 		/****************************************************************************************
@@ -190,12 +173,18 @@ class LinxUnixUartChannel : public LinxUartChannel, virtual public LinxUnixSocke
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
 		virtual int SetBitSizes(unsigned char dataBits, unsigned char stopBits);
 		virtual int SetParity(LinxUartParity parity);
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Close();
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int SmartOpen();
+
+private:
+		int m_Fd;
 };
 
 class LinxSysfsI2cChannel : public LinxI2cChannel
@@ -204,7 +193,7 @@ class LinxSysfsI2cChannel : public LinxI2cChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsI2cChannel(const char *channelName, LinxFmtChannel *debug);
+		LinxSysfsI2cChannel(LinxFmtChannel *debug, const char *channelName);
 		virtual ~LinxSysfsI2cChannel();
 
 		/****************************************************************************************
@@ -240,7 +229,7 @@ class LinxSysfsSpiChannel : public LinxSpiChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int maxSpeed);
+		LinxSysfsSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, unsigned int maxSpeed);
 		virtual ~LinxSysfsSpiChannel();
 
 		/****************************************************************************************

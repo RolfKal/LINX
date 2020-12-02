@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <map>
 #include <string>
-#include <windows.h>
 #include "LinxDefines.h"
 #include "LinxDevice.h"
 

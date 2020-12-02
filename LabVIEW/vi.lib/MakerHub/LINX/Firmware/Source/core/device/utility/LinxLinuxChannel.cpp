@@ -19,7 +19,6 @@
 ****************************************************************************************/
 #include <fcntl.h>
 #include "LinxDefines.h"
-#if Unix
 #include <string.h>
 #include <alloca.h>
 #include <poll.h>
@@ -33,373 +32,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/spi/spidev.h>
-#elif Win32
-#include <io.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#define open	_open
-#define read	_read
-#define write	_write
-#define close	_close
-
-#define O_NOCTTY	1
-#define O_NONBLOCK	2
-
-/* c_cc characters */
-#define VINTR 0
-#define VQUIT 1
-#define VERASE 2
-#define VKILL 3
-#define VEOF 4
-#define VTIME 5
-#define VMIN 6
-#define VSWTC 7
-#define VSTART 8
-#define VSTOP 9
-#define VSUSP 10
-#define VEOL 11
-#define VREPRINT 12
-#define VDISCARD 13
-#define VWERASE 14
-#define VLNEXT 15
-#define VEOL2 16
-
-/* c_iflag bits */
-#define IGNBRK	0000001
-#define BRKINT	0000002
-#define IGNPAR	0000004
-#define PARMRK	0000010
-#define INPCK	0000020
-#define ISTRIP	0000040
-#define INLCR	0000100
-#define IGNCR	0000200
-#define ICRNL	0000400
-#define IUCLC	0001000
-#define IXON	0002000
-#define IXANY	0004000
-#define IXOFF	0010000
-#define IMAXBEL	0020000
-#define IUTF8	0040000
-
-/* c_oflag bits */
-#define OPOST	0000001
-#define OLCUC	0000002
-#define ONLCR	0000004
-#define OCRNL	0000010
-#define ONOCR	0000020
-#define ONLRET	0000040
-#define OFILL	0000100
-#define OFDEL	0000200
-#define NLDLY	0000400
-#define   NL0	0000000
-#define   NL1	0000400
-#define CRDLY	0003000
-#define   CR0	0000000
-#define   CR1	0001000
-#define   CR2	0002000
-#define   CR3	0003000
-#define TABDLY	0014000
-#define   TAB0	0000000
-#define   TAB1	0004000
-#define   TAB2	0010000
-#define   TAB3	0014000
-#define   XTABS	0014000
-#define BSDLY	0020000
-#define   BS0	0000000
-#define   BS1	0020000
-#define VTDLY	0040000
-#define   VT0	0000000
-#define   VT1	0040000
-#define FFDLY	0100000
-#define   FF0	0000000
-#define   FF1	0100000
-
-/* c_cflag bit meaning */
-#define CBAUD	0010017
-#define  B0	0000000		/* hang up */
-#define  B50	0000001
-#define  B75	0000002
-#define  B110	0000003
-#define  B134	0000004
-#define  B150	0000005
-#define  B200	0000006
-#define  B300	0000007
-#define  B600	0000010
-#define  B1200	0000011
-#define  B1800	0000012
-#define  B2400	0000013
-#define  B4800	0000014
-#define  B9600	0000015
-#define  B19200	0000016
-#define  B38400	0000017
-#define EXTA B19200
-#define EXTB B38400
-#define CSIZE	0000060
-#define   CS5	0000000
-#define   CS6	0000020
-#define   CS7	0000040
-#define   CS8	0000060
-#define CSTOPB	0000100
-#define CREAD	0000200
-#define PARENB	0000400
-#define PARODD	0001000
-#define HUPCL	0002000
-#define CLOCAL	0004000
-#define CBAUDEX 0010000
-#define    BOTHER 0010000
-#define    B57600 0010001
-#define   B115200 0010002
-#define   B230400 0010003
-#define   B460800 0010004
-#define   B500000 0010005
-#define   B576000 0010006
-#define   B921600 0010007
-#define  B1000000 0010010
-#define  B1152000 0010011
-#define  B1500000 0010012
-#define  B2000000 0010013
-#define  B2500000 0010014
-#define  B3000000 0010015
-#define  B3500000 0010016
-#define  B4000000 0010017
-#define CIBAUD	  002003600000	/* input baud rate */
-#define CMSPAR	  010000000000	/* mark or space (stick) parity */
-#define CRTSCTS	  020000000000	/* flow control */
-
-#define IBSHIFT	  16		/* Shift from CBAUD to CIBAUD */
-
-/* c_lflag bits */
-#define ISIG	0000001
-#define ICANON	0000002
-#define XCASE	0000004
-#define ECHO	0000010
-#define ECHOE	0000020
-#define ECHOK	0000040
-#define ECHONL	0000100
-#define NOFLSH	0000200
-#define TOSTOP	0000400
-#define ECHOCTL	0001000
-#define ECHOPRT	0002000
-#define ECHOKE	0004000
-#define FLUSHO	0010000
-#define PENDIN	0040000
-#define IEXTEN	0100000
-#define EXTPROC	0200000
-
-/* tcflow() and TCXONC use these */
-#define	TCOOFF		0
-#define	TCOON		1
-#define	TCIOFF		2
-#define	TCION		3
-
-/* tcflush() and TCFLSH use these */
-#define	TCIFLUSH	0
-#define	TCOFLUSH	1
-#define	TCIOFLUSH	2
-
-/* tcsetattr uses these */
-#define	TCSANOW		0
-#define	TCSADRAIN	1
-#define	TCSAFLUSH	2
-typedef unsigned char	cc_t;
-typedef unsigned int	speed_t;
-typedef unsigned int	tcflag_t;
-#define NCCS 19
-struct termios {
-	tcflag_t c_iflag;		/* input mode flags */
-	tcflag_t c_oflag;		/* output mode flags */
-	tcflag_t c_cflag;		/* control mode flags */
-	tcflag_t c_lflag;		/* local mode flags */
-	cc_t c_line;			/* line discipline */
-	cc_t c_cc[NCCS];		/* control characters */
-};
-
-struct termios2 {
-	tcflag_t c_iflag;		/* input mode flags */
-	tcflag_t c_oflag;		/* output mode flags */
-	tcflag_t c_cflag;		/* control mode flags */
-	tcflag_t c_lflag;		/* local mode flags */
-	cc_t c_line;			/* line discipline */
-	cc_t c_cc[NCCS];		/* control characters */
-	speed_t c_ispeed;		/* input speed */
-	speed_t c_ospeed;		/* output speed */
-};
-
-#define _IOC_NRBITS	8
-#define _IOC_TYPEBITS	8
-
-/*
- * Let any architecture override either of the following before
- * including this file.
- */
-
-#define _IOC_SIZEBITS	14
-#define _IOC_DIRBITS	2
-
-#define _IOC_NRMASK	((1 << _IOC_NRBITS)-1)
-#define _IOC_TYPEMASK	((1 << _IOC_TYPEBITS)-1)
-#define _IOC_SIZEMASK	((1 << _IOC_SIZEBITS)-1)
-#define _IOC_DIRMASK	((1 << _IOC_DIRBITS)-1)
-
-#define _IOC_NRSHIFT	0
-#define _IOC_TYPESHIFT	(_IOC_NRSHIFT+_IOC_NRBITS)
-#define _IOC_SIZESHIFT	(_IOC_TYPESHIFT+_IOC_TYPEBITS)
-#define _IOC_DIRSHIFT	(_IOC_SIZESHIFT+_IOC_SIZEBITS)
-
-#define _IOC_NONE	0U
-#define _IOC_WRITE	1U
-#define _IOC_READ	2U
-
-#define _IOC(dir,type,nr,size) \
-	(((dir)  << _IOC_DIRSHIFT) | \
-	 ((type) << _IOC_TYPESHIFT) | \
-	 ((nr)   << _IOC_NRSHIFT) | \
-	 ((size) << _IOC_SIZESHIFT))
-
-#define _IOC_TYPECHECK(t) (sizeof(t))
-
-//#define _IO(type,nr)		_IOC(_IOC_NONE,(type),(nr),0)
-//#define _IOR(type,nr,size)	_IOC(_IOC_READ,(type),(nr),(_IOC_TYPECHECK(size)))
-//#define _IOW(type,nr,size)	_IOC(_IOC_WRITE,(type),(nr),(_IOC_TYPECHECK(size)))
-//#define _IOWR(type,nr,size)	_IOC(_IOC_READ|_IOC_WRITE,(type),(nr),(_IOC_TYPECHECK(size)))
-
-//#define FIONREAD	_IOR('f', 127, int)
-#define TCGETS		_IOR('t', 19, struct termios)
-#define TCSETS		_IOW('t', 20, struct termios)
-#define TCSBRK		_IO('t', 29)
-#define TCXONC		_IO('t', 30)
-#define TCFLSH		_IO('t', 31)
-#define TCGETS2		_IOR('T', 42, struct termios2)
-#define TCSETS2		_IOW('T', 43, struct termios2)
-
-int ioctl(int, unsigned int, ...);
-
-//#define POLLIN 0
-
-//struct pollfd
-//{
-//    int  fd;
-//    short   events;
-//   short   revents;
-//};
-
-int poll(struct pollfd *fdArray, unsigned int fds, int timeout);
-
-#define SPI_CPHA		0x01
-#define SPI_CPOL		0x02
-
-#define SPI_MODE_0		(0|0)
-#define SPI_MODE_1		(0|SPI_CPHA)
-#define SPI_MODE_2		(SPI_CPOL|0)
-#define SPI_MODE_3		(SPI_CPOL|SPI_CPHA)
-
-#define SPI_CS_HIGH		0x04
-#define SPI_LSB_FIRST		0x08
-#define SPI_3WIRE		0x10
-#define SPI_LOOP		0x20
-#define SPI_NO_CS		0x40
-#define SPI_READY		0x80
-#define SPI_TX_DUAL		0x100
-#define SPI_TX_QUAD		0x200
-#define SPI_RX_DUAL		0x400
-#define SPI_RX_QUAD		0x800
-
-#define SPI_IOC_MAGIC			'k'
-
-struct spi_ioc_transfer {
-	unsigned long		tx_buf;
-	unsigned long		rx_buf;
-
-	unsigned int		len;
-	unsigned int		speed_hz;
-
-	unsigned short		delay_usecs;
-	unsigned char		bits_per_word;
-	unsigned char		cs_change;
-	unsigned char		tx_nbits;
-	unsigned char		rx_nbits;
-	unsigned char		pad;
-
-	/* If the contents of 'struct spi_ioc_transfer' ever change
-	 * incompatibly, then the ioctl number (currently 0) must change;
-	 * ioctls with constant size fields get a bit more in the way of
-	 * error checking than ones (like this) where that field varies.
-	 *
-	 * NOTE: struct layout is the same in 64bit and 32bit userspace.
-	 */
-};
-
-/* not all platforms use <asm-generic/ioctl.h> or _IOC_TYPECHECK() ... */
-#define SPI_IOC_MESSAGE(N) 0
-
-
-/* Read / Write of SPI mode (SPI_MODE_0..SPI_MODE_3) (limited to 8 bits) */
-#define SPI_IOC_RD_MODE		0
-#define SPI_IOC_WR_MODE		0
-
-/* Read / Write SPI bit justification */
-#define SPI_IOC_RD_LSB_FIRST	0
-#define SPI_IOC_WR_LSB_FIRST	0
-
-/* Read / Write SPI device word length (1..N) */
-#define SPI_IOC_RD_BITS_PER_WORD	0
-#define SPI_IOC_WR_BITS_PER_WORD	0
-
-/* Read / Write SPI device default max speed hz */
-#define SPI_IOC_RD_MAX_SPEED_HZ		0
-#define SPI_IOC_WR_MAX_SPEED_HZ		0
-
-/* Read / Write of the SPI mode field */
-#define SPI_IOC_RD_MODE32		0
-#define SPI_IOC_WR_MODE32		0
-
-struct i2c_msg
-{
-	unsigned short addr;
-	unsigned short flags;
-	unsigned short len;
-	unsigned char *buf;
-};
-
-struct i2c_rdwr_ioctl_data
-{
-	struct i2c_msg *msgs;
-	unsigned int nmsgs;
-};
-
-#define I2C_RDRW_IOCTL_MAX_MSGS	42
-
-#define I2C_TIMEOUT			0x702		// type uLong, Sets the transfer timeout in 10ms units
-#define I2C_SLAVE			0x703		// type uLong, 
-#define I2C_FUNCS			0x705		// type uLong*, 
-#define I2C_RDWR			0x707		// struct i2c_rdwr_ioctl_data*
-
-#define I2C_M_RD			0x0001
-#define I2C_M_TEN			0x0010		// only if I2C_FUNC return value contains I2C_FUNC_10BIT_ADDR
-#define I2C_M_RECV_LEN		0x0400
-#define I2C_M_NO_RD_ACK		0x0800		// only if I2C_FUNC return value contains I2C_FUNC_PROTOCOL_MANGLING
-#define I2C_M_IGNORE_NAK	0x1000		// only if I2C_FUNC return value contains I2C_FUNC_PROTOCOL_MANGLING
-#define I2C_M_REV_DIR_ADDR	0x2000		// only if I2C_FUNC return value contains I2C_FUNC_PROTOCOL_MANGLING
-#define I2C_M_NOSTART		0x4000		// only if I2C_FUNC return value contains I2C_FUNC_NOSTART
-#define I2C_M_STOP			0x8000		// only if I2C_FUNC return value contains I2C_FUNC_PROTOCOL_MANGLING
-
-#define I2C_FUNC_I2C				0x00000001
-#define I2C_FUNC_10BIT_ADDR			0x00000002
-#define I2C_FUNC_PROTOCOL_MANGLING	0x00000004
-#define I2C_FUNC_SMBUS_PEC			0x00000008
-#define I2C_FUNC_NOSTART			0x00000010
-
-#define CLOCK_MONOTONIC 0
-typedef struct
-{
-	long tv_sec;
-	unsigned long tv_nsec;
-}
-timespec;
-void clock_gettime(int, timespec *mTime);
-void usleep(long);
-#endif
 #include "LinxUtilities.h"
 #include "LinxLinuxChannel.h"
 
@@ -542,7 +174,7 @@ int LinxSysfsDioChannel::SetState(unsigned char state)
 	char direction = state & GPIO_DIRMASK;
 	if ((m_State & GPIO_DIRMASK) != direction)
 	{
-		//Set As Input or Output
+		//Set as input or output
 		fprintf(m_DirHandle, direction ? "out" : "in");
 		fflush(m_DirHandle);
 		m_State = (m_State & ~GPIO_DIRMASK) | direction;
@@ -556,7 +188,7 @@ int LinxSysfsDioChannel::Write(unsigned char value)
 	int status = SetState(GPIO_OUTPUT);
 	if (!status)
 	{
-		// Set Value
+		// Set value
 		fprintf(m_ValHandle, value ? "1" : "0");
 		fflush(m_ValHandle);
 	}
@@ -571,11 +203,11 @@ int LinxSysfsDioChannel::Read(unsigned char *value)
 	int status = SetState(GPIO_INPUT);
 	if (!status)
 	{
-		//Reopen Value Handle
+		//Reopen value handle
 		sprintf(valPath, "/sys/class/gpio/gpio%d/value", m_GpioChan);
 		m_ValHandle = freopen(valPath, "r+w+", m_ValHandle);
 
-		//Read From Next Pin
+		//Read from next pin
 		fscanf(m_ValHandle, "%hhu", value);
 	}
 	return status;
@@ -699,19 +331,13 @@ int LinxSysfsPwmChannel::SetDutyCycle(unsigned char value)
 }
 
 
-
-//------------------------------------- UART -------------------------------------
-LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *deviceName) : LinxCommChannel(deviceName, debug)
+//------------------------------------- Unix Comm -------------------------------------
+LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const char *channelName, OSSocket socket) : LinxCommChannel(debug, channelName)
 {
-	m_Fd = -1;
+	m_Socket = socket;
 }
 
-LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *deviceName, int fd) : LinxCommChannel(deviceName, debug)
-{
-	m_Fd = fd;
-}
-
-LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *address, unsigned short port) : LinxCommChannel(address, debug)
+LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const char *address, unsigned short port) : LinxCommChannel(debug, address)
 {
     struct addrinfo hints, *result, *rp;
 	char str[10];
@@ -719,7 +345,7 @@ LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = 0;
+    hints.ai_protocol = AF_UNSPEC;
     hints.ai_flags = AI_NUMERICSERV;
 
 	sprintf(str, "%hu", port);
@@ -727,14 +353,25 @@ LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *
 	{
 		for (rp = result; rp != NULL; rp = rp->ai_next)
 		{
-			NetSocket m_Fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-			if (m_Fd < 0)
+			m_Socket = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+			if (m_Socket < 0)
 				continue;
 
-            if (connect(m_Fd, rp->ai_addr, (socklen_t)rp->ai_addrlen) != -1)
+			switch (rp->ai_addr->sa_family)
+			{
+				case AF_INET:
+					((sockaddr_in*)rp->ai_addr)->sin_port = port;
+					break;
+				case AF_INET6:
+					((sockaddr_in6*)rp->ai_addr)->sin6_port = port;
+					break;
+				default:
+					continue;
+			}
+            if (connect(m_Socket, rp->ai_addr, (socklen_t)rp->ai_addrlen) != -1)
 				break;
 
-			closesocket(m_Fd);
+			closesocket(m_Socket);
 		}
 		freeaddrinfo(result);
 		if (rp == NULL)
@@ -745,60 +382,33 @@ LinxUnixSocketChannel::LinxUnixSocketChannel(LinxFmtChannel *debug, const char *
 	}
 }
 
-LinxUnixSocketChannel::~LinxUnixSocketChannel()
+LinxUnixCommChannel::~LinxUnixCommChannel()
 {
-	if (m_Fd >= 0)
-		close(m_Fd);
+	if (m_Socket != INVALID_SOCKET)
+		close(m_Socket);
 }
 
-int LinxUnixSocketChannel::SmartOpen()
+int LinxUnixCommChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
 {
-	if (m_Fd < 0)
-	{
-		struct termios2 options;
-
-		// Open device as read/write, no CTRL-C handling and non-blocking
-		m_Fd = open(m_ChannelName, O_RDWR | O_NOCTTY | O_NONBLOCK);
-		if (m_Fd < 0)
-		{
-			m_Debug->Write("Unix Socket Fail - Failed to open file handle - ");
-			m_Debug->Writeln(m_ChannelName);
-			return  LUART_OPEN_FAIL;
-		}
-		if (ioctl(m_Fd, TCGETS, &options) < 0)
-			return LERR_IO;
-
-		options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // Use raw input mode
-		options.c_oflag &= ~OPOST;							// Use raw output mode
-	}
-	return L_OK;
-}
-
-int LinxUnixSocketChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
-{
-	int status = SmartOpen();
-	if (status)
-		return status;
-
 	*numBytesRead = 0;
 
 	if (recBuffer && numBytes)
 	{
 		struct pollfd fds[1];
 		int retval, offset = 0;
-		unsigned long long start = getMsTicks();
+		unsigned long long start = getMilliSeconds();
 
-		fds[0].fd = m_Fd;
+		fds[0].fd = m_Socket;
 		fds[0].events = POLLIN ;
 
 		while (*numBytesRead < numBytes)
 		{
-			retval = poll(fds, 1, timeout < 0 ? -1 : Min(timeout - (int)(getMsTicks() - start), 0));
+			retval = poll(fds, 1, timeout < 0 ? -1 : Min(timeout - (int)(getMilliSeconds() - start), 0));
 			if (retval <= 0)
 				return retval ? LUART_READ_FAIL : LUART_TIMEOUT;
 
 			// Read bytes from input buffer
-			retval = read(m_Fd, recBuffer + offset, numBytes - offset);
+			retval = read(m_Socket, recBuffer + offset, numBytes - offset);
 			if (retval < 0)
 				return LUART_READ_FAIL;
 			*numBytesRead += retval;
@@ -807,35 +417,55 @@ int LinxUnixSocketChannel::Read(unsigned char* recBuffer, int numBytes, int time
 	else
 	{
 		// Check how many bytes are available
-		if (ioctl(m_Fd, FIONREAD, numBytesRead) < 0)
+		if (ioctl(m_Socket, FIONREAD, numBytesRead) < 0)
 			return LUART_READ_FAIL;
 	}
-	return status;
+	return L_OK;
 }
 
-int LinxUnixSocketChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+int LinxUnixCommChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
 {
-	int status = SmartOpen();
-	if (status)
-		return status;
-
-	int bytesSent = write(m_Fd, sendBuffer, numBytes);
+	int bytesSent = write(m_Socket, sendBuffer, numBytes);
 	if (bytesSent != numBytes)
 	{
 		return LUART_WRITE_FAIL;
 	}
-	return  L_OK;
+	return L_OK;
 }
 
-int LinxUnixSocketChannel::Close()
+int LinxUnixCommChannel::Close()
 {
-	if (m_Fd >= 0)
-		close(m_Fd);
-	m_Fd = -1;
+	if (m_Socket != INVALID_SOCKET)
+		close(m_Socket);
+	m_Socket = INVALID_SOCKET;
 	return L_OK;
 }
 
 //------------------------------------- UART -------------------------------------
+LinxUnixUartChannel::LinxUnixUartChannel(LinxFmtChannel *debug, const char *deviceName) : LinxUartChannel(deviceName, debug)
+{
+	struct termios2 options;
+
+	// Open device as read/write, no CTRL-C handling and non-blocking
+	m_Socket = open(m_ChannelName, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	if (m_Socket < 0)
+	{
+		m_Debug->Write("Unix Socket Fail - Failed to open file handle - ");
+		m_Debug->Writeln(m_ChannelName);
+		return  LUART_OPEN_FAIL;
+	}
+	if (ioctl(m_Socket, TCGETS, &options) < 0)
+		return LERR_IO;
+
+	options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // Use raw input mode
+	options.c_oflag &= ~OPOST;							// Use raw output mode
+
+	if (ioctl(m_Socket, TCSETS, &options) < 0)
+		return LERR_IO;
+
+	return L_OK;
+}
+
 static unsigned int g_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
 static unsigned int g_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
 
@@ -960,6 +590,59 @@ int LinxUnixUartChannel::SetParity(LinxUartParity parity)
 			return  L_OK;
 	}
 	return LERR_IO;
+}
+
+int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+{
+	*numBytesRead = 0;
+
+	if (recBuffer && numBytes)
+	{
+		struct pollfd fds[1];
+		int retval, offset = 0;
+		unsigned long long start = getMilliSeconds();
+
+		fds[0].fd = m_Fd;
+		fds[0].events = POLLIN ;
+
+		while (*numBytesRead < numBytes)
+		{
+			retval = poll(fds, 1, timeout < 0 ? -1 : Min(timeout - (int)(getMilliSeconds() - start), 0));
+			if (retval <= 0)
+				return retval ? LUART_READ_FAIL : LUART_TIMEOUT;
+
+			// Read bytes from input buffer
+			retval = read(m_Fd, recBuffer + offset, numBytes - offset);
+			if (retval < 0)
+				return LUART_READ_FAIL;
+			*numBytesRead += retval;
+		}
+	}
+	else
+	{
+		// Check how many bytes are available
+		if (ioctl(m_Fd, FIONREAD, numBytesRead) < 0)
+			return LUART_READ_FAIL;
+	}
+	return status;
+}
+
+int LinxUnixUartChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+{
+	int bytesSent = write(m_Fd, sendBuffer, numBytes);
+	if (bytesSent != numBytes)
+	{
+		return LUART_WRITE_FAIL;
+	}
+	return  L_OK;
+}
+
+int LinxUnixUartChannel::Close()
+{
+	if (m_Fd != INVALID_SOCKET)
+		close(m_Fd);
+	m_Fd = INVALID_SOCKET;
+	return L_OK;
 }
 
 //------------------------------------- I2C -------------------------------------

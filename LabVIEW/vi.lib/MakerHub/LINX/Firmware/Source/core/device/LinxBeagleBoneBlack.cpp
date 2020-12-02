@@ -4,7 +4,8 @@
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
 **  
-**  Written By Sam Kristoff
+**  Written by Sam Kristoff
+**  Modifications by Rolf Kalbermatter
 **
 ** BSD2 License.
 ****************************************************************************************/	
@@ -19,12 +20,8 @@
 #include <map>
 #include <string.h>
 #include "LinxDefines.h"
-#if Unix
 #include <unistd.h>	
 #include <termios.h>
-#elif Win32
-#include <io.h>
-#endif
 #include "LinxDevice.h"
 #include "LinxUtilities.h"
 #include "LinxBeagleBoneBlack.h"
@@ -542,11 +539,6 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	{
 		RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxBBBSpiChannel(g_SpiPaths[i], m_Debug, this, g_SpiDefaultSpeed, g_SpiDtoNames[i], m_DtoSlotsPath));
 	}
-	
-	//If Debugging Is Enabled Call EnableDebug()
-	#if DEBUG_ENABLED >= 0
-		EnableDebug(DEBUG_ENABLED);
-	#endif
 }
 
 //Destructor

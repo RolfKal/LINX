@@ -4,7 +4,8 @@
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
 **  
-**  Written By Sam Kristoff
+**  Written by Sam Kristoff
+**  Modifications by Rolf Kalbermatter
 **
 ** BSD2 License.
 ****************************************************************************************/	
@@ -51,9 +52,9 @@ extern "C" int LinxOpen()
 	return L_OK;
 }
 
-extern "C" LinxDevice * LinxOpenSerialDevice(const char *deviceName, int timeout)
+extern "C" LinxDevice * LinxOpenSerialDevice(const char *deviceName, unsigned int baudrate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout)
 {
-	LinxClient *client = new LinxClient(deviceName, timeout);
+	LinxClient *client = new LinxClient(deviceName, baudrate, dataBits, stopBits, parity, timeout);
 	if (client)
 		client->Initialize();
 	return client;

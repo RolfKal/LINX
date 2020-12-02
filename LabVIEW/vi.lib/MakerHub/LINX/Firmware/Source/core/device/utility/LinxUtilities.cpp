@@ -8,16 +8,14 @@
 **
 ** BSD2 License.
 ****************************************************************************************/
-#include "LinxDefines.h"
 #include <stdio.h>
 #include <string.h>
+#include "LinxDefines.h"
 #if Unix
 #include <time.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#elif Win32
-#include <windows.h>
 #endif
 #include "LinxUtilities.h"
 

@@ -20,21 +20,20 @@
 **  Includes
 ****************************************************************************************/
 #include <stdio.h>
-#include <windows.h>
 #include "LinxDefines.h"
 #include "LinxDevice.h"
 
 using namespace std;
 
-class LinxWindowsTcpChannel : public LinxCommChannel
+class LinxWindowsCommChannel : public LinxCommChannel
 {
 	public:
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxWindowsTcpChannel(LinxFmtChannel *debug, SOCKET fd);
-		LinxWindowsTcpChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
-		~LinxWindowsTcpChannel();
+		LinxWindowsCommChannel(LinxFmtChannel *debug, const char *channelName, OSSocket socket);
+		LinxWindowsCommChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
+		~LinxWindowsCommChannel();
 
 		/****************************************************************************************
 		**  Functions
@@ -47,13 +46,12 @@ class LinxWindowsTcpChannel : public LinxCommChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SmartOpen();
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		SOCKET m_Socket;
+		OSSocket m_Socket;
 };
 
 class LinxWindowsUartChannel : public LinxUartChannel
@@ -86,5 +84,34 @@ class LinxWindowsUartChannel : public LinxUartChannel
 		**  Variables
 		****************************************************************************************/
 		HANDLE m_Handle;
+};
+
+class LinxWindowsSocketChannel : public LinxCommChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxWindowsSocketChannel(LinxFmtChannel *debug, const char *name, OSSocket socket);
+		LinxWindowsSocketChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
+		~LinxWindowsSocketChannel();
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
+		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Close();
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		OSSocket m_Socket;
 };
 #endif //LINX_WINDOWSCHANNEL_H

@@ -55,7 +55,7 @@
 /****************************************************************************************
 **  Digital I/O
 ****************************************************************************************/
-//#define LCMD_SET_PIN_MODE			0x0040	// Set Pin Mode
+#define LCMD_SET_PIN_MODE			0x0040	// Set Pin Mode
 #define LCMD_DIGITAL_WRITE			0x0041	// Digital Write
 #define LCMD_DIGITAL_READ			0x0042	// Digital Read
 #define LCMD_SET_SQUARE_WAVE		0x0043	// Write Square Wave

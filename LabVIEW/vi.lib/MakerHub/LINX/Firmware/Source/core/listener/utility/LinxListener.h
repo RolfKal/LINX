@@ -59,7 +59,6 @@ class LinxListener
 		**  Variables
 		****************************************************************************************/
 		LinxDevice *m_LinxDev;
-		LinxCommChannel *m_Channel;
 		LinxFmtChannel *m_Debug;
 
 		/****************************************************************************************
@@ -70,6 +69,7 @@ class LinxListener
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
+		LinxCommChannel *m_Channel;
 		CustomCommand m_CustomCommands[MAX_CUSTOM_CMDS];
 		PeriodicTask m_PeriodicTask;
 

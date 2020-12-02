@@ -21,7 +21,7 @@ LinxChannel								LinxChannel.h			A			Generic Channel
 			LinxUnixUartChannel			LinxLinuxChannel.h		Y			 For Unix termio based systems
 				LinxBBBUartChannel		LinxBeagleboneBlack.h	Y			 For Beaglebone Black, special DTO handling
 			LinxWindowsUartChannel		LinxWindowsDevice.h					 For Windows, using Windows COMM API
-			LinxWiringDioChannel		LinxWiringChannel.h					 For Arduino
+			LinxWiringUartChannel		LinxWiringChannel.h					 For Arduino
 		LinxUnixTcpChannel				LinxLinuxChannel.h					 For Unix BSD sockets
 		LinxWindowsTcpChannel			LinxWindowsDevice.h					 For Windows sockets
 		LinxWiringTcpChannel			LinxWiringChannel.h					 For Arduino TCP connections

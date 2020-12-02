@@ -4,7 +4,8 @@
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
 **
-**  Written By Sam Kristoff
+**  Written by Sam Kristoff
+**  Modifications by Rolf Kalbermatter
 **
 ** BSD2 License.
 ****************************************************************************************/
@@ -167,7 +168,7 @@ int LinxListener::PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned 
 	{
 		offset = WriteU32ToBuff(responsePacketBuffer, 0, dataSize + 8);
 	}
-	else if (commandPacketBuffer[0] == 0xFE)
+	else if (commandPacketBuffer[0] == 0xFF)
 	{
 		responsePacketBuffer[1] = dataSize + 6;					
 	}
@@ -653,7 +654,20 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 		/****************************************************************************************
 		**  Digital I/O
 		****************************************************************************************/
-		//case LCMD_SET_PIN_MODE: //TODO Set Pin Mode
+		case LCMD_SET_PIN_MODE: // Set Pin Mode
+			// Command parameters
+			// uint8 : num channels
+			// uint8[numChans] : channels
+			// uint8[numChans] : states
+			// Response parameters
+			// None
+			if (length > 2 * commandPacketBuffer[offset])
+			{
+				int numChans = commandPacketBuffer[offset];
+				status = m_LinxDev->DigitalSetState(numChans, commandPacketBuffer + offset + 1, commandPacketBuffer + offset + 1 + numChans);
+			}
+			length = 0;
+			break;
 
 		case LCMD_DIGITAL_WRITE: // Digital Write
 			// Command parameters
@@ -689,6 +703,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 
 		case LCMD_SET_SQUARE_WAVE: //Write Square Wave
 			// Command parameters
+			// uint8  : channel
 			// uint32 : frequency
 			// uint32 : duration
 			// Response parameters

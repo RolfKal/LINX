@@ -17,7 +17,6 @@
 #include <string.h>
 
 #include "LinxDefines.h"
-#include "LinxChannel.h"
 #include "LinxDevice.h"
 #if Unix
 #include "LinxLinuxChannel.h"
@@ -29,37 +28,45 @@
 #include "LinxCommand.h"
 #include "LinxUtilities.h"
 #include "LinxClient.h"
-
 static unsigned char m_Unknown[] = "Uninitialized Device Client";
 
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
-LinxClient::LinxClient(const char *uartDevice, int timeout)
+LinxClient::LinxClient(const char *uartDevice, unsigned int baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout)
 {
-	m_DeviceName = m_Unknown;
-	m_ListenerBufferSize = 255;
-	m_PacketNum = (unsigned int)((double)rand() / RAND_MAX * 0xFFFF);
-
-	m_Timeout = timeout;
+	LinxUartChannel *channel;
 #if Unix
-	m_CommChannel = new LinxLinuxSocketChannel(m_Debug, uaertDevice);
+	channel = new LinxUnixUartChannel(m_Debug, uaertDevice);
 #elif Win32
-	m_CommChannel = new LinxWindowsUartChannel(m_Debug, uartDevice);
+	channel = new LinxWindowsUartChannel(m_Debug, uartDevice);
 #endif
+	if (channel)
+	{
+		unsigned int actualSpeed;
+		int status = channel->SetSpeed(baudrate, &actualSpeed);
+		status = channel->SetBitSizes(dataBits, stopBits);
+		status = channel->SetParity(parity);
+		m_CommChannel = channel;
+		m_DeviceName = m_Unknown;
+		m_ListenerBufferSize = 255;
+		m_PacketNum = (unsigned int)((double)rand() / RAND_MAX * 0xFFFF);
+		m_Timeout = timeout;
+	}
 }
 
-LinxClient::LinxClient(const char *address, unsigned short port, int timeout)
+LinxClient::LinxClient(const char *netAddress, unsigned short port, int timeout)
 {
 	m_DeviceName = m_Unknown;
 	m_ListenerBufferSize = 255;
 	m_PacketNum = (unsigned int)((double)rand() / RAND_MAX * 0xFFFF);
 
 	m_Timeout = timeout;
+	m_CommChannel = 
 #if Unix
-	m_CommChannel = new LinxLinuxSocketChannel(m_Debug, address, port);
+	new LinxUnixCommChannel(m_Debug, netAddress, port);
 #elif Win32
-	m_CommChannel = new LinxWindowsTcpChannel(m_Debug, address, port);
+	new LinxWindowsCommChannel(m_Debug, netAddress, port);
 #endif
 }
 
@@ -78,15 +85,15 @@ unsigned short LinxClient::GetNextPacketNum()
 	return m_PacketNum++;
 }
 
-int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int *headerLength)
+int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int expLength, int *headerLength)
 {
 	dataLength += 7;
 	if (dataLength >= (int)m_ListenerBufferSize || dataLength > 0xFFFFFD)
 		return LERR_MSG_TO_LONG;
 
-	if (dataLength <= 255)
+	if (dataLength <= 255 && expLength <= 248)
 	{
-		*headerLength = WriteU16ToBuff(buffer, 0,  0xFF00 + (unsigned short)dataLength);
+		*headerLength = WriteU16ToBuff(buffer, 0, 0xFF00 + (unsigned short)dataLength);
 	}
 	else
 	{
@@ -161,7 +168,7 @@ int LinxClient::GetNoParameter(unsigned short command)
 {
 	unsigned char buffer[20];
 	int headerLength;
-	int status = PrepareHeader(buffer, command, 0, &headerLength);
+	int status = PrepareHeader(buffer, command, 0, 0, &headerLength);
 	if (!status)
 	{
 		int dataRead;
@@ -175,7 +182,7 @@ int LinxClient::GetU8Parameter(unsigned short command, unsigned char *val)
 {
 	unsigned char buffer[20];
 	int headerLength;
-	int status = PrepareHeader(buffer, command, 0, &headerLength);
+	int status = PrepareHeader(buffer, command, 0, 1, &headerLength);
 	if (!status)
 	{
 		int dataRead;
@@ -193,7 +200,7 @@ int LinxClient::GetU16Parameter(unsigned short command, unsigned short *val)
 {
 	unsigned char buffer[20];
 	int headerLength;
-	int status = PrepareHeader(buffer, command, 0, &headerLength);
+	int status = PrepareHeader(buffer, command, 0, 2, &headerLength);
 	if (!status)
 	{
 		int dataRead;
@@ -211,13 +218,13 @@ int LinxClient::GetU32Parameter(unsigned short command, unsigned int *val)
 {
 	unsigned char buffer[20];
 	int headerLength;
-	int status = PrepareHeader(buffer, command, 0, &headerLength);
+	int status = PrepareHeader(buffer, command, 0, 4, &headerLength);
 	if (!status)
 	{
 		int dataRead;
 		// send data and read response
 		status = WriteAndRead(buffer, 20, &headerLength, 0, &dataRead);
-		if (!status)
+		if (!status && dataRead >= headerLength + 4)
 		{
 			ReadU32FromBuff(buffer, headerLength, val);
 		}
@@ -227,7 +234,7 @@ int LinxClient::GetU32Parameter(unsigned short command, unsigned int *val)
 
 int LinxClient::GetU8ArrParameter(unsigned short command, unsigned char *buffer, int buffLength, int *headerLength, int *dataRead)
 {
-	int status = PrepareHeader(buffer, command, 0, headerLength);
+	int status = PrepareHeader(buffer, command, 0, buffLength - 7, headerLength);
 	if (!status)
 	{
 		// send data and read response
@@ -430,39 +437,220 @@ int LinxClient::AnalogWrite(unsigned char numChans, unsigned char* channels, uns
 }
 
 //DIGITAL
-int LinxClient::DigitalSetDirection(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int LinxClient::DigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char* states)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	// Command parameters
+	// uint8 : num channels
+	// uint8[numChans] : channels
+	// uint8[numChans] : states
+	// Response parameters
+	// None
+	int status = LERR_MEMORY;
+	int offset, length = 1 + 2 * numChans;
+	unsigned char *buffer = (unsigned char *)malloc(10 + length);
+	if (buffer)
+	{
+		status = PrepareHeader(buffer, LCMD_SET_PIN_MODE, length, 0, &offset);
+		if (!status)
+		{
+			buffer[offset] = numChans;
+			memcpy(buffer + offset + 1, channels, numChans);
+			memcpy(buffer + offset + 1 + numChans, states, numChans);
+
+			// send data and read response
+			status = WriteAndRead(buffer, offset + length, &offset, 0, &length);
+		}
+		free(buffer);
+	}
+	return status;
 }
 
 int LinxClient::DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	// Command parameters
+	// uint8 : num channels
+	// uint8[numChans] : channels
+	// uint8[numChans + 7 / 8] : packed values
+	// Response parameters
+	// None
+	int status = LERR_MEMORY;
+	int offset, length = 1 + numChans + ((numChans + 7) >> 3);
+	unsigned char *buffer = (unsigned char *)malloc(10 + length);
+	if (buffer)
+	{
+		status = PrepareHeader(buffer, LCMD_DIGITAL_WRITE, length, 0, &offset);
+		if (!status)
+		{
+			buffer[offset] = numChans;
+			memcpy(buffer + offset + 1, channels, numChans);
+			memcpy(buffer + offset + 1 + numChans, values, (numChans + 7) >> 3);
+
+			// send data and read response
+			status = WriteAndRead(buffer, offset + length, &offset, 0, &length);
+		}
+		free(buffer);
+	}
+	return status;
 }
 
 int LinxClient::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	// Command parameters
+	// uint8 : num channels
+	// uint8[numChans] : channels
+	// uint8[numChans + 7 / 8] : packed values
+	// Response parameters
+	// None
+	int status = LERR_MEMORY;
+	int offset, length = 1 + numChans + ((numChans + 7) >> 3);
+	unsigned char *buffer = (unsigned char *)malloc(10 + length);
+	if (buffer)
+	{
+		status = PrepareHeader(buffer, LCMD_DIGITAL_WRITE, length, 0, &offset);
+		if (!status)
+		{
+			unsigned char bitOffset = 0;
+			unsigned char byteOffset = 0;
+			unsigned char diVal = 0;
+
+			buffer[offset] = numChans;
+			memcpy(buffer + offset + 1, channels, numChans);
+
+			for (int i = 0; i < numChans; i++)
+			{
+				if (bitOffset == 8)
+				{
+					buffer[offset + 1 + numChans + byteOffset] = diVal;
+					bitOffset = 0;
+					byteOffset++;
+					diVal = 0;
+				}
+				diVal |= (values[i] ? 0x1 : 0x0) << bitOffset++;
+			}
+			buffer[offset + 1 + numChans + byteOffset] = diVal;
+			// send data and read response
+			status = WriteAndRead(buffer, offset + length, &offset, 0, &length);
+		}
+		free(buffer);
+	}
+	return status;
 }
 
 int LinxClient::DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	// Command parameters
+	// uint8 : num channels
+	// uint8[numChans] : channels
+	// Response parameters
+	// uint8[numChans + 7 / 8] : packed values
+	int status = LERR_MEMORY;
+	int offset, length = 1 + numChans;
+	unsigned char *buffer = (unsigned char *)malloc(10 + length);
+	if (buffer)
+	{
+		status = PrepareHeader(buffer, LCMD_DIGITAL_READ, length, (numChans + 7) / 8, &offset);
+		if (!status)
+		{
+			buffer[offset] = numChans;
+			memcpy(buffer + offset + 1, channels, numChans);
+
+			// send data and read response
+			status = WriteAndRead(buffer, offset + length, &offset, 0, &length);
+			if (!status && length >= offset + ((numChans + 7) >> 3))
+			{
+				memcpy(values, buffer + offset, ((numChans + 7) >> 3));
+			}
+		}
+		free(buffer);
+	}
+	return status;
 }
 
 int LinxClient::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	// Command parameters
+	// uint8 : num channels
+	// uint8[numChans] : channels
+	// Response parameters
+	// uint8[numChans] : packed values
+	int status = LERR_MEMORY;
+	int offset, length = 1 + numChans;
+	unsigned char *buffer = (unsigned char *)malloc(10 + length);
+	if (buffer)
+	{
+		status = PrepareHeader(buffer, LCMD_DIGITAL_READ, length, (numChans + 7) / 8, &offset);
+		if (!status)
+		{
+			buffer[offset] = numChans;
+			memcpy(buffer + offset + 1, channels, numChans);
+
+			// send data and read response
+			status = WriteAndRead(buffer, offset + length, &offset, 0, &length);
+			if (!status && length >= offset + ((numChans + 7) >> 3))
+			{
+				for (int i = 0; i < numChans; i++)
+				{
+					values[i] = buffer[offset + i / 8] << (7 - i % 8);
+				}
+			}
+		}
+		free(buffer);
+	}
+	return status;
 }
 
 int LinxClient::DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	// Command parameters
+	// uint8  : channel
+	// uint32 : frequency
+	// uint32 : duration
+	// Response parameters
+	// None
+	int offset, length = 9;
+	unsigned char buffer[20];
+	int status = PrepareHeader(buffer, LCMD_SET_SQUARE_WAVE, length, 0, &offset);
+	if (!status)
+	{
+		length = WriteU8ToBuff(buffer, offset, channel);
+		length = WriteU32ToBuff(buffer, length, freq);
+		length = WriteU32ToBuff(buffer, length, duration);
+
+		// send data and read response
+		status = WriteAndRead(buffer, 20, &offset, length - offset, &length);
+	}
+	return status;
 }
 
 int LinxClient::DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	// Command parameters
+	// uint8 : response channel
+	// uint8 : stimulation channel
+	// uint8 : stimulation type
+	// uint8 : response type
+	// uint32 : timeout
+	// Response parameters
+	// uint32 : pulse width
+	int offset, length = 8;
+	unsigned char buffer[20];
+	int status = PrepareHeader(buffer, LCMD_SET_SQUARE_WAVE, length, 4, &offset);
+	if (!status)
+	{
+		length = WriteU8ToBuff(buffer, offset, respChan);
+		length = WriteU8ToBuff(buffer, length, stimChan);
+		length = WriteU8ToBuff(buffer, length, stimType);
+		length = WriteU8ToBuff(buffer, length, respType);
+		length = WriteU32ToBuff(buffer, length, timeout);
+
+		// send data and read response
+		status = WriteAndRead(buffer, 20, &offset, length - offset, &length);
+		if (!status && length >= offset + 4)
+		{
+			ReadU32FromBuff(buffer, offset, width);
+		}
+	}
+	return status;
 }
 
 //PWM

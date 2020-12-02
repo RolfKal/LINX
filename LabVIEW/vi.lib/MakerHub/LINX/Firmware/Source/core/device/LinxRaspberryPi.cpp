@@ -4,7 +4,8 @@
 **  For more information see:           www.labviewmakerhub.com/linx
 **  For support visit the forums at:    www.labviewmakerhub.com/forums/linx
 **  
-**  Written By Sam Kristoff
+**  Written by Sam Kristoff
+**  Modifications by Rolf Kalbermatter
 **
 ** BSD2 License.
 ****************************************************************************************/	
@@ -18,31 +19,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include "LinxDefines.h"
-#ifdef Unix
 #include <unistd.h>
 #include <termios.h>
 #include <sys/mman.h>
-
-#define __nop()   		asm volatile("nop");
-#elif Win32
-#include <io.h>
-#include <intrin.h>  // for __nop
-
-#define open	_open
-#define read	_read
-#define write	_write
-#define close	_close
-
-#define MAP_FAILED (volatile int*)-1
-#define PROT_READ 0
-#define PROT_WRITE 0
-#define MAP_SHARED 0
-#define O_SYNC 0x10
-void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
-void munmap(void *addr, size_t length);
-enum {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
-#endif
-
 #include "LinxUtilities.h"
 #include "LinxDevice.h"
 #include "LinxRaspberryPi.h"
@@ -68,6 +47,8 @@ enum {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B48
 #define PULLUPDN_OFFSET_2711_3      60
 
 #define BLOCK_SIZE (4 * 1024)
+
+#define __nop()   		asm volatile("nop");
 
 /****************************************************************************************
 **  Channel implementations
@@ -252,7 +233,7 @@ LinxRaspberryPi::LinxRaspberryPi()
 
 	//-------------------------------- Device Detection ------------------------------
 	DeviceFamily = 0x04;	// Raspberry Pi Family Code
-	DeviceId = 0xFF;		// Raspberry Pi 2 Model B
+	DeviceId = 0xFF;		// Raspberry Pi Unknown
 
 	int fd = open("/proc/device-tree/model", O_RDONLY);
 	if (fd >= 0)
@@ -384,11 +365,6 @@ LinxRaspberryPi::LinxRaspberryPi()
 	//------------------------------------- CAN -------------------------------------
 
 	//------------------------------------ SERVO ------------------------------------
-
-	//If Debuging Is Enabled Call EnableDebug()
-	#if DEBUG_ENABLED > -1
-		EnableDebug(DEBUG_ENABLED);
-	#endif
 
 	// TODO Load User Config Data From Non Volatile Storage
 	//userId = NonVolatileRead(NVS_USERID) << 8 | NonVolatileRead(NVS_USERID + 1);
