@@ -9,7 +9,7 @@ LinxChannel								LinxChannel.h			A			Generic Channel
 		LinxWiringAoChannel				LinxWiringChannel.h					 For Arduino
 	LinxDioChannel						LinxChannel.h			A	R		Digital IO channel
 		LinxSysfsDioChannel				LinxLinuxChannel.h		Y			 For Linux like systems
-			LixRaspiDioChannel			LinxRaspberryPi.h		Y			 For Raspberry Pi, using direct memory mapped register access
+			LinxRaspiDioChannel			LinxRaspberryPi.h		Y			 For Raspberry Pi, using direct memory mapped register access
 		LinxWiringDioChannel			LinxWiringChannel.h					 For Arduino
 	LinxPwmChannel						LinxChannel.h			A	R		Generic Puls Witch Modulation channel
 		LinxSysfsPwmChannel				LinxLinuxChannel.h					 For Linux like systems
@@ -38,10 +38,10 @@ LinxChannel								LinxChannel.h			A			Generic Channel
 	LinxServoChannel					LinxChannel.h			A	R		Generic Servo channel
 
 
-LinxDevice							LinxDevice.h			A			
-	LinxLinuxDevice					LinxLinuxDevice.h		A			
-		LinxBeagleboneBlack			LinxBeagleboneBlack.h	Y			
-		LinxRaspberryPi				LinxRaspberryPi.h		Y			
-	LinxWindowsDevice				LinxWindowsDevice.h		Y			
-	LinxWiringDevice				LinxWiringDevice.h		Y			
+LinxDevice								LinxDevice.h			A			Generic Device
+	LinxLinuxDevice						LinxLinuxDevice.h		A			 Linux based devices
+		LinxBeagleboneBlack				LinxBeagleboneBlack.h	Y			  BeagleBone Black
+		LinxRaspberryPi					LinxRaspberryPi.h		Y			  Raspberry Pi
+	LinxWindowsDevice					LinxWindowsDevice.h		Y			 Windows based device
+	LinxWiringDevice					LinxWiringDevice.h		Y			 Arduino based device
 	
