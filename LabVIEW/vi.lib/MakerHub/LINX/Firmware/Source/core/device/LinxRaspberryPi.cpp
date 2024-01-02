@@ -218,7 +218,7 @@ static const char * g_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1"};
 
 //UART
 static unsigned char g_UartChans[NUM_UART_CHANS] = {0};
-static const char * g_UartPaths[NUM_UART_CHANS] = {"/dev/ttyAMA0"};
+static const char * g_UartPaths[NUM_UART_CHANS] = {"/dev/serial0"};
 
 
 /****************************************************************************************
@@ -283,6 +283,9 @@ LinxRaspberryPi::LinxRaspberryPi()
 							break;
 						case '4':	// Raspberry Pi 4 Model B (with Wifi)
 							DeviceId = 6;
+							break;
+						case '5':	// Raspberry Pi 5 Model B (with Wifi)
+							DeviceId = 7;
 							break;
 						default:
 							len = 0;
