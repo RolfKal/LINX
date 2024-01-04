@@ -255,6 +255,7 @@
 			<Item Name="kernel32.dll" Type="Document" URL="kernel32.dll">
 				<Property Name="NI.PreserveRelativePath" Type="Bool">true</Property>
 			</Item>
+			<Item Name="liblinxdevice.dll" Type="Document" URL="/E/lv2019/dist/vi.lib/MakerHub/LINX/Resources/liblinxdevice.dll"/>
 		</Item>
 		<Item Name="Build Specifications" Type="Build">
 			<Item Name="Firmware Wizard" Type="EXE">
