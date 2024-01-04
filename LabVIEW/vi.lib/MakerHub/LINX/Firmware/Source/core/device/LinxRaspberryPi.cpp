@@ -69,8 +69,10 @@ static void ShortWait(void)
 static volatile int *gpio_map = (volatile int*)MAP_FAILED;
 
 // Raspberry Pi GPIO pins
-static const unsigned char g_LinxDioChans[NUM_DIGITAL_CHANS] = {7, 11, 12, 13, 15, 16, 18, 22, 29, 31, 32, 33, 35, 36, 37, 38, 40};
-static const unsigned char g_GpioDioChans[NUM_DIGITAL_CHANS] = {4, 17, 18, 27, 22, 23, 24, 25,  5,  6, 12, 13, 19, 16, 26, 20, 21};
+static const unsigned char g_LinxDioChans[NUM_DIGITAL_CHANS] = {3,  5,  7,  8, 10, 11, 12, 13, 15, 16, 18, 19, 21, 22, 23, 24, 26, 29, 31, 32, 33, 35, 36, 37, 38, 40};
+static const unsigned char g_GpioDioChans[NUM_DIGITAL_CHANS] = {2,  3,  4, 14, 15, 17, 18, 27, 22, 23, 24, 10,  9, 25, 11,  8,  7,  5,  6, 12, 13, 19, 16, 26, 20, 21};
+static const unsigned char g_EnabDioChans[NUM_DIGITAL_CHANS] = {2,  2,  0,  1,  1,  0,  8,  0,  0,  0,  0,  4,  4,  0,  4,  4,  4,  0,  0, 16, 16,  8,  0,  0,  8,  8};
+/* Enab values: 1: uart pins, 2: I2C pins, 4: SPI pins, 8, PCM pins, 16: PWM pins */
 
 int LinxRaspiDioChannel::SetState(unsigned char state)
 {
@@ -334,7 +336,8 @@ LinxRaspberryPi::LinxRaspberryPi()
 			chan = new LinxSysfsDioChannel(m_Debug, g_LinxDioChans[i], g_GpioDioChans[i]);
 		else
 			chan = new LinxRaspiDioChannel(m_Debug, g_LinxDioChans[i], g_GpioDioChans[i]);
-		RegisterChannel(IID_LinxDioChannel, g_LinxDioChans[i], chan);
+		if (chan)
+			RegisterChannel(IID_LinxDioChannel, g_LinxDioChans[i], chan);
 	}
 
 	//------------------------------------- PWM --------------------------------------
@@ -345,14 +348,18 @@ LinxRaspberryPi::LinxRaspberryPi()
 	// Store Uart channels in the registry map
 	for (int i = 0; i < NUM_UART_CHANS; i++)
 	{
-		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], (LinxUartChannel*)new LinxUnixUartChannel(m_Debug, g_UartPaths[i]));
+		LinxChannel *chan = new LinxUnixUartChannel(m_Debug, g_UartPaths[i]);
+		if (chan)
+			RegisterChannel(IID_LinxUartChannel, g_UartChans[i], channel);
 	}
 
 	//------------------------------------- I2C -------------------------------------
 	// Store I2C master channels in the registry map
 	for (int i = 0; i < NUM_I2C_CHANS; i++)
 	{
-		RegisterChannel(IID_LinxI2cChannel, g_I2cChans[i], new LinxSysfsI2cChannel(g_I2cPaths[i], m_Debug));
+		LinxChannel *chan = new LinxSysfsI2cChannel(g_I2cPaths[i], m_Debug);
+		if (chan)
+			RegisterChannel(IID_LinxI2cChannel, g_I2cChans[i], chan);
 	}
 
 	//------------------------------------- SPI -------------------------------------
@@ -361,7 +368,9 @@ LinxRaspberryPi::LinxRaspberryPi()
 	{
 		if (fileExists(g_SpiPaths[i]))
 		{
-			RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxSysfsSpiChannel(g_SpiPaths[i], m_Debug, this, g_SpiDefaultSpeed));
+			LinxChannel *chan = new LinxSysfsSpiChannel(g_SpiPaths[i], m_Debug, this, g_SpiDefaultSpeed);
+			if (chan)
+				RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], chan);
 		}
 	}
 

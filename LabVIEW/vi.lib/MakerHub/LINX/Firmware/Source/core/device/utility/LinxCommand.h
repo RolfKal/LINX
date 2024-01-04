@@ -83,6 +83,7 @@
 //#define LCMD_SET_PWN_FREQ			0x0082	// PWM Set Frequency
 #define LCMD_SET_PWM_DUTY_CYCLE		0x0083	// PWM Set Duty Cycle
 //#define LCMD_PWM_CLOSE			0x0084	// PWM Close
+//---0x0085 to 0x009F Reserved---
 
 /****************************************************************************************
 ** QE
@@ -126,7 +127,7 @@
 //#define LCMD_SPI_SET_CS			0x0106	//LEGACY - SPI Set CS Channel
 #define LCMD_SPI_TRANSFER			0x0107	// SPI Write Read
 #define LCMD_SPI_CLOSE				0x0108	// SPI Close
-//---0x0085 to 0x009F Reserved---
+//---0x0109 to 0x011F Reserved---
 
 /****************************************************************************************
 ** CAN
@@ -139,6 +140,7 @@
 #define LCMD_SERVO_INIT				0x0140	// Servo Init
 #define LCMD_SERVO_SET_PULSE		0x0141	// Servo Set Pulse Width
 #define LCMD_SERVE_CLOSE			0x0142	// Servo Close
+//---0x0143 to 0x015F Reserved---
 
 /****************************************************************************************
 ** WS2812
@@ -148,5 +150,6 @@
 #define LCMD_WS2812_WRITE_N			0x0162	// WS2812 Write N Pixels
 #define LCMD_WS2812_REFRESH			0x0163	// WS2812 Refresh
 #define LCMD_WS2812_CLOSE			0x0164	// WS2812 Close
+//---0x0165 to 0x017F Reserved---
 
 #endif // LINX_COMMAND_H

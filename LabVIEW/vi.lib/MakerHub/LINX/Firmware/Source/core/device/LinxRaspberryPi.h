@@ -26,7 +26,7 @@
 
 #define NUM_CAN_CHANS 0
 
-#define NUM_DIGITAL_CHANS 17
+#define NUM_DIGITAL_CHANS 26
 
 #define NUM_PWM_CHANS 0
 
@@ -44,7 +44,6 @@
 ****************************************************************************************/
 #include "LinxDevice.h"
 #include "LinxLinuxChannel.h"
-#include "LinxRaspberryPi.h"
 
 class LinxRaspiDioChannel : public LinxSysfsDioChannel
 {
