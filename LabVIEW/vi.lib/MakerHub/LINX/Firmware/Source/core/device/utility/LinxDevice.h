@@ -94,7 +94,7 @@ class LinxDevice
 		/****************************************************************************************
 		**  Constructors/Destructor
 		****************************************************************************************/
-		LinxDevice();
+		LinxDevice(LinxFmtChannel *debug = NULL);
 		virtual ~LinxDevice();
 
 		/****************************************************************************************
@@ -142,13 +142,12 @@ class LinxDevice
 
 		// UART
 		virtual int UartOpen(unsigned char channel, LinxUartChannel **chan = NULL);
-		virtual int UartOpen(const char *deviceName, unsigned char *channel, LinxUartChannel **chan = NULL);
+		virtual int UartOpen(const unsigned char *deviceName, unsigned char *channel, LinxUartChannel **chan = NULL);
 		virtual int UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
-		virtual int UartSetBitSizes(unsigned char channel, unsigned char dataBits, unsigned char stopBits);
-		virtual int UartSetParity(unsigned char channel, LinxUartParity parity);
-		virtual int UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes);
-		virtual int UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, int timeout, unsigned char* numBytesRead);
-		virtual int UartWrite(unsigned char channel, unsigned char numBytes, unsigned char* sendBuffer, int timeout);
+		virtual int UartSetParameters(unsigned char channel, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
+		virtual int UartGetBytesAvailable(unsigned char channel, unsigned int *numBytes);
+		virtual int UartRead(unsigned char channel, unsigned int numBytes, unsigned char* recBuffer, int timeout, unsigned int* numBytesRead);
+		virtual int UartWrite(unsigned char channel, unsigned int numBytes, unsigned char* sendBuffer, int timeout);
 		virtual int UartClose(unsigned char channel);
 
 		// CAN
@@ -176,7 +175,7 @@ class LinxDevice
 		virtual bool ChecksumPassed(unsigned char* buffer, int length);
 		virtual unsigned char ComputeChecksum(unsigned char* buffer, int length);
 
-		virtual unsigned char EnumerateChannels(int type, unsigned char *buffer, unsigned char length);
+		virtual int EnumerateChannels(int type, unsigned char *buffer = NULL, unsigned int length = 0, unsigned int *reqLen = NULL);
 
 		// Debug
 		virtual int EnableDebug(LinxCommChannel *channel);
@@ -193,7 +192,7 @@ class LinxDevice
 		**  Functions
 		****************************************************************************************/
 		virtual LinxChannel* LookupChannel(int type, unsigned char channel);
-		virtual LinxChannel* LookupChannel(int type, const char *channelName, unsigned char *channel);
+		virtual LinxChannel* LookupChannel(int type, const unsigned char *channelName, unsigned char *channel);
 		virtual unsigned char RegisterChannel(int type, LinxChannel *chan);
 		virtual void RegisterChannel(int type, unsigned char channel, LinxChannel *chan);
 		virtual void RemoveChannel(int type, unsigned char channel);
@@ -208,5 +207,6 @@ class LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+//		init(LinxFmtChannel)
 };
 #endif //LINX_DEVICE_H

@@ -27,8 +27,18 @@
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
-LinxDevice::LinxDevice()
+LinxDevice::LinxDevice(LinxFmtChannel *debug)
 {
+	if (debug)
+	{
+		debug->AddRef();
+	}
+	else
+	{
+		debug = new LinxFmtChannel();
+	}
+	m_Debug = debug;
+
 	//LINX API Version
 	LinxApiMajor = 0;
 	LinxApiMinor = 0;
@@ -67,8 +77,6 @@ LinxDevice::LinxDevice()
 	// Servo
 
 	// Debug
-	m_Debug = new LinxFmtChannel();
-	m_Debug->AddRef();
 }
 
 LinxDevice::~LinxDevice()
@@ -109,7 +117,7 @@ LinxDevice::~LinxDevice()
 ****************************************************************************************/
 int LinxDevice::EnableDebug(LinxCommChannel *channel)
 {	
-	return m_Debug->SetChannel(channel);
+	return m_Debug->SetDebugChannel(channel);
 }
 
 void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* packetBuffer)
@@ -546,7 +554,7 @@ int LinxDevice::UartOpen(unsigned char channel, LinxUartChannel **pChan)
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartOpen(const char *deviceName, unsigned char *channel, LinxUartChannel **channelObj)
+int LinxDevice::UartOpen(const unsigned char *deviceName, unsigned char *channel, LinxUartChannel **channelObj)
 {
 	LinxUartChannel* obj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, deviceName, channel);
 	if (!obj)
@@ -554,7 +562,7 @@ int LinxDevice::UartOpen(const char *deviceName, unsigned char *channel, LinxUar
 #if Unix
 		obj = new LinxUnixUartChannel(m_Debug, deviceName);
 #elif Win32
-		obj = new LinxWindowsUartChannel(m_Debug, deviceName);
+		obj = new LinxWindowsUartChannel(m_Debug, *channel, deviceName);
 #endif
 		if (!obj)
 			return LERR_BADPARAM;
@@ -580,55 +588,43 @@ int LinxDevice::UartSetBaudRate(unsigned char channel, unsigned int baudRate, un
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartSetBitSizes(unsigned char channel, unsigned char dataBits, unsigned char stopBits)
+int LinxDevice::UartSetParameters(unsigned char channel, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
 {
 	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
 	if (chan)
 	{
-		int status = chan->SetBitSizes(dataBits, stopBits);
+		int status = chan->SetParameters(dataBits, stopBits, parity);
 		chan->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartSetParity(unsigned char channel, LinxUartParity parity)
+int LinxDevice::UartGetBytesAvailable(unsigned char channel, unsigned int *numBytes)
 {
 	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
 	if (chan)
 	{
-		int status = chan->SetParity(parity);
+		int status = chan->Read(NULL, 0, 0, numBytes);
 		chan->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes)
+int LinxDevice::UartRead(unsigned char channel, unsigned int numBytes, unsigned char* recBuffer, int timeout, unsigned int* numBytesRead)
 {
 	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
 	if (chan)
 	{
-		int status = chan->Read(NULL, 0, 0, (int*)numBytes);
+		int status = chan->Read(recBuffer, numBytes, timeout, numBytesRead);
 		chan->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, int timeout, unsigned char* numBytesRead)
-{
-	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
-	if (chan)
-	{
-		int status = chan->Read(recBuffer, numBytes, timeout, (int*)numBytesRead);
-		chan->Release();
-		return status;
-	}
-	return LERR_BADPARAM;
-}
-
-int LinxDevice::UartWrite(unsigned char channel, unsigned char numBytes, unsigned char* sendBuffer, int timeout)
+int LinxDevice::UartWrite(unsigned char channel, unsigned int numBytes, unsigned char* sendBuffer, int timeout)
 {
 	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
 	if (chan)
@@ -769,17 +765,33 @@ unsigned char LinxDevice::ComputeChecksum(unsigned char* buffer, int length)
 /****************************************************************************************
 **  Public Channel Registry Functions
 ****************************************************************************************/
-unsigned char LinxDevice::EnumerateChannels(int type, unsigned char *buffer, unsigned char length)
+int LinxDevice::EnumerateChannels(int type, unsigned char *buffer, unsigned int length, unsigned int *reqLen)
 {
 	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	int i = 0, num = (int)m.size();
-	if (num && buffer)
+	unsigned int i = 0, off = 0, num = (unsigned int)m.size();
+	if (num)
 	{
-		for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin();  i < length && it != m.end(); ++it)
+		off = num;
+		for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin(); it != m.end(); ++it, i++)
 		{
-			buffer[i] = it->first;
+			if (buffer)
+			{
+				if (i < length)
+					buffer[i] = it->first;
+				if (reqLen && off < length + 1)
+				{
+					buffer[off] = Min(it->second->GetName(buffer + off + 1, length - off - 1), length - off - 1);
+					off += buffer[off];
+				}
+			}
+			else
+			{
+				off += it->second->GetName(buffer, length) + 1;
+			}
 		}
 	}
+	if (reqLen)
+		*reqLen = off;
 	return (unsigned char)num;
 }
 
@@ -798,6 +810,7 @@ unsigned char LinxDevice::RegisterChannel(int type, LinxChannel *channelObj)
 		channel = it->first + 1;
 	}
 	m.insert(std::pair<unsigned char, LinxChannel*>(channel, channelObj));
+	m_ChannelRegistry[type - 1] = m;
 	return channel;
 }
 
@@ -811,6 +824,7 @@ void LinxDevice::RegisterChannel(int type, unsigned char channel, LinxChannel *c
 		result.first->second = channelObj;
 		result.first->second->AddRef();
 	}
+	m_ChannelRegistry[type - 1] = m;
 }
 
 LinxChannel* LinxDevice::LookupChannel(int type, unsigned char channel)
@@ -825,17 +839,17 @@ LinxChannel* LinxDevice::LookupChannel(int type, unsigned char channel)
 	return NULL;
 }
 
-LinxChannel* LinxDevice::LookupChannel(int type, const char *channelName, unsigned char *channel)
+LinxChannel* LinxDevice::LookupChannel(int type, const unsigned char *channelName, unsigned char *channel)
 {
 	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
 	int num = (int)m.size();
 	if (num)
 	{
-		char buffer[32];
+		unsigned char buffer[32];
 		for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin();  it != m.end(); ++it)
 		{
 			it->second->GetName(buffer, 32);
-			if (!strcmp(channelName, buffer))
+			if (!strcmp((char*)channelName, (char*)buffer))
 			{
 				if (channel)
 					*channel = it->first;

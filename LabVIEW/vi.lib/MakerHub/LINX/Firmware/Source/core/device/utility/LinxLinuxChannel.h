@@ -143,19 +143,19 @@ class LinxUnixCommChannel : public LinxCommChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxUnixCommChannel(LinxFmtChannel *debug, const char *channelName, OSSocket socket);
-		LinxUnixCommChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
+		LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, NetObject socket);
+		LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port);
 		virtual ~LinxUnixCommChannel();
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
-		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Write(const unsigned char* sendBuffer, int numBytes, int timeout);
 		virtual int Close();
 
 	private:
-		OSSocket m_Socket;
+		NetObject m_Socket;
 }
 
 class LinxUnixUartChannel : public LinxUartChannel
@@ -171,10 +171,9 @@ class LinxUnixUartChannel : public LinxUartChannel
 		**  Functions
 		****************************************************************************************/
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
-		virtual int SetBitSizes(unsigned char dataBits, unsigned char stopBits);
-		virtual int SetParity(LinxUartParity parity);
-		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
-		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
+		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead);
+		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout);
 		virtual int Close();
 
 	protected:
@@ -229,7 +228,7 @@ class LinxSysfsSpiChannel : public LinxSpiChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, unsigned int maxSpeed);
+		LinxSysfsSpiChannel(LinxFmtChannel *debug, LinxDevice *device, const char *channelName, unsigned int maxSpeed);
 		virtual ~LinxSysfsSpiChannel();
 
 		/****************************************************************************************

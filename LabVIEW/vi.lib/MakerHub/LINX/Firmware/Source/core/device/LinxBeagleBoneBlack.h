@@ -50,7 +50,7 @@ class LinxBBBUartChannel : public LinxUnixUartChannel
 		/****************************************************************************************
 		**  Constructor
 		****************************************************************************************/
-		LinxBBBUartChannel(const char *channelName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath);
+		LinxBBBUartChannel(LinxFmtChannel *debug, const char *channelName, const char *dtoName, const char *dtoSlotsPath);
 		virtual ~LinxBBBUartChannel() {};
 
 		/****************************************************************************************
@@ -77,7 +77,7 @@ class LinxBBBI2cChannel : public LinxSysfsI2cChannel
 		/****************************************************************************************
 		**  Constructor
 		****************************************************************************************/
-		LinxBBBI2cChannel(const char *channelName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath);
+		LinxBBBI2cChannel(LinxFmtChannel *debug, const char *channelName, const char *dtoName, const char *dtoSlotsPath);
 		virtual ~LinxBBBI2cChannel() {};
 
 		/****************************************************************************************
@@ -104,7 +104,7 @@ class LinxBBBSpiChannel : public LinxSysfsSpiChannel
 		/****************************************************************************************
 		**  Constructor
 		****************************************************************************************/
-		LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath);
+		LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath);
 		virtual ~LinxBBBSpiChannel() {};
 
 		/****************************************************************************************
@@ -137,7 +137,7 @@ class LinxBeagleBoneBlack : public LinxDevice
 		/****************************************************************************************
 		**  Constructors /  Destructor
 		****************************************************************************************/
-		LinxBeagleBoneBlack();
+		LinxBeagleBoneBlack(LinxFmtChannel *debug = NULL);
 		virtual ~LinxBeagleBoneBlack();
 		
 		/****************************************************************************************

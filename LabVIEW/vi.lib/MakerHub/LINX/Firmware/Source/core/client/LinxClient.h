@@ -36,9 +36,8 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxClient(unsigned char uartChannel, unsigned int baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout);
-		LinxClient(const char *uartDevice, unsigned int baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout);
-		LinxClient(const char *netAddress, unsigned short port, int timeout);
+		LinxClient(const unsigned char *uartDevice, unsigned int *baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout);
+		LinxClient(const unsigned char *netAddress, unsigned short port, int timeout);
 		virtual ~LinxClient();
 
 		/****************************************************************************************
@@ -82,9 +81,9 @@ class LinxClient : public LinxDevice
 		//UART
 		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
 		virtual int UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
-		virtual int UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes);
-		virtual int UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead);
-		virtual int UartWrite(unsigned char channel, unsigned char numBytes, unsigned char* sendBuffer);
+		virtual int UartGetBytesAvailable(unsigned char channel, unsigned int *numBytes);
+		virtual int UartRead(unsigned char channel, unsigned int numBytes, unsigned char* recBuffer, unsigned int* numBytesRead);
+		virtual int UartWrite(unsigned char channel, unsigned int numBytes, unsigned char* sendBuffer);
 		virtual int UartClose(unsigned char channel);
 
 		//Servo
@@ -96,10 +95,6 @@ class LinxClient : public LinxDevice
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 
-		// After the LinxClient class has been instantiated call this function to initialize the 
-		// various private data elements that this library will cache for quick information gathering
-		virtual int Initialize();	
-
 	protected:
 		/****************************************************************************************
 		**  Variables
@@ -108,6 +103,7 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+		virtual int Initialize();	
 
 	private:
 		/****************************************************************************************
@@ -125,14 +121,14 @@ class LinxClient : public LinxDevice
 		**  Functions
 		****************************************************************************************/
 		unsigned short GetNextPacketNum();
-		int PrepareHeader(unsigned char* buffer, unsigned short command, int dataLength, int expLength, int *headerLength);
-		int WriteAndRead(unsigned char *buffer, int buffLength, int *headerLength, int dataLength, int *dataRead);
-		void CopyArrayToSet(int type, unsigned char *arr, int length);
+		int PrepareHeader(unsigned char* buffer, unsigned short command, unsigned int dataLength, unsigned int expLength, unsigned int *headerLength);
+		int WriteAndRead(unsigned char *buffer, unsigned int buffLength, unsigned int *headerLength, unsigned int dataLength, unsigned int *dataRead);
+		void CopyArrayToSet(int type, unsigned char *arr, unsigned int length);
 
 		int GetNoParameter(unsigned short command);
 		int GetU8Parameter(unsigned short command, unsigned char *val);
 		int GetU16Parameter(unsigned short command, unsigned short *val);
 		int GetU32Parameter(unsigned short command, unsigned int *val);
-		int GetU8ArrParameter(unsigned short command, unsigned char *val, int buffLength, int *headerLength, int *dataRead);
+		int GetU8ArrParameter(unsigned short command, unsigned char *val, unsigned int buffLength, unsigned int *headerLength, unsigned int *dataRead);
 };
 #endif //LINX_CLIENT_H

@@ -13,36 +13,57 @@
 #define LINX_DEFINES_H
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
-#define Win32	1
-#if defined(_WIN64)
-#define Win64   1
-#endif
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
-#define OSSocket SOCKET
+# define Win32	1
+# if defined(_WIN64)
+#  define Win64   1
+# endif
+# include <winsock2.h>
+# include <ws2tcpip.h>
+# include <windows.h>
+# define SockErr()            WSAGetLastError()
+  typedef SOCKET NetObject;
+# define IsANetObject(s)      ((s) != INVALID_SOCKET)
+# define kInvalNetObject      INVALID_SOCKET
+# define kSocketError         SOCKET_ERROR
+# define socklen_t		      int
 #elif ARDUINO_VERSION
-#define Arduino 1
-#if ARDUINO_VERSION >= 100
-	#include <Arduino.h>
-#else
-	#include <WProgram.h>
-#endif
+# define Arduino 1
+# if ARDUINO_VERSION >= 100
+#  include <Arduino.h>
+# else
+#  include <WProgram.h>
+# endif
 #elif defined(unix) || defined(__unix) || defined(__unix__)
-#define Unix	1
-#define OSSocket int
-#define INVALID_SOCKET -1
-#define closesocket(fd) close(fd)
+# define Unix	1
+# include <errno.h>
+#  define SockErr()           errno
+  typedef int NetObject;
+# define IsANetObject(s)      ((s) >= 0)
+# define kInvalNetObject      (-1)
+# define kSocketError         (-1)
+# define closesocket(fd) close(fd)
+# define ioctlsocket(s, t, p) ioctl(s, t, p)
 #elif defined(__APPLE__) && defined(__MACH__)
-#define MacOSX	1
-#define OSSocket int
-#define INVALID_SOCKET -1
-#define closesocket(fd) close(fd)
+# define MacOSX	1
+# include <errno.h>
+#  define SockErr()           errno
+  typedef int NetObject;
+# define IsANetObject(s)      ((s) >= 0)
+# define kInvalNetObject      (-1)
+# define kSocketError         (-1)
+# define closesocket(fd) close(fd)
+# define ioctlsocket(s, t, p) ioctl(s, t, p)
 #elif defined(__WXWORKS__) || defined(__vxworks__)
-#define VxWorks 1
-#define OSSocket int
-#define INVALID_SOCKET -1
-#define closesocket(fd) close(fd)
+# define VxWorks 1
+# include <errno.h>
+# include <errnoLib.h>
+# define SockErr()			  errnoGet()
+  typedef int NetObject;
+# define IsANetObject(s)      ((s) >= 0)
+# define kInvalNetObject      (-1)
+# define kSocketError         (-1)
+# define closesocket(fd) close(fd)
+# define ioctlsocket(s, t, p) ioctl(s, t, p)
 #endif
 
 // GPIO Values
@@ -128,6 +149,7 @@ typedef enum LinxStatus
 	LERR_LENGTH_NOT_SUPPORTED,
 	LERR_MSG_TO_LONG,
 	LERR_CLOSED_BY_PEER,
+	LERR_TIMEOUT,
 } LinxStatus;
 
 typedef enum AioStatus
@@ -164,7 +186,7 @@ typedef enum I2CStatus
 typedef enum UartStatus
 {
 	LUART_OPEN_FAIL = 128,
-	LUART_SET_BAUD_FAIL,
+	LUART_SET_PARAM_FAIL,
 	LUART_AVAILABLE_FAIL,
 	LUART_READ_FAIL,
 	LUART_WRITE_FAIL,

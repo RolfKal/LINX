@@ -69,8 +69,8 @@ static unsigned char g_UartChans[NUM_UART_CHANS] = {0, 1, 4};
 static const char *g_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
 static const char *g_UartDtoNames[NUM_UART_CHANS] = { "BB-UART0", "BB-UART1", "BB-UART4"};
 
-LinxBBBUartChannel::LinxBBBUartChannel(const char *deviceName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath) : 
-	LinxUnixSocketChannel(debug, deviceName), LinxUnixUartChannel(debug, deviceName)
+LinxBBBUartChannel::LinxBBBUartChannel(LinxFmtChannel *debug, const char *deviceName, const char *dtoName, const char *dtoSlotsPath) : 
+	LinxUnixUartChannel(debug, deviceName)
 {
 	m_DtoName = dtoName;
 	m_DtoSlotsPath = dtoSlotsPath;
@@ -96,7 +96,7 @@ static const unsigned char g_I2cChans[NUM_I2C_CHANS] = {2};
 static const char *g_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1" };		//Out of order numbering is correct for BBB 7.x!!
 static const char *g_I2cDtoNames[NUM_I2C_CHANS] = {"BB-I2C2"};
 
-LinxBBBI2cChannel::LinxBBBI2cChannel(const char *channelName, LinxFmtChannel *debug, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsI2cChannel(channelName, debug)
+LinxBBBI2cChannel::LinxBBBI2cChannel(LinxFmtChannel *debug, const char *channelName, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsI2cChannel(debug, channelName)
 {
 	m_DtoName = dtoName;
 	m_DtoSlotsPath = dtoSlotsPath;
@@ -127,7 +127,7 @@ static unsigned int g_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 
 static int g_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
 static int g_SpiDefaultSpeed = 3900000;
 
-LinxBBBSpiChannel::LinxBBBSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsSpiChannel(channelName, debug, device, speed)
+LinxBBBSpiChannel::LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsSpiChannel(debug, channelName, device, speed)
 {
 	m_DtoName = dtoName;
 	m_DtoSlotsPath = dtoSlotsPath;
@@ -155,7 +155,7 @@ int LinxBBBSpiChannel::Open()
 /****************************************************************************************
 **  Constructors /  Destructor
 ****************************************************************************************/
-LinxBeagleBoneBlack::LinxBeagleBoneBlack()
+LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(debug)
 {
 	//LINX Device Information
 	DeviceFamily = 0x06;	// TI Family Code
@@ -486,7 +486,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	// Store I2C Master Paths In Map
 	for (int i = 0; i < NUM_I2C_CHANS; i++)
 	{	
-		LinxI2cChannel *chan = new LinxBBBI2cChannel(g_I2cPaths[i], m_Debug, m_FilePathLayout == 7 ? g_I2cDtoNames[i] : NULL, m_DtoSlotsPath);
+		LinxI2cChannel *chan = new LinxBBBI2cChannel(m_Debug, g_I2cPaths[i], m_FilePathLayout == 7 ? g_I2cDtoNames[i] : NULL, m_DtoSlotsPath);
 		RegisterChannel(IID_LinxI2cChannel, g_I2cChans[i], chan);
 	}
 
@@ -508,7 +508,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	// Store Uart Paths In Map
 	for (int i = 0; i < NUM_UART_CHANS; i++)
 	{
-		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], (LinxUartChannel*)new LinxBBBUartChannel(g_UartPaths[i], m_Debug, g_UartDtoNames[i], m_DtoSlotsPath));
+		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], (LinxUartChannel*)new LinxBBBUartChannel(m_Debug, g_UartPaths[i], g_UartDtoNames[i], m_DtoSlotsPath));
 	}
 	
 	//------------------------------------- SPI ------------------------------------
@@ -537,7 +537,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack()
 	//Load SPI Paths and DTO Names, Configure SPI Master Default Values
 	for (int i = 0; i < NUM_SPI_CHANS; i++)
 	{
-		RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxBBBSpiChannel(g_SpiPaths[i], m_Debug, this, g_SpiDefaultSpeed, g_SpiDtoNames[i], m_DtoSlotsPath));
+		RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxBBBSpiChannel(m_Debug, g_SpiPaths[i], this, g_SpiDefaultSpeed, g_SpiDtoNames[i], m_DtoSlotsPath));
 	}
 }
 

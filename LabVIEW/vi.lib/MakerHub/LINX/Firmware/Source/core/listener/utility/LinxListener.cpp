@@ -28,7 +28,7 @@
 /****************************************************************************************
 **  Constructors/Destructors
 ****************************************************************************************/
-LinxListener::LinxListener(LinxDevice *device)
+LinxListener::LinxListener(LinxDevice *device, bool autoLaunch)
 {
 	unsigned char buffer[255];
 
@@ -44,27 +44,143 @@ LinxListener::LinxListener(LinxDevice *device)
 	m_SendBuffer = NULL;
 	m_RecBuffer = NULL;
 
+	m_LaunchThread = autoLaunch;
+	m_Thread = 0;
+	m_Run = FALSE;
+
 	m_LinxDev->GetDeviceName(buffer, 255);
 	m_Debug->Write("Initializing Listener on ");
 	m_Debug->Writeln((char *)buffer);
+#if Win32
+	InitializeCriticalSection(&m_Mutex);
+#elif Linux
+	m_Mutex = PTHREAD_MUTEX_INITIALIZER
+#else
+#else
+#endif
 }
 
 LinxListener::~LinxListener()
 {
-	if (m_Channel)
-		m_Channel->Release();
+	Close();
+	ControlMutex(true);
 	m_Debug->Release();
 	free(m_SendBuffer);
 	free(m_RecBuffer);
+	ControlMutex(false);
+#if Win32
+	DeleteCriticalSection(&m_Mutex);
+#elif Linux
+#else
+#endif
 }
+
+#if Win32
+static DWORD WINAPI ThreadFunction(LPVOID lpParam) 
+{
+    ((LinxListener *)lpParam)->ProcessLoop(TRUE);
+	return 0;
+}
+#elif Linux
+static void *ThreadFunction(void *lpParam)
+{
+    ((LinxListener *)lpParam)->ProcessLoop(TRUE);
+	pthread_exit(NULL); 
+	return NULL;
+}
+#else
+#endif
 
 /****************************************************************************************
 ** Public Functions
 ****************************************************************************************/
+int LinxListener::Stop(void)
+{
+	ControlMutex(true);
+	if (m_Thread)
+	{
+		m_Run = FALSE;
+#if Win32
+		DWORD dwStatus = WaitForSingleObject(m_Thread, 2000);
+		if (dwStatus == WAIT_TIMEOUT)
+		{
+			TerminateThread(m_Thread, 1);
+		}
+		CloseHandle(m_Thread);
+#elif Linux
+		int status;
+		//status = pthread_cancel(m_Thread);
+		// Waiting for the created thread to terminate 
+		status = pthread_join(ptid, NULL);
+#else
+#endif
+	}
+	ControlMutex(false);
+	return L_OK;
+}
+
+int LinxListener::Close()
+{
+	Stop();
+	if (m_Channel)
+	{
+		m_Channel->Close();
+		m_Channel->Release();
+		m_Channel = NULL;
+	}
+	return L_OK;
+}
+
+int LinxListener::AttachCustomCommand(unsigned short commandNumber, CustomCommand callback)
+{
+	if (commandNumber < MAX_CUSTOM_CMDS)
+	{
+		ControlMutex(true);
+		m_CustomCommands[commandNumber] = callback;
+		ControlMutex(false);
+		return L_OK;
+	}
+	return LERR_BADPARAM;
+}
+
+int LinxListener::AttachPeriodicTask(PeriodicTask task)
+{
+	ControlMutex(true);
+	m_PeriodicTask = task;
+	ControlMutex(false);
+	return L_OK;
+}
+
+int LinxListener::SetDebugChannel(LinxCommChannel *channel)
+{
+	ControlMutex(true);
+	int status = m_Debug->SetDebugChannel(channel);
+	ControlMutex(false);
+	return status;
+}
+
+int LinxListener::ProcessLoop(bool loop)
+{
+	int status;
+	do
+	{
+		status = WaitForConnection();
+		if (!status)
+		{
+			status = CheckForCommand();
+		}
+	} while (!status && loop);
+	return status;
+}
+
+/****************************************************************************************
+** Protected Functions
+****************************************************************************************/
 // Start Listener with the device to relay commands to and a debug channel
-int LinxListener::Start(LinxCommChannel *channel, int bufferSize)
+int LinxListener::Run(LinxCommChannel *channel, int bufferSize)
 {
 	int status = L_OK;
+	ControlMutex(true);
 	if (m_ListenerBufferSize != bufferSize)
 	{
 		m_ListenerBufferSize = bufferSize;
@@ -76,89 +192,107 @@ int LinxListener::Start(LinxCommChannel *channel, int bufferSize)
 	if (channel)
 		channel->AddRef();
 	m_Channel = channel;
-
+	if (m_LaunchThread)
+	{
+		m_Run = TRUE;
+#if Win32
+		DWORD dwThreadID = 0;
+		m_Thread = CreateThread(NULL, 0, ThreadFunction, this, 0, &dwThreadID);
+		if (!m_Thread)
+		{
+			status = L_DISCONNECT;
+		}
+#elif Linux
+		int err = pthread_create(&m_Thread, NULL, ThreadFunction, this);
+		if (err)
+		{
+			m_Thread = 0;
+			status = L_DISCONNECT;
+		}
+#else
+#endif
+	}
+	ControlMutex(false);
 	return status;
 }
 
-int LinxListener::Close()
+int LinxListener::WaitForConnection()
 {
-	if (m_Channel)
-	{
-		m_Channel->Close();
-		m_Channel->Release();
-	}
 	return L_OK;
 }
 
-int LinxListener::CheckForCommand()
+int LinxListener::ControlMutex(bool lock)
 {
-	int dataRead = 0;
-	// Try to read first 4 bytes
-	int status = m_Channel->Read(m_SendBuffer, 4, TIMEOUT_INFINITE, &dataRead);
-	if (!status)
-	{
-		unsigned short command;
-		int offset, msgLength, length = dataRead;
-		// Decode length in package
-		if (m_SendBuffer[0] == 0xFF && dataRead >= 2)
-		{
-			offset = 4;
-			msgLength = m_SendBuffer[1];
-		}
-		else if (m_SendBuffer[0] == 0xFE && dataRead >= 4)
-		{
-			offset = 6;
-			msgLength = GetU32FromBuff(m_SendBuffer, 0) & 0xFFFFFF;
-		}
-		else
-		{
-			// invalid data frame, flush buffer and return
-			return m_Channel->Read(m_RecBuffer, m_ListenerBufferSize, 0, NULL);
-		}
-		
-		// if expected msgLength is greater than the data already received then read the remainder
-		while (msgLength > length)
-		{
-			dataRead = 0;
-			status = m_Channel->Read(m_SendBuffer + dataRead, msgLength - dataRead, TIMEOUT_INFINITE, &dataRead);
-			if (status)
-				return status;
-
-			length += dataRead;
-		}
-
-		if (m_LinxDev->ChecksumPassed(m_SendBuffer, length - 1))
-		{
-			return LERR_CHECKSUM;
-		}
-		offset = ReadU16FromBuff(m_SendBuffer, offset, &command);
-		length -= offset; // Remove header
-		status = ProcessCommand(m_SendBuffer, offset, length, command, m_RecBuffer);
-		if (m_PeriodicTask)
-			status = m_PeriodicTask(m_SendBuffer, m_RecBuffer);
-	}
-	return status;
-}
-
-int LinxListener::AttachCustomCommand(unsigned short commandNumber, CustomCommand callback)
-{
-	if (commandNumber < MAX_CUSTOM_CMDS)
-	{
-		m_CustomCommands[commandNumber] = callback;
-		return L_OK;
-	}
-	return LERR_BADPARAM;
-}
-
-int LinxListener::AttachPeriodicTask(PeriodicTask task)
-{
-	m_PeriodicTask = task;
+#if Win32
+	if (lock)
+		EnterCriticalSection(&m_Mutex);
+	else
+		LeaveCriticalSection(&m_Mutex);
+#elif Linux
+	if (lock)
+		pthread_mutex_lock(&m_Mutex);
+	else
+		pthread_mutex_unlock(&m_Mutex);
+#endif
 	return L_OK;
 }
 
 /****************************************************************************************
 ** Private Functions
 ****************************************************************************************/
+int LinxListener::CheckForCommand()
+{
+	int status = LERR_BADCHAN;
+	if (m_Channel)
+	{
+		unsigned int dataRead = 0;
+		// Try to read first 4 bytes
+		status = m_Channel->Read(m_SendBuffer, 4, m_timeout, &dataRead);
+		if (!status)
+		{
+			unsigned short command;
+			int offset, msgLength, length = dataRead;
+			// Decode length in package
+			if (m_SendBuffer[0] == 0xFF && dataRead >= 2)
+			{
+				offset = 4;
+				msgLength = m_SendBuffer[1];
+			}
+			else if (m_SendBuffer[0] == 0xFE && dataRead >= 4)
+			{
+				offset = 6;
+				msgLength = GetU32FromBuff(m_SendBuffer, 0) & 0xFFFFFF;
+			}
+			else
+			{
+				// invalid data frame, flush buffer and return
+				return m_Channel->Read(m_RecBuffer, m_ListenerBufferSize, 0, NULL);
+			}
+		
+			// if expected msgLength is greater than the data already received then read the remainder
+			while (msgLength > length)
+			{
+				dataRead = 0;
+				status = m_Channel->Read(m_SendBuffer + dataRead, msgLength - dataRead, TIMEOUT_INFINITE, &dataRead);
+				if (status)
+					return status;
+
+				length += dataRead;
+			}
+
+			if (m_LinxDev->ChecksumPassed(m_SendBuffer, length - 1))
+			{
+				return LERR_CHECKSUM;
+			}
+			offset = ReadU16FromBuff(m_SendBuffer, offset, &command);
+			status = ProcessCommand(m_SendBuffer, offset, length - offset, command, m_RecBuffer);
+			if (m_PeriodicTask)
+				status = m_PeriodicTask(m_SendBuffer, m_RecBuffer);
+		}
+	}
+	return status;
+}
+
 int LinxListener::PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, int dataSize,  int status)
 {
 	int offset = 2;
@@ -292,7 +426,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of digital channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxDioChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxDioChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -301,7 +435,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of analog input channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxAiChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxAiChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -310,7 +444,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of analog output channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxAoChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxAoChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -319,7 +453,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of pwm channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxPwmChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxPwmChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -328,7 +462,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of quadrature encoder channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxPwmChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxPwmChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -337,7 +471,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of UART channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxUartChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxUartChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -346,7 +480,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of I2C channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxI2cChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxI2cChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -355,7 +489,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of SPI channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxSpiChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxSpiChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -364,7 +498,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// None
 			// Response parameters
 			// uint8[] : array of CAN channel identifiers
-			length = m_LinxDev->EnumerateChannels(IID_LinxCanChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			length = (unsigned char)m_LinxDev->EnumerateChannels(IID_LinxCanChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
 			status = L_OK;
 			break;
 
@@ -893,7 +1027,7 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			if (length >= 3)
 			{
 				commandPacketBuffer[offset + length] = 0;
-				status = m_LinxDev->UartOpen((char*)commandPacketBuffer + offset, responsePacketBuffer + offset - 1);
+				status = m_LinxDev->UartOpen(commandPacketBuffer + offset, responsePacketBuffer + offset - 1);
 				length = 1;
 				break;
 			}
@@ -926,7 +1060,12 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// uint32 : available bytes
 			if (length >= 1)
 			{
-				status = m_LinxDev->UartGetBytesAvailable(commandPacketBuffer[offset], responsePacketBuffer + offset - 1);
+				unsigned int bytes;
+				status = m_LinxDev->UartGetBytesAvailable(commandPacketBuffer[offset], &bytes);
+				if (!status)
+				{
+					responsePacketBuffer[offset - 1] = (unsigned char)bytes;
+				}
 				length = 1;
 			}
 			else
@@ -943,9 +1082,9 @@ int LinxListener::ProcessCommand(unsigned char* commandPacketBuffer, int offset,
 			// uint8[] : read bytes
 			if (length >= 2)
 			{
-				unsigned char numBytesRead = 0;
-				status = m_LinxDev->UartRead(commandPacketBuffer[offset], commandPacketBuffer[offset + 1], responsePacketBuffer + offset - 1, TIMEOUT_INFINITE, &numBytesRead);
-				length = numBytesRead;
+				unsigned int numBytes = 0;
+				status = m_LinxDev->UartRead(commandPacketBuffer[offset], commandPacketBuffer[offset + 1], responsePacketBuffer + offset - 1, TIMEOUT_INFINITE, &numBytes);
+				length = numBytes;
 			}
 			else
 			{

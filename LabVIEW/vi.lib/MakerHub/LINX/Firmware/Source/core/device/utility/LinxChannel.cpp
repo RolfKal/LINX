@@ -28,15 +28,28 @@
 #include "LinxChannel.h" 
 #include "LinxUtilities.h"
 
-LinxChannel::LinxChannel(LinxFmtChannel *debug, const char *channelName)
+LinxChannel::LinxChannel(const unsigned char *channelName)
 {
-	m_Debug = debug;
-	if (!m_Debug)
-		m_Debug = new LinxFmtChannel();
+	m_Debug = NULL;
+	m_ChannelName = (char*)malloc(strlen((char*)channelName) + 1);
+	strcpy(m_ChannelName, (char*)channelName);
+	// Start with refcount 1
+	m_Refcount = 1;
+}
+
+LinxChannel::LinxChannel(LinxFmtChannel *debug, const unsigned char *channelName)
+{
+	if (debug)
+	{
+		debug->AddRef();
+	}
 	else
-		m_Debug->AddRef();
-	m_ChannelName = (char*)malloc(strlen(channelName) + 1);
-	strcpy(m_ChannelName, channelName);
+	{
+		debug = new LinxFmtChannel();
+	}
+	m_Debug = debug;
+	m_ChannelName = (char*)malloc(strlen((char*)channelName) + 1);
+	strcpy(m_ChannelName, (char*)channelName);
 	// Start with refcount 1
 	m_Refcount = 1;
 }
@@ -44,7 +57,8 @@ LinxChannel::LinxChannel(LinxFmtChannel *debug, const char *channelName)
 LinxChannel::~LinxChannel()
 {
 	free(m_ChannelName);
-	m_Debug->Release();
+	if (m_Debug)
+		m_Debug->Release();
 }
 
 unsigned int LinxChannel::AddRef()
@@ -69,23 +83,25 @@ unsigned int LinxChannel::Release()
 	return refcount;
 }
 
-int LinxChannel::GetName(char* buffer, unsigned char numBytes)
+unsigned char LinxChannel::GetName(unsigned char* buffer, unsigned char numBytes)
 {
-	size_t len = strlen(m_ChannelName);
-	if (numBytes > len)
-		strcpy(buffer, m_ChannelName);
-	else
-		strncpy(buffer, m_ChannelName, numBytes);
-	return L_OK;
+	unsigned char len = (unsigned char)strlen(m_ChannelName);
+	if (buffer)
+	{
+		strncpy((char*)buffer, m_ChannelName, numBytes);
+	}
+	return len;
 }
 
-LinxFmtChannel::LinxFmtChannel() : LinxCommChannel(NULL, "FormatChannel")
+LinxFmtChannel::LinxFmtChannel(int timeout, const unsigned char *channelName) : LinxChannel(channelName)
 {
+	m_Timeout = timeout;
 	m_Channel = NULL;
 }
 
-LinxFmtChannel::LinxFmtChannel(LinxCommChannel *channel) : LinxCommChannel(NULL, "FormatChannel")
+LinxFmtChannel::LinxFmtChannel(LinxCommChannel *channel, int timeout, const unsigned char *channelName) : LinxChannel(channelName)
 {
+	m_Timeout = timeout;
 	if (channel)
 		channel->AddRef();
 	m_Channel = channel;
@@ -100,38 +116,29 @@ LinxFmtChannel::~LinxFmtChannel()
 	}
 }
 
-int LinxFmtChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
-{
-	if (m_Channel)
-		return m_Channel->Read(recBuffer, numBytes, timeout, numBytesRead);
-	return L_OK;
-}
-
-int LinxFmtChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
-{
-	if (m_Channel)
-		return m_Channel->Write(sendBuffer, numBytes, timeout);
-	return L_OK;
-}
-
 int LinxFmtChannel::Write(char c)
 {
 	if (m_Channel)
-		return m_Channel->Write((unsigned char*)&c, 1, TIMEOUT_INFINITE);
+		return m_Channel->Write((const unsigned char*)&c, 1, m_Timeout);
+	return L_OK;
+}
+
+int LinxFmtChannel::Write(const char s[], int len)
+{
+	if (m_Channel)
+		return m_Channel->Write((const unsigned char*)s, (int)strlen(s), m_Timeout);
 	return L_OK;
 }
 
 int LinxFmtChannel::Write(const char s[])
 {
-	if (m_Channel)
-		return m_Channel->Write((unsigned char*)s, (int)strlen(s), TIMEOUT_INFINITE);
-	return L_OK;
+	return Write(s, (int)strlen(s));
 }
 
 int LinxFmtChannel::Write(unsigned char c)
 {
 	if (m_Channel)
-		return m_Channel->Write(&c, 1, TIMEOUT_INFINITE);
+		return m_Channel->Write(&c, 1, m_Timeout);
 	return L_OK;
 }
 
@@ -150,7 +157,7 @@ int LinxFmtChannel::Write(long n)
 	int status = L_OK;
 	if (n < 0) 
 	{
-		status = Write((unsigned char*)"-", 1, TIMEOUT_INFINITE);
+		status = Write('-');
 		n = -n;
 	}
 	if (!status)
@@ -167,7 +174,7 @@ int LinxFmtChannel::Write(long n, int base)
 {
 	if (base == 0)
 	{
-		return Write((unsigned char*)&n, 1, TIMEOUT_INFINITE);
+		return Write((char)n);
 	}
 	else if (base == 10)
 	{
@@ -176,7 +183,7 @@ int LinxFmtChannel::Write(long n, int base)
 	int status = L_OK;
 	if (n < 0) 
 	{
-		status = Write((unsigned char*)"-", 1, TIMEOUT_INFINITE);
+		status = Write('-');
 		n = -n;
 	}
 	if (!status)
@@ -187,7 +194,7 @@ int LinxFmtChannel::Write(long n, int base)
 int LinxFmtChannel::Writeln()
 {
 	if (m_Channel)
-		return m_Channel->Write((unsigned char*)"\r\n", 2, TIMEOUT_INFINITE);
+		return m_Channel->Write((const unsigned char*)"\r\n", 2, m_Timeout);
 	return L_OK;
 }
 
@@ -195,7 +202,7 @@ int LinxFmtChannel::Writeln(char c)
 {
 	if (m_Channel)
 	{
-		int status = m_Channel->Write((unsigned char*)&c, 1, TIMEOUT_INFINITE);
+		int status = Write(c);
 		if (!status)
 			status = Writeln();
 		return status;
@@ -207,7 +214,7 @@ int LinxFmtChannel::Writeln(const char s[])
 {
 	if (m_Channel)
 	{
-		int status = m_Channel->Write((unsigned char*)s, (int)strlen(s), TIMEOUT_INFINITE);
+		int status = Write(s);
 		if (!status)
 			status = Writeln();
 		return status;
@@ -219,7 +226,7 @@ int LinxFmtChannel::Writeln(unsigned char c)
 {
 	if (m_Channel)
 	{
-		int status = m_Channel->Write(&c, 1, TIMEOUT_INFINITE);
+		int status = Write(c);
 		if (!status)
 			status = Writeln();
 		return status;
@@ -231,7 +238,7 @@ int LinxFmtChannel::Writeln(int n)
 {
 	if (m_Channel)
 	{
-		int status = Write((long)n);
+		int status = Write(n);
 		if (!status)
 			status = Writeln();
 		return status;
@@ -282,6 +289,22 @@ int LinxFmtChannel::Close()
 	return L_OK;
 }
 
+int LinxFmtChannel::SetTimeout(int timeout)
+{
+	m_Timeout = timeout;
+	return L_OK;
+}
+
+int LinxFmtChannel::SetDebugChannel(LinxCommChannel *channel)
+{
+	if (m_Channel)
+		m_Channel->Release();
+	if (channel)
+		channel->AddRef();
+	m_Channel = channel;
+	return L_OK;
+}
+
 int LinxFmtChannel::WriteNumber(unsigned long n, unsigned char base)
 {
 	unsigned int i, e = 8 * sizeof(long);
@@ -289,7 +312,7 @@ int LinxFmtChannel::WriteNumber(unsigned long n, unsigned char base)
 
 	if (n == 0) 
 	{
-		return m_Channel->Write((unsigned char*)"0", 1, TIMEOUT_INFINITE);
+		return Write('0');
 	} 
 
 	i = e;
@@ -299,15 +322,5 @@ int LinxFmtChannel::WriteNumber(unsigned long n, unsigned char base)
 		buf[--i] = tmp < 10 ? '0' + tmp : 'A' + tmp - 10;
 		n /= base;
 	}
-	return m_Channel->Write(buf + i, e - i, TIMEOUT_INFINITE);
-}
-
-int LinxFmtChannel::SetChannel(LinxCommChannel *channel)
-{
-	if (m_Channel)
-		m_Channel->Release();
-	m_Channel = channel;
-	if (m_Channel)
-		m_Channel->AddRef();
-	return L_OK;
+	return Write((char*)buf + i, e - i);
 }

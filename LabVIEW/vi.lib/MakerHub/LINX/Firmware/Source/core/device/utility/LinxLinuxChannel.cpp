@@ -41,7 +41,7 @@
 #define GPIO_EXPORTED	0x80
 
 //------------------------------------- Digital -------------------------------------
-LinxSysfsAiChannel::LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName) : LinxAiChannel(channelName, debug)
+LinxSysfsAiChannel::LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName) : LinxAiChannel(debug, channelName)
 {
 	m_ValHandle = NULL;
 }
@@ -83,7 +83,7 @@ int LinxSysfsAiChannel::Read(unsigned int *value)
 }
 
 //------------------------------------- Digital -------------------------------------
-LinxSysfsDioChannel::LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin) : LinxDioChannel("LinxDioPin", debug)
+LinxSysfsDioChannel::LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin) : LinxDioChannel(debug, "LinxDioPin")
 {
 	m_GpioChan = gpioPin;
 	m_LinxChan = linxPin;
@@ -224,7 +224,7 @@ int LinxSysfsDioChannel::ReadPulseWidth(unsigned char stimType, unsigned char re
 }
 
 //------------------------------------- UART -------------------------------------
-LinxSysfsPwmChannel::LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableName, const char *periodName, const char *dutyCycleName, unsigned int defaultPeriod) : LinxPwmChannel(deviceName, debug)
+LinxSysfsPwmChannel::LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableName, const char *periodName, const char *dutyCycleName, unsigned int defaultPeriod) : LinxPwmChannel(debug, deviceName)
 {
 	m_PeriodHandle = NULL;
 	m_DutyCycleHandle = NULL;
@@ -332,12 +332,12 @@ int LinxSysfsPwmChannel::SetDutyCycle(unsigned char value)
 
 
 //------------------------------------- Unix Comm -------------------------------------
-LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const char *channelName, OSSocket socket) : LinxCommChannel(debug, channelName)
+LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, OSSocket socket) : LinxCommChannel(debug, channelName)
 {
 	m_Socket = socket;
 }
 
-LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const char *address, unsigned short port) : LinxCommChannel(debug, address)
+LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port) : LinxCommChannel(debug, address)
 {
     struct addrinfo hints, *result, *rp;
 	char str[10];
@@ -384,7 +384,7 @@ LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const char *addr
 
 LinxUnixCommChannel::~LinxUnixCommChannel()
 {
-	if (m_Socket != INVALID_SOCKET)
+	if (IsANetObject(m_Socket)
 		close(m_Socket);
 }
 
@@ -423,7 +423,7 @@ int LinxUnixCommChannel::Read(unsigned char* recBuffer, int numBytes, int timeou
 	return L_OK;
 }
 
-int LinxUnixCommChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+int LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int numBytes, int timeout)
 {
 	int bytesSent = write(m_Socket, sendBuffer, numBytes);
 	if (bytesSent != numBytes)
@@ -435,14 +435,14 @@ int LinxUnixCommChannel::Write(unsigned char* sendBuffer, int numBytes, int time
 
 int LinxUnixCommChannel::Close()
 {
-	if (m_Socket != INVALID_SOCKET)
+	if (IsANetObject(m_Socket))
 		close(m_Socket);
-	m_Socket = INVALID_SOCKET;
+	m_Socket = kInvalNetObject;
 	return L_OK;
 }
 
 //------------------------------------- UART -------------------------------------
-LinxUnixUartChannel::LinxUnixUartChannel(LinxFmtChannel *debug, const char *deviceName) : LinxUartChannel(deviceName, debug)
+LinxUnixUartChannel::LinxUnixUartChannel(LinxFmtChannel *debug, const char *deviceName) : LinxUartChannel(debug, deviceName)
 {
 	struct termios2 options;
 
@@ -477,7 +477,7 @@ int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBau
 	if (status)
 		return status;
 
-	// If driver supporst newer TCGETS2 ioctl call, assume that we can set arbitrary baudrates
+	// If driver supports newer TCGETS2 ioctl call, assume that we can set arbitrary baudrates
 	// Actual used baudrate may still be different due to discrete clock generation
 	if (ioctl(m_Fd, TCGETS2, &options) < 0)
 	{
@@ -502,13 +502,15 @@ int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBau
 			temp--;
 
 		//Store Actual Baud Used
-		*actualBaud = (unsigned int) *(g_UartSupportedSpeeds + temp);
+		if (actualBaud)
+			*actualBaud = (unsigned int) *(g_UartSupportedSpeeds + temp);
 		options.c_cflag = (options.c_cflag & ~(CBAUD | CIBAUD)) | g_UartSupportedSpeedsCodes[temp] | g_UartSupportedSpeedsCodes[temp] << IBSHIFT;
 		ioctlval = TCSETS;
 	}
 	else
 	{
-		*actualBaud = baudRate;
+		if (actualBaud)
+			*actualBaud = baudRate;
 		options.c_ispeed = baudRate;
 		options.c_ospeed = baudRate;
 		options.c_cflag = ((options.c_cflag & ~(CBAUD | CIBAUD)) | BOTHER | BOTHER << IBSHIFT);
@@ -523,10 +525,12 @@ int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBau
 
 #define BIT_SIZE_OFFSET	5
 #define NUM_BIT_SIZES	4
+#define NUM_PARITY_SIZES	5
 
 static const int BitSizes[NUM_BIT_SIZES] = {CS5, CS6, CS7, CS8};
+static const int Parity[NUM_PARITY_SIZES] = {0, PARENB, PARENB | PARODD, PARENB | PARODD | CMSPAR, PARENB | CMSPAR};
 
-int LinxUnixUartChannel::SetBitSizes(unsigned char dataBits, unsigned char stopBits)
+int LinxUnixUartChannel::SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
 {
 	int status = SmartOpen();
 	if (status)
@@ -551,28 +555,6 @@ int LinxUnixUartChannel::SetBitSizes(unsigned char dataBits, unsigned char stopB
 		else if (stopBits == 2)
 			options.c_cflag |= CSTOPB;
 
-		if (ioctl(m_Fd, TCSETS, &options) >= 0)
-			return  L_OK;
-	}
-	return LERR_IO;
-}
-
-#define NUM_PARITY_SIZES	5
-
-static const int Parity[NUM_PARITY_SIZES] = {0, PARENB, PARENB | PARODD, PARENB | PARODD | CMSPAR, PARENB | CMSPAR};
-
-int LinxUnixUartChannel::SetParity(LinxUartParity parity)
-{
-	int status = SmartOpen();
-	if (status)
-		return status;
-
-	if (parity > NUM_PARITY_SIZES)
-		return LERR_BADPARAM;
-
-	struct termios options;
-	if (ioctl(m_Fd, TCGETS, &options) >= 0)
-	{
 		if (parity)
 		{
 			// Use selected parity
@@ -588,8 +570,11 @@ int LinxUnixUartChannel::SetParity(LinxUartParity parity)
 		options.c_iflag |= (INPCK | ISTRIP);
 		if (ioctl(m_Fd, TCSETS, &options) >= 0)
 			return  L_OK;
+
+		if (ioctl(m_Fd, TCSETS, &options) >= 0)
+			return  L_OK;
 	}
-	return LERR_IO;
+	return LUART_SET_PARAM_FAIL;
 }
 
 int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
@@ -627,7 +612,7 @@ int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeou
 	return status;
 }
 
-int LinxUnixUartChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+int LinxUnixUartChannel::Write(const unsigned char* sendBuffer, int numBytes, int timeout)
 {
 	int bytesSent = write(m_Fd, sendBuffer, numBytes);
 	if (bytesSent != numBytes)
@@ -639,14 +624,14 @@ int LinxUnixUartChannel::Write(unsigned char* sendBuffer, int numBytes, int time
 
 int LinxUnixUartChannel::Close()
 {
-	if (m_Fd != INVALID_SOCKET)
+	if (IsANetObject(m_Fd))
 		close(m_Fd);
-	m_Fd = INVALID_SOCKET;
+	m_Fd = kInvalNetObject;
 	return L_OK;
 }
 
 //------------------------------------- I2C -------------------------------------
-LinxSysfsI2cChannel::LinxSysfsI2cChannel(const char *channelName, LinxFmtChannel *debug) : LinxI2cChannel(channelName, debug)
+LinxSysfsI2cChannel::LinxSysfsI2cChannel(LinxFmtChannel *debug, const char *channelName) : LinxI2cChannel(debug, channelName)
 {
 	m_Fd = -1;
 	m_Funcs = 0;
@@ -784,7 +769,7 @@ int LinxSysfsI2cChannel::Close()
 }
 
 //------------------------------------- SPI -------------------------------------
-LinxSysfsSpiChannel::LinxSysfsSpiChannel(const char *channelName, LinxFmtChannel *debug, LinxDevice *device, unsigned int maxSpeed) : LinxSpiChannel(channelName, debug)
+LinxSysfsSpiChannel::LinxSysfsSpiChannel(LinxFmtChannel *debug, LinxDevice *device, const char *channelName, unsigned int maxSpeed) : LinxSpiChannel(debug, channelName)
 {
 	m_Device = device;
 	m_CurrentSpeed = maxSpeed;

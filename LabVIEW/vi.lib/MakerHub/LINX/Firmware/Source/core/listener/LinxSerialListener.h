@@ -40,14 +40,17 @@ class LinxSerialListener : public LinxListener
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSerialListener(LinxDevice *device) : LinxListener(device){};
+		LinxSerialListener(LinxDevice *device, bool autoLaunch = false) : LinxListener(device, autoLaunch){};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Start(unsigned char uartChan, unsigned int baudRate = 9600);
-		virtual int WaitForConnection();	// Wait for incoming connection, child needs to implement this
-
+		int Start(unsigned char uartChan, unsigned int baudRate = 9600,
+			              unsigned char dataBits = 8, unsigned char stopBits = 2,
+						  LinxUartParity parity = None, int timeout = 2000);
+		int Start(const unsigned char *deviceName, unsigned int baudRate = 9600,
+			              unsigned char dataBits = 8, unsigned char stopBits = 2,
+						  LinxUartParity parity = None, int timeout = 2000);
 	protected:
 		/****************************************************************************************
 		**  Functions

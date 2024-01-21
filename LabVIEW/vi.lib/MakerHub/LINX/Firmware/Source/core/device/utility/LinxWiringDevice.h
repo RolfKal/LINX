@@ -48,7 +48,7 @@ class LinxWiringDevice : public LinxDevice
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxWiringDevice();
+		LinxWiringDevice(LinxFmtChannel *debug = NULL);
 		virtual ~LinxWiringDevice(){};
 			
 		/****************************************************************************************
@@ -99,7 +99,7 @@ class LinxWiringDevice : public LinxDevice
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 		
-		virtual unsigned char EnumerateChannels(int type, unsigned char *buffer, unsigned char length);
+		virtual int EnumerateChannels(int type, unsigned char *buffer = NULL, unsigned int length = 0, unsigned int *reqLen = NULL);
 
 	protected:
 		/****************************************************************************************

@@ -42,20 +42,22 @@ class LinxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Constructors/Destructor
 		****************************************************************************************/
-		LinxTcpListener(LinxDevice* device);
+		LinxTcpListener(LinxDevice* device, bool autoLaunch = false);
 		virtual ~LinxTcpListener();
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Start(unsigned int interfaceAaddress = INADDR_ANY, unsigned short port = 44300);
-		virtual int WaitForConnection();
+		virtual int Start(const unsigned char *interfaceAddress, unsigned short port = 44300, int timeout = 2000);
+		virtual int Start(const unsigned char *interfaceAddress, const char *servName, int timeout = 2000);
 		virtual int Close();
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+		virtual int WaitForConnection();
+
 	private:
 		/****************************************************************************************
 		**  Variables
@@ -63,11 +65,7 @@ class LinxTcpListener : public LinxListener
 		unsigned int m_TcpUpdateTime;
 		struct timeval m_TcpTimeout;
 
-		OSSocket m_ServerSocket;
-
-		struct sockaddr_in m_TcpServer;
-		struct sockaddr_in m_TcpClient;
-
+		NetObject m_ServerSocket;
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/

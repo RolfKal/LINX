@@ -24,17 +24,18 @@
 /****************************************************************************************
 **  Constructor/Destructors
 ****************************************************************************************/
-LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const char *channelName, OSSocket socket) : LinxCommChannel(debug, channelName)
+LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, NetObject socket) : LinxCommChannel(debug, channelName)
 {
 	u_long nonBlocking = 1;
 	m_Socket = socket;
 	ioctlsocket(m_Socket, FIONBIO, &nonBlocking);
 }
 
-LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const char *address, unsigned short port) : LinxCommChannel(debug, address)
+LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port) : LinxCommChannel(debug, address)
 {
 	struct addrinfo hints, *result, *rp;
-	char str[10];
+	char servname[10];
+	int retval;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
@@ -42,8 +43,9 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const char
     hints.ai_protocol = AF_UNSPEC;
     hints.ai_flags = AI_NUMERICSERV;
 
-	sprintf(str, "%hu", port);
-	if (!getaddrinfo(address,  str, &hints, &result))
+	sprintf(servname, "%hu", port);
+	retval = getaddrinfo((char*)address,  servname, &hints, &result);
+	if (!retval)
 	{
 		for (rp = result; rp != NULL; rp = rp->ai_next)
 		{
@@ -62,10 +64,12 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const char
 				default:
 					continue;
 			}
-            if (connect(m_Socket, rp->ai_addr, (socklen_t)rp->ai_addrlen) != -1)
+			retval = connect(m_Socket, rp->ai_addr, (socklen_t)rp->ai_addrlen);
+            if (retval != -1)
 			{
 				u_long nonBlocking = 1;
-				if (ioctlsocket(m_Socket, FIONBIO, &nonBlocking) >= 0)
+				retval = ioctlsocket(m_Socket, FIONBIO, &nonBlocking);
+				if (retval >= 0)
 					break;
 			}
 			closesocket(m_Socket);
@@ -74,28 +78,30 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const char
 		if (rp == NULL)
 		{       
 			m_Debug->Write("Could not connect to TCP/IP address: ");
-			m_Debug->Writeln(address);
+			m_Debug->Writeln((char*)address);
 		}
 	}
 }
 
 LinxWindowsCommChannel::~LinxWindowsCommChannel()
 {
-	if (m_Socket != INVALID_SOCKET)
+	if (IsANetObject(m_Socket))
 		closesocket(m_Socket);
 }
 
 #define kRetryLimit 25
 
-int LinxWindowsCommChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead)
 {
+	int retval;
+	
 	*numBytesRead = 0;
 
 	if (recBuffer && numBytes)
 	{
 		unsigned long long start = getMsTicks();
 		struct timeval tout, *pto = timeout < 0 ? NULL : &tout;
- 		int retval, syserr;
+ 		int syserr;
         fd_set readfds;     /* read sockets */
 
 		FD_ZERO(&readfds);
@@ -152,19 +158,21 @@ int LinxWindowsCommChannel::Read(unsigned char* recBuffer, int numBytes, int tim
 	else
 	{
 		// Check how many bytes are available
-		if (ioctlsocket(m_Socket, FIONREAD, (u_long*)numBytesRead) < 0)
+		retval = ioctlsocket(m_Socket, FIONREAD, (u_long*)numBytesRead);
+		if (retval < 0)
 			return LUART_READ_FAIL;
 	}
 	return L_OK;
 }
 
-int LinxWindowsCommChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+int LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout)
 {
 	if (sendBuffer && numBytes)
 	{
 		unsigned long long start = getMsTicks();
 		struct timeval tout, *pto = timeout < 0 ? NULL : &tout;
- 		int bytesSent = 0, retval, syserr;
+ 		unsigned int bytesSent = 0;
+		int retval, syserr;
         fd_set writefds;     /* write sockets */
 
 		FD_ZERO(&writefds);
@@ -220,9 +228,9 @@ int LinxWindowsCommChannel::Write(unsigned char* sendBuffer, int numBytes, int t
 
 int LinxWindowsCommChannel::Close()
 {
-	if (m_Socket != INVALID_SOCKET)
+	if (IsANetObject(m_Socket))
 		closesocket(m_Socket);
-	m_Socket = INVALID_SOCKET;
+	m_Socket = kInvalNetObject;
 	return L_OK;
 }
 
@@ -231,9 +239,25 @@ int LinxWindowsCommChannel::Close()
 /****************************************************************************************
 **  Constructor/Destructors
 ****************************************************************************************/
-LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, const char *deviceName) : LinxUartChannel(debug, deviceName)
+LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, const unsigned char *deviceName) : LinxUartChannel(debug, deviceName)
 {
 	m_Handle = INVALID_HANDLE_VALUE;
+	
+	int length = 0;
+	const char *sPortName = strstr((char*)deviceName, "COM");
+	if (sPortName)
+	{
+		length = 3;
+		while (isdigit(sPortName[length])) length++;
+		strncpy(m_Channel, sPortName, length);
+	}
+	m_Channel[length] = 0;
+}
+
+LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, unsigned char channel, const unsigned char *deviceName) : LinxUartChannel(debug, deviceName)
+{
+	m_Handle = INVALID_HANDLE_VALUE;
+	sprintf(m_Channel, "COM%c", channel);
 }
 
 LinxWindowsUartChannel::~LinxWindowsUartChannel()
@@ -249,19 +273,21 @@ int LinxWindowsUartChannel::SmartOpen()
 {
 	if (m_Handle == INVALID_HANDLE_VALUE)
 	{
-		m_Handle = CreateFileA(m_ChannelName,                  // Name of the Port to be Opened
-		                        GENERIC_READ | GENERIC_WRITE, // Read/Write Access
-								0,                            // No Sharing, ports cant be shared
-								NULL,                         // No Security
-							    OPEN_EXISTING,                // Open existing port only
-		                        0,                            // Non Overlapped I/O
-		                        NULL);                        // Null for Comm Devicesopen(m_ChannelName, O_RDWR);
+		m_Handle = CreateFileA(m_Channel,					 // Name of the Port to be Opened
+		                       GENERIC_READ | GENERIC_WRITE, // Read/Write Access
+							   0,                            // No Sharing, ports cant be shared
+							   NULL,                         // No Security
+							   OPEN_EXISTING,                // Open existing port only
+		                       0,                            // Non Overlapped I/O
+		                       NULL);                        // Null for Comm Devices
 		if (m_Handle == INVALID_HANDLE_VALUE)
 		{
 			m_Debug->Write("UART Fail - Failed To Open UART Handle - ");
 			m_Debug->Writeln(m_ChannelName);
 			return  LUART_OPEN_FAIL;
 		}
+		COMMTIMEOUTS timeouts = {0};
+		SetCommTimeouts(m_Handle, &timeouts);
 	}
 	return L_OK;
 }
@@ -272,44 +298,23 @@ int LinxWindowsUartChannel::SetSpeed(unsigned int speed, unsigned int* actualSpe
 	if (status)
 		return status;
 
-	DCB dcbSerialParams = { 0 };                         // Initializing DCB structure
+	DCB dcbSerialParams = { 0 };						// Initializing DCB structure
 	dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
 
-	status = GetCommState(m_Handle, &dcbSerialParams);      //retreives  the current settings
+	status = GetCommState(m_Handle, &dcbSerialParams);  //retreives  the current settings
 	if (status == FALSE)
 		m_Debug->Writeln("   Error! in GetCommState()");
 
-	dcbSerialParams.BaudRate = speed;      // Setting BaudRate = 9600
-	status = SetCommState(m_Handle, &dcbSerialParams);  //Configuring the port according to settings in DCB 
-	return status ? L_OK : LERR_IO;
-}
-
-int LinxWindowsUartChannel::SetBitSizes(unsigned char dataBits, unsigned char stopBits)
-{
-	int status = SmartOpen();
-	if (status)
-		return status;
-
-	DCB dcbSerialParams = { 0 };					// Initializing DCB structure
-	dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
-
-	status = GetCommState(m_Handle, &dcbSerialParams);      //retreives  the current settings
-	if (status == FALSE)
-		m_Debug->Writeln("   Error! in GetCommState()");
-
-	if (dataBits)
-		dcbSerialParams.ByteSize = dataBits;	// Setting ByteSize
-	if (stopBits == 1)
-		dcbSerialParams.StopBits = ONESTOPBIT;	// Setting StopBits
-	else if ((stopBits == 1))
-		dcbSerialParams.StopBits = TWOSTOPBITS;	// Setting StopBits
-	status = SetCommState(m_Handle, &dcbSerialParams);  //Configuring the port according to settings in DCB 
-	return status ? L_OK : LERR_IO;
+	dcbSerialParams.BaudRate = speed;					// Setting BaudRate
+	status = SetCommState(m_Handle, &dcbSerialParams);  // Configuring the port according to settings in DCB
+	if (status && actualSpeed)
+		*actualSpeed = speed;
+	return status ? L_OK : LUART_SET_PARAM_FAIL;
 }
 
 #define NUM_PARITY_SIZES	5
 
-int LinxWindowsUartChannel::SetParity(LinxUartParity parity)
+int LinxWindowsUartChannel::SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
 {
 	int status = SmartOpen();
 	if (status)
@@ -318,37 +323,45 @@ int LinxWindowsUartChannel::SetParity(LinxUartParity parity)
 	if (parity > NUM_PARITY_SIZES)
 		return LERR_BADPARAM;
 
-	DCB dcbSerialParams = { 0 };                         // Initializing DCB structure
+	DCB dcbSerialParams = { 0 };						// Initializing DCB structure
 	dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
 
-	status = GetCommState(m_Handle, &dcbSerialParams);      //retreives  the current settings
+	status = GetCommState(m_Handle, &dcbSerialParams);	//retreives  the current settings
 	if (status == FALSE)
 		m_Debug->Writeln("   Error! in GetCommState()");
 
+	dcbSerialParams.ByteSize = dataBits;			// Setting ByteSize
+	if (stopBits == 1)
+		dcbSerialParams.StopBits = ONESTOPBIT;			// Setting StopBits
+	else if (stopBits == 2)
+		dcbSerialParams.StopBits = TWOSTOPBITS;			// Setting StopBits
+
 	if (parity == Ignore)
 	{
-		dcbSerialParams.Parity = NOPARITY;		// Setting parity = None 
-		dcbSerialParams.fParity = TRUE;			// Ignore parity errors
+		dcbSerialParams.Parity = NOPARITY;				// Setting parity = None 
+		dcbSerialParams.fParity = TRUE;					// Ignore parity errors
 	}
 	else
 	{
-		dcbSerialParams.Parity = parity - 1;	// Setting parity to desired value
-		dcbSerialParams.fParity = FALSE;		// Enable parity errors
+		dcbSerialParams.Parity = parity - 1;			// Setting parity to desired value
+		dcbSerialParams.fParity = FALSE;				// Enable parity errors
 	}
 	status = SetCommState(m_Handle, &dcbSerialParams);  //Configuring the port according to settings in DCB 
-	return status ? L_OK : LERR_IO;
+	return status ? L_OK : LUART_SET_PARAM_FAIL;
 }
 
-int LinxWindowsUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+int LinxWindowsUartChannel::Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead)
 {
-	int status;
+	int status = SmartOpen();
+	if (status)
+		return status;
+
 	if (recBuffer && numBytes)
 	{
 		COMMTIMEOUTS timeouts = { 0 };
 		status = GetCommTimeouts(m_Handle, &timeouts);
 		if (status)
 		{
-			timeouts.ReadTotalTimeoutMultiplier = 0;
 			if (!timeout)
 			{
 				// Return immediately even if there is no data
@@ -362,7 +375,11 @@ int LinxWindowsUartChannel::Read(unsigned char* recBuffer, int numBytes, int tim
 			}
 			status = SetCommTimeouts(m_Handle, &timeouts);
 			if (status)
+			{
 				status = ReadFile(m_Handle, recBuffer, numBytes, (LPDWORD)numBytesRead, NULL);
+				if (status && *numBytesRead < numBytes)
+					return LUART_TIMEOUT;
+			}
 		}
 	}
 	else
@@ -376,15 +393,21 @@ int LinxWindowsUartChannel::Read(unsigned char* recBuffer, int numBytes, int tim
 	return status ? L_OK : LERR_IO;
 }
 
-int LinxWindowsUartChannel::Write(unsigned char* sendBuffer, int numBytes, int timeout)
+int LinxWindowsUartChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout)
 {
-	COMMTIMEOUTS timeouts = { 0 };
-	int status = GetCommTimeouts(m_Handle, &timeouts);
-	timeouts.ReadTotalTimeoutConstant = timeout >= 0 ? timeout : MAXDWORD;
-	timeouts.ReadTotalTimeoutMultiplier = 0;
-	status = SetCommTimeouts(m_Handle, &timeouts);
+	int status = SmartOpen();
+	if (status)
+		return status;
 
-	status = WriteFile(m_Handle, sendBuffer, numBytes, (LPDWORD)&numBytes, NULL);
+	COMMTIMEOUTS timeouts = { 0 };
+	status = GetCommTimeouts(m_Handle, &timeouts);
+	if (status)
+	{
+		timeouts.WriteTotalTimeoutConstant = timeout >= 0 ? timeout : MAXDWORD;
+		status = SetCommTimeouts(m_Handle, &timeouts);
+	}
+	if (status)
+		status = WriteFile(m_Handle, sendBuffer, numBytes, (LPDWORD)&numBytes, NULL);
 	return status ? L_OK : LERR_IO;
 }
 

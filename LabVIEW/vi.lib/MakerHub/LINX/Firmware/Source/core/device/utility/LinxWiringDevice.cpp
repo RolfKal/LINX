@@ -41,7 +41,7 @@
 /****************************************************************************************
 **  Constructors / Destructors 
 ****************************************************************************************/
-LinxWiringDevice::LinxWiringDevice()
+LinxWiringDevice::LinxWiringDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 {
 	//LINX API Version
 	LinxApiMajor = 3;
@@ -564,7 +564,7 @@ int LinxWiringDevice::UartSetBaudRate(unsigned char channel, unsigned long baudR
 	return retVal;
 }
 
-int LinxWiringDevice::UartGetBytesAvailable(unsigned char channel, unsigned char *numBytes)
+int LinxWiringDevice::UartGetBytesAvailable(unsigned char channel, unsigned int *numBytes)
 {
 	if(channel == 0)
 	{		
@@ -594,7 +594,7 @@ int LinxWiringDevice::UartGetBytesAvailable(unsigned char channel, unsigned char
 	return L_OK;
 }
 
-int LinxWiringDevice::UartRead(unsigned char channel, unsigned char numBytes, unsigned char* recBuffer, unsigned char* numBytesRead)
+int LinxWiringDevice::UartRead(unsigned char channel, unsigned int numBytes, unsigned char* recBuffer, unsigned int* numBytesRead)
 {
 	#if ARDUINO_VERSION >= 100
 	
@@ -677,7 +677,7 @@ int LinxWiringDevice::UartRead(unsigned char channel, unsigned char numBytes, un
 	#endif
 }
 
-int LinxWiringDevice::UartWrite(unsigned char channel, unsigned char numBytes, unsigned char* sendBuffer)
+int LinxWiringDevice::UartWrite(unsigned char channel, unsigned int numBytes, unsigned char* sendBuffer)
 {
 	if(channel == 0)
 	{		

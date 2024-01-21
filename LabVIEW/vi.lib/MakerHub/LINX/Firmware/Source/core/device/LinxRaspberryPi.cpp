@@ -226,7 +226,7 @@ static const char * g_UartPaths[NUM_UART_CHANS] = {"/dev/serial0"};
 /****************************************************************************************
 **  Constructors /  Destructor
 ****************************************************************************************/
-LinxRaspberryPi::LinxRaspberryPi()
+LinxRaspberryPi::LinxRaspberryPi(LinxFmtChannel *debug) : LinxDevice(debug)
 {
 	//LINX API Version
 	LinxApiMajor = 2;
@@ -331,13 +331,13 @@ LinxRaspberryPi::LinxRaspberryPi()
 	// Initialize the digital lookup map
 	for (int i = 0; i < NUM_DIGITAL_CHANS; i++)
 	{
-		LinxChannel *chan;
+		LinxChannel *channel;
 		if (gpio_map == MAP_FAILED)
-			chan = new LinxSysfsDioChannel(m_Debug, g_LinxDioChans[i], g_GpioDioChans[i]);
+			channel = new LinxSysfsDioChannel(m_Debug, g_LinxDioChans[i], g_GpioDioChans[i]);
 		else
-			chan = new LinxRaspiDioChannel(m_Debug, g_LinxDioChans[i], g_GpioDioChans[i]);
-		if (chan)
-			RegisterChannel(IID_LinxDioChannel, g_LinxDioChans[i], chan);
+			channel = new LinxRaspiDioChannel(m_Debug, g_LinxDioChans[i], g_GpioDioChans[i]);
+		if (channel)
+			RegisterChannel(IID_LinxDioChannel, g_LinxDioChans[i], channel);
 	}
 
 	//------------------------------------- PWM --------------------------------------
@@ -348,8 +348,8 @@ LinxRaspberryPi::LinxRaspberryPi()
 	// Store Uart channels in the registry map
 	for (int i = 0; i < NUM_UART_CHANS; i++)
 	{
-		LinxChannel *chan = new LinxUnixUartChannel(m_Debug, g_UartPaths[i]);
-		if (chan)
+		LinxChannel *channel = new LinxUnixUartChannel(m_Debug, g_UartPaths[i]);
+		if (channel)
 			RegisterChannel(IID_LinxUartChannel, g_UartChans[i], channel);
 	}
 
@@ -357,9 +357,9 @@ LinxRaspberryPi::LinxRaspberryPi()
 	// Store I2C master channels in the registry map
 	for (int i = 0; i < NUM_I2C_CHANS; i++)
 	{
-		LinxChannel *chan = new LinxSysfsI2cChannel(g_I2cPaths[i], m_Debug);
-		if (chan)
-			RegisterChannel(IID_LinxI2cChannel, g_I2cChans[i], chan);
+		LinxChannel *channel = new LinxSysfsI2cChannel(g_I2cPaths[i], m_Debug);
+		if (channel)
+			RegisterChannel(IID_LinxI2cChannel, g_I2cChans[i], channel);
 	}
 
 	//------------------------------------- SPI -------------------------------------
@@ -368,9 +368,9 @@ LinxRaspberryPi::LinxRaspberryPi()
 	{
 		if (fileExists(g_SpiPaths[i]))
 		{
-			LinxChannel *chan = new LinxSysfsSpiChannel(g_SpiPaths[i], m_Debug, this, g_SpiDefaultSpeed);
-			if (chan)
-				RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], chan);
+			LinxChannel *channel = new LinxSysfsSpiChannel(g_SpiPaths[i], m_Debug, this, g_SpiDefaultSpeed);
+			if (channel)
+				RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], channel);
 		}
 	}
 

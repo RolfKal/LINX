@@ -39,7 +39,7 @@ class LinxWindowsDevice : public LinxDevice
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxWindowsDevice();
+		LinxWindowsDevice(LinxFmtChannel *debug = NULL);
 		~LinxWindowsDevice();
 
 		/****************************************************************************************
@@ -56,5 +56,7 @@ class LinxWindowsDevice : public LinxDevice
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
+		unsigned char EnumerateCommPorts(const GUID *guid, DWORD dwFlags);
+
 };
 #endif //LINX_WINDOWSDEVICE_H

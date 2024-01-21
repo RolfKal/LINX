@@ -81,7 +81,7 @@ class LinxRaspberryPi : public LinxDevice
 		/****************************************************************************************
 		**  Constructors /  Destructor
 		****************************************************************************************/
-		LinxRaspberryPi();
+		LinxRaspberryPi(LinxFmtChannel *debug = NULL);
 		virtual ~LinxRaspberryPi();
 
 		/****************************************************************************************
