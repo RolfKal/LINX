@@ -72,6 +72,7 @@
 			<Item Name="LINX - PmodTC1.vi" Type="VI" URL="../../../../examples/MakerHub/LINX/LINX - PmodTC1.vi"/>
 		</Item>
 		<Item Name="LMH-LINX.lvlib" Type="Library" URL="../LMH-LINX.lvlib"/>
+		<Item Name="LINX API.lvclass" Type="LVClass" URL="../API/LINX API.lvclass"/>
 		<Item Name="All LINX VIs.vi" Type="VI" URL="../../../../../All LINX VIs.vi"/>
 		<Item Name="Device.lvlib" Type="Library" URL="../Private/Device/Device.lvlib"/>
 		<Item Name="LMH-Toolbox.lvlib" Type="Library" URL="../../Toolbox/LMH-Toolbox.lvlib"/>
@@ -255,10 +256,7 @@
 			<Item Name="kernel32.dll" Type="Document" URL="kernel32.dll">
 				<Property Name="NI.PreserveRelativePath" Type="Bool">true</Property>
 			</Item>
-			<Item Name="liblinxdevice.dll" Type="Document" URL="/E/lv2019/dist/vi.lib/MakerHub/LINX/Resources/liblinxdevice.dll"/>
-			<Item Name="liblinxdevice.dll" Type="Document" URL="liblinxdevice.dll">
-				<Property Name="NI.PreserveRelativePath" Type="Bool">true</Property>
-			</Item>
+			<Item Name="liblinxdevice.dll" Type="Document" URL="../Resources/liblinxdevice.dll"/>
 		</Item>
 		<Item Name="Build Specifications" Type="Build">
 			<Item Name="Firmware Wizard" Type="EXE">
