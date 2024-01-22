@@ -524,10 +524,6 @@
 						/>
 					</FileConfiguration>
 				</File>
-				<File
-					RelativePath="..\..\core\device\utility\winutils.c"
-					>
-				</File>
 			</Filter>
 		</Filter>
 		<Filter

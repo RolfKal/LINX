@@ -88,6 +88,7 @@ class LinxListener
 		int m_ListenerBufferSize;
 		unsigned char* m_RecBuffer;
 		unsigned char* m_SendBuffer;
+		unsigned char m_ProtocolVersion;
 		int m_Run;
 		int m_timeout;
 
@@ -96,7 +97,8 @@ class LinxListener
 		****************************************************************************************/
 		int CheckForCommand();	// Check for next command and decode it to relay it to the device
 		
+		int EnumerateChannels(int type, unsigned char request, unsigned char *responseBuffer, unsigned int offset, unsigned int responseLength);
 		int PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, int dataSize, int status);
-		int ProcessCommand(unsigned char* commandPacketBuffer, int offset, int length, unsigned short command, unsigned char* responsePacketBuffer);
+		int ProcessCommand(unsigned short command, unsigned char* commandPacketBuffer, int offset, int length, unsigned char* responsePacketBuffer, int responseLength);
 };
 #endif //LINX_LISTENER_H

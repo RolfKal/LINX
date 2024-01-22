@@ -44,6 +44,7 @@ class LinxClient : public LinxDevice
 		**  Functions
 		****************************************************************************************/
 		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
+		int IsInitialized();
 
 		//Analog
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
@@ -103,7 +104,7 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Initialize();	
+		virtual int Initialize(LinxCommChannel *channel);	
 
 	private:
 		/****************************************************************************************
@@ -114,6 +115,7 @@ class LinxClient : public LinxDevice
 
 		unsigned int m_ListenerBufferSize;
 		unsigned short m_PacketNum;
+		unsigned char m_ProtocolVersion;
 
 		int m_Timeout;
 
@@ -125,10 +127,10 @@ class LinxClient : public LinxDevice
 		int WriteAndRead(unsigned char *buffer, unsigned int buffLength, unsigned int *headerLength, unsigned int dataLength, unsigned int *dataRead);
 		void CopyArrayToSet(int type, unsigned char *arr, unsigned int length);
 
-		int GetNoParameter(unsigned short command);
+		int GetSyncCommand(bool negotiate);
 		int GetU8Parameter(unsigned short command, unsigned char *val);
 		int GetU16Parameter(unsigned short command, unsigned short *val);
 		int GetU32Parameter(unsigned short command, unsigned int *val);
-		int GetU8ArrParameter(unsigned short command, unsigned char *val, unsigned int buffLength, unsigned int *headerLength, unsigned int *dataRead);
+		int GetU8ArrParameter(unsigned short command, unsigned char *val, unsigned int buffLength, unsigned char param, unsigned int *headerLength, unsigned int *dataRead);
 };
 #endif //LINX_CLIENT_H

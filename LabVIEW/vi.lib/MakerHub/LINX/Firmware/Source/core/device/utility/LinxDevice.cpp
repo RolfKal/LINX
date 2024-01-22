@@ -792,7 +792,7 @@ int LinxDevice::EnumerateChannels(int type, unsigned char *buffer, unsigned int 
 	}
 	if (reqLen)
 		*reqLen = off;
-	return (unsigned char)num;
+	return num;
 }
 
 /****************************************************************************************

@@ -33,13 +33,13 @@ static unsigned char m_Unknown[] = "Uninitialized Device Client";
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
-LinxClient::LinxClient(const unsigned char *uartDevice, unsigned int *baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout)
+LinxClient::LinxClient(const unsigned char *uartDevice, unsigned int *baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout) : LinxDevice(NULL)
 {
 	m_DeviceName = m_Unknown;
-	m_ListenerBufferSize = 255;
 	m_Timeout = timeout;
+	m_CommChannel = NULL;
 
-	LinxUartChannel *channel;
+	LinxUartChannel *channel = NULL;
 #if Unix
 	channel = new LinxUnixUartChannel(m_Debug, uartDevice);
 #elif Win32
@@ -50,33 +50,35 @@ LinxClient::LinxClient(const unsigned char *uartDevice, unsigned int *baudrate, 
 		int status = channel->SetSpeed(*baudrate, baudrate);
 		if (!status)			
 			status = channel->SetParameters(dataBits, stopBits, parity);
-		m_CommChannel = channel;
 		if (!status)
 		{
-			Initialize();
+			Initialize(channel);
 		}
 	}
 }
 
-LinxClient::LinxClient(const unsigned char *netAddress, unsigned short port, int timeout)
+LinxClient::LinxClient(const unsigned char *netAddress, unsigned short port, int timeout) : LinxDevice(NULL)
 {
 	m_DeviceName = m_Unknown;
-	m_ListenerBufferSize = 255;
 	m_Timeout = timeout;
+	m_CommChannel = NULL;
+
+	LinxCommChannel *channel = NULL;
 #if Unix
-	m_CommChannel = new LinxUnixCommChannel(m_Debug, netAddress, port);
+	channel = new LinxUnixCommChannel(m_Debug, netAddress, port);
 #elif Win32
-	m_CommChannel = new LinxWindowsCommChannel(m_Debug, netAddress, port);
+	channel = new LinxWindowsCommChannel(m_Debug, netAddress, port);
 #endif
-	if (m_CommChannel)
+	if (channel)
 	{
-		Initialize();
+		Initialize(channel);
 	}
 }
 
 LinxClient::~LinxClient()
 {
-	m_CommChannel->Release();
+	if (m_CommChannel)
+		m_CommChannel->Release();
 	if (m_DeviceName != m_Unknown)
 		free(m_DeviceName);
 }
@@ -84,6 +86,11 @@ LinxClient::~LinxClient()
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
+int LinxClient::IsInitialized()
+{
+	return (m_CommChannel != NULL);
+}
+
 unsigned char LinxClient::GetDeviceName(unsigned char *buffer, unsigned char length)
 {
 	size_t len = strlen((char*)m_DeviceName);
@@ -180,7 +187,7 @@ int LinxClient::DigitalWriteNoPacking(unsigned char numChans, unsigned char* cha
 	// Command parameters
 	// uint8 : num channels
 	// uint8[numChans] : channels
-	// uint8[numChans + 7 / 8] : packed values
+	// uint8[numChans] : values
 	// Response parameters
 	// None
 	int status = LERR_MEMORY;
@@ -254,7 +261,7 @@ int LinxClient::DigitalReadNoPacking(unsigned char numChans, unsigned char* chan
 	// uint8 : num channels
 	// uint8[numChans] : channels
 	// Response parameters
-	// uint8[numChans] : packed values
+	// uint8[numChans] : values
 	int status = LERR_MEMORY;
 	unsigned int offset, length = 1 + numChans;
 	unsigned char *buffer = (unsigned char *)malloc(10 + length);
@@ -459,17 +466,24 @@ unsigned char LinxClient::NonVolatileRead(int address)
 /****************************************************************************************
 **  Protected Functions
 ****************************************************************************************/
-int LinxClient::Initialize()
+int LinxClient::Initialize(LinxCommChannel *channel)
 {
 	unsigned char buffer[255];
 	unsigned int dataRead, offset;
 
+	if (m_CommChannel)
+		m_CommChannel->Release();
+	m_CommChannel = channel;
+	if (!channel)
+		return L_DISCONNECT;
+	
 	m_PacketNum = (unsigned int)((double)rand() / RAND_MAX * 0xFFFF);
+	m_ListenerBufferSize = 255;
 
-	int status = GetNoParameter(LCMD_SYNC);
+	int status = GetSyncCommand(true);
 	if (!status)
 	{
-		status = GetU8ArrParameter(LCMD_GET_API_VER, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_API_VER, buffer, 255, 0, &offset, &dataRead);
 	}
 	if (!status)
 	{
@@ -479,7 +493,7 @@ int LinxClient::Initialize()
 			LinxApiMinor = buffer[offset++];
 			LinxApiSubminor = buffer[offset++];
 		}
-		status = GetU8ArrParameter(LCMD_GET_DEV_ID, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_DEV_ID, buffer, 255, 0, &offset, &dataRead);
 	}
 	if (!status)
 	{
@@ -488,7 +502,7 @@ int LinxClient::Initialize()
 			DeviceFamily = buffer[offset++];
 			DeviceId = buffer[offset++];
 		}
-		status = GetU8ArrParameter(LCMD_GET_DEV_NAME, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_DEV_NAME, buffer, 255, 0, &offset, &dataRead);
 	}
 	if (!status)
 	{
@@ -505,59 +519,67 @@ int LinxClient::Initialize()
 				m_DeviceName[dataRead] = 0;
 			}
 		}
+	}
 
-		status = GetU8ArrParameter(LCMD_GET_MAX_PACK_SIZE, buffer, 255, &offset, &dataRead);
+	if (!status)
+	{
+		status = GetU8ArrParameter(LCMD_GET_MAX_PACK_SIZE, buffer, 255, 0, &offset, &dataRead);
 		if (!status && dataRead >= 4)
 			ReadU32FromBuff(buffer, offset, &m_ListenerBufferSize);
 		// ignore error
 
-		status = GetU8ArrParameter(LCMD_GET_AI_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_AI_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxAiChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_AO_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_AO_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxAoChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_DIO_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_DIO_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxDioChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_PWM_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_PWM_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxPwmChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_QE_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_QE_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxQeChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_UART_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_UART_CHANS, buffer, 255, 1, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxUartChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_I2C_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_I2C_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxI2cChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_SPI_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_SPI_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxSpiChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_CAN_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_CAN_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxCanChannel, buffer, dataRead);
 
-		status = GetU8ArrParameter(LCMD_GET_SERVO_CHANS, buffer, 255, &offset, &dataRead);
+		status = GetU8ArrParameter(LCMD_GET_SERVO_CHANS, buffer, 255, 0, &offset, &dataRead);
 		if (!status)
 			CopyArrayToSet(IID_LinxServoChannel, buffer, dataRead);
 	}
 	//----Peripherals----
 	// Uart
+	// UartMaxBaud = 0;
 	if (!status)
 	{
 		status = GetU32Parameter(LCMD_GET_UART_MAX_BAUD, &UartMaxBaud);
 	}
+
 	// AI
+	// unsigned char AiResolution;
+	// unsigned int AiRefDefault;
+	// unsigned int AiRefSet;
 	if (!status)
 	{
 		status = GetU32Parameter(LCMD_GET_AI_REF_VOLT, &AiRefSet);
@@ -566,26 +588,15 @@ int LinxClient::Initialize()
 	{
 		status = GetU8Parameter(LCMD_GET_AI_RESOLUTION, &AiResolution);
 	}
+	// AO
+	// AoResolution;
+	// AoRefDefault;
+	// AoRefSet;
 	if (!status)
 	{
 		status = GetU8Parameter(LCMD_GET_AO_RESOLUTION, &AoResolution);
 	}
 /*
-
-
-	// AI
-	unsigned char AiResolution;
-	unsigned int AiRefDefault;
-	unsigned int AiRefSet;
-
-	// AO
-	AoResolution;
-	AoRefDefault;
-	AoRefSet;
-
-	// Uart
-	UartMaxBaud = 0;
-
 	// User Configured Values
 	userId = 0;
 
@@ -599,8 +610,12 @@ int LinxClient::Initialize()
 	unsigned char WifiSecurity;
 	unsigned char WifiPwSize;
 	char WifiPw[64];
-
-	*/
+*/
+	if (status && m_CommChannel)
+	{
+		m_CommChannel->Release();
+		m_CommChannel = NULL;
+	}
 	return status;
 }
 
@@ -664,6 +679,7 @@ int LinxClient::WriteAndRead(unsigned char *buffer, unsigned int buffLength, uns
 				dataLength = GetU32FromBuff(buffer, 0) & 0x00FFFFFF;
 				*headerLength += 2;
 			}
+
 			if (buffLength < dataLength)
 				dataLength = buffLength;
 
@@ -677,30 +693,33 @@ int LinxClient::WriteAndRead(unsigned char *buffer, unsigned int buffLength, uns
 			if (!status)
 			{
 				*dataRead += 4;
-				if (!ChecksumPassed(buffer, dataLength - 1))
+				if (!ChecksumPassed(buffer, *dataRead - 1))
 					return LERR_CHECKSUM;
 
 				if (packetNum != GetU16FromBuff(buffer, *headerLength))
 					return LERR_PACKET_NUM;
 
 				*headerLength += 2;
-				status = buffer[(*headerLength)++];
+				status = buffer[*headerLength++];
 			}
 		}
 	}
 	return status;
 }
 
-int LinxClient::GetNoParameter(unsigned short command)
+int LinxClient::GetSyncCommand(bool negotiate)
 {
 	unsigned char buffer[20];
 	unsigned int headerLength;
-	int status = PrepareHeader(buffer, command, 0, 0, &headerLength);
+	int status = PrepareHeader(buffer, LCMD_SYNC, negotiate, negotiate, &headerLength);
 	if (!status)
 	{
-		unsigned int dataRead;
+		unsigned int dataRead = 0;
+		buffer[headerLength] = PROTOCOL_VERSION;
 		// send data and read response
-		return WriteAndRead(buffer, 20, &headerLength, 0, &dataRead);
+		status = WriteAndRead(buffer, 20, &headerLength, 0, &dataRead);
+		if (!status && dataRead)
+			m_ProtocolVersion = buffer[headerLength];
 	}
 	return status;
 }
@@ -759,13 +778,14 @@ int LinxClient::GetU32Parameter(unsigned short command, unsigned int *val)
 	return status;
 }
 
-int LinxClient::GetU8ArrParameter(unsigned short command, unsigned char *buffer, unsigned int buffLength, unsigned int *headerLength, unsigned int *dataRead)
+int LinxClient::GetU8ArrParameter(unsigned short command, unsigned char *buffer, unsigned int bufLength, unsigned char param, unsigned int *headerLength, unsigned int *dataRead)
 {
-	int status = PrepareHeader(buffer, command, 0, buffLength - 7, headerLength);
+	int status = PrepareHeader(buffer, command, param ? 1 : 0, bufLength - 7, headerLength);
 	if (!status)
 	{
+		buffer[*headerLength] = param;
 		// send data and read response
-		status = WriteAndRead(buffer, buffLength, headerLength, 0, dataRead);
+		status = WriteAndRead(buffer, bufLength, headerLength, 0, dataRead);
 		if (!status)
 		{
 			*dataRead -= *headerLength;

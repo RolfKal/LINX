@@ -24,9 +24,8 @@
 #include "LinxDeviceLib.h"
 
 #if Win32
-			#define LINXDEVICETYPE LinxWindowsDevice
-			#include "LinxWindowsDevice.h"
-
+  #define LINXDEVICETYPE LinxWindowsDevice
+  #include "LinxWindowsDevice.h"
 #elif Unix
  #if LINX_DEVICE_FAMILY == 4 
 //------------------------------------- Raspberry Pi -------------------------------------
@@ -43,6 +42,8 @@
  #else
    #define LINXDEVICETYPE LinxBeagleBoneBlack
  #endif
+#elif Arduino
+
 #endif
 
 LinxDevice* gLinxDev = NULL;
@@ -75,12 +76,24 @@ LibAPI(int) LinxOpen(void)
 
 LibAPI(LinxDevice *) LinxOpenSerialClient(const unsigned char *deviceName, unsigned int *baudrate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout)
 {
-	return new LinxClient(deviceName, baudrate, dataBits, stopBits, parity, timeout);
+	LinxClient *client = new LinxClient(deviceName, baudrate, dataBits, stopBits, parity, timeout);
+	if (client && !client->IsInitialized())
+	{
+		delete client;
+		return NULL;
+	}
+	return client;
 }
 
 LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *address, unsigned short port, int timeout)
 {
-	return new LinxClient(address, port, timeout);
+	LinxClient *client = new LinxClient(address, port, timeout);
+	if (client && !client->IsInitialized())
+	{
+		delete client;
+		return NULL;
+	}
+	return client;
 }
 
 LibAPI(LinxListener *) LinxOpenUartServer(LinxDevice *dev, const unsigned char *deviceName, unsigned int baudRate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout, bool autostart)

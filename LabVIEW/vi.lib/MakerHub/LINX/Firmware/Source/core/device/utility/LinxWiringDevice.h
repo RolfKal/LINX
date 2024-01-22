@@ -28,23 +28,23 @@ class LinxWiringDevice : public LinxDevice
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/		
-		unsigned char NumAiRefIntVals;					//Number Of Internal AI Reference Voltages
-		const unsigned long* AiRefIntVals;				//Supported AI Reference Voltages (uV)
-		const int* AiRefCodes;								//AI Ref Values (AI Ref Macros In Wiring Case)
+		unsigned char NumAiRefIntVals;				//Number Of Internal AI Reference Voltages
+		const unsigned long* AiRefIntVals;			//Supported AI Reference Voltages (uV)
+		const int* AiRefCodes;						//AI Ref Values (AI Ref Macros In Wiring Case)
 		
-		unsigned long AiRefExtMin;							//Min External AI Ref Value (uV)
-		unsigned long AiRefExtMax;					    //Min External AI Ref Value (uV)		
+		unsigned long AiRefExtMin;					//Min External AI Ref Value (uV)
+		unsigned long AiRefExtMax;					//Min External AI Ref Value (uV)		
 		
-		unsigned char NumUartSpeeds;					//Number Of Support UART Buads
+		unsigned char NumUartSpeeds;				//Number Of Support UART Buads
 		unsigned long* UartSupportedSpeeds;			//Supported UART Bauds Frequencies
 		
 		unsigned char NumSpiSpeeds;					//Number Of Supported SPI Speeds
 		unsigned long* SpiSupportedSpeeds;			//Supported SPI Clock Frequencies
-		int* SpiSpeedCodes;									//SPI Speed Values (Clock Divider Macros In Wiring Case)
+		int* SpiSpeedCodes;							//SPI Speed Values (Clock Divider Macros In Wiring Case)
 		
-		unsigned char* I2cRefCount;						//Number Opens - Closes On I2C Channel
+		unsigned char* I2cRefCount;					//Number Opens - Closes On I2C Channel
 		
-//		Servo** Servos;										//Array Servo Pointers
+//		Servo** Servos;								//Array Servo Pointers
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
@@ -99,8 +99,6 @@ class LinxWiringDevice : public LinxDevice
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 		
-		virtual int EnumerateChannels(int type, unsigned char *buffer = NULL, unsigned int length = 0, unsigned int *reqLen = NULL);
-
 	protected:
 		/****************************************************************************************
 		**  Variables

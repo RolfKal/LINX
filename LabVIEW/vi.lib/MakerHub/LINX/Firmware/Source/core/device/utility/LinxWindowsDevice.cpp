@@ -65,8 +65,6 @@ LinxWindowsDevice::~LinxWindowsDevice()
 {
 }
 
-extern "C" DWORD RegQueryKeyPath(HKEY hKey, LPWSTR string, ULONG strLen);
-
 unsigned char LinxWindowsDevice::EnumerateCommPorts(const GUID *guid, DWORD dwFlags)
 {
 	HDEVINFO hDevInfo = SetupDiGetClassDevs(guid, NULL, NULL, dwFlags);

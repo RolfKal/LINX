@@ -149,7 +149,6 @@ typedef enum LinxStatus
 	LERR_LENGTH_NOT_SUPPORTED,
 	LERR_MSG_TO_LONG,
 	LERR_CLOSED_BY_PEER,
-	LERR_TIMEOUT,
 } LinxStatus;
 
 typedef enum AioStatus

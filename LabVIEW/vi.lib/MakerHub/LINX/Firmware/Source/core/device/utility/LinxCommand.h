@@ -12,6 +12,12 @@
 #ifndef LINX_COMMAND_H
 #define LINX_COMMAND_H
 
+#define PROTOCOL_VERSION			1
+
+#define LCMD_EXTENDED_FLAG			0xFF00
+#define CUSTOM_CMD_PREFIX			0xFC00
+#define EXTENDED_CMD_FLAG			0x1000	// Sync
+
 #define LCMD_SYNC					0x0000	// Sync
 //#define LCMD_FLUSH_BUF			0x0001	// Flush Linx Connection Buffer
 //#define LCMD_RESET				0x0002	// Reset

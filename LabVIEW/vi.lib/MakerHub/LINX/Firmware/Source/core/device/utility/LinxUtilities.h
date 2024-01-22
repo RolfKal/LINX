@@ -40,8 +40,7 @@ void delayMs(unsigned int ms);
 
 int fileExists(const char* path);
 int fileExists(const char* path, int *length);
-int fileExists(const char* directory, const char* fileName);
-int fileExists(const char* directory, const char* fileName, unsigned int timout);
+int fileExists(const char* directory, const char* fileName, unsigned int timout = 0);
 
 int listDirectory(const char* path, std::list<std::string> list);
 

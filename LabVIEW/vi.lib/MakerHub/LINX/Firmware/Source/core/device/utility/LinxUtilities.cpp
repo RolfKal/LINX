@@ -153,7 +153,7 @@ unsigned long long getMsTicks()
 	}
 	return (unsigned long long)GetTickCount();
 #elif Arduino
-
+	return millis();
 #endif
 }
 
@@ -176,6 +176,8 @@ int fileExists(const char* path)
 	return (stat(path, &buffer) == 0);
 #elif Win32
 	return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
+#else
+	return false;
 #endif
 }
 
@@ -184,7 +186,7 @@ int fileExists(const char* path, int *length)
 #if Unix
 	struct stat buffer;
 	int ret = stat(path, &buffer);
-	if (ret == 0)
+	if (ret == 0 && length)
 		*length = buffer.st_size;
 	return (ret == 0);
 #elif Win32
@@ -192,22 +194,13 @@ int fileExists(const char* path, int *length)
 	HANDLE findHandle = FindFirstFileA(path, &findBuf);
     if (findHandle != INVALID_HANDLE_VALUE)
 	{
-		*length = findBuf.nFileSizeLow;
+		if (length)
+			*length = findBuf.nFileSizeLow;
 		FindClose(findHandle);
 	}
 	return findHandle != INVALID_HANDLE_VALUE;
-#endif
-}
-
-int fileExists(const char* directory, const char* fileName)
-{
-	char fullPath[260];
-	sprintf(fullPath, "%s%s", directory, fileName);
-#if Unix
-	struct stat buffer;
-	return (stat(fullPath, &buffer) == 0);
-#elif Win32
-	return GetFileAttributesA(fullPath) != INVALID_FILE_ATTRIBUTES;
+#else
+	return false;
 #endif
 }
 
@@ -216,17 +209,13 @@ int fileExists(const char* directory, const char* fileName, unsigned int timeout
 	char fullPath[260];
 	sprintf(fullPath, "%s%s", directory, fileName);
 	unsigned int startTime = getMilliSeconds();
-	while (getMilliSeconds() - startTime < timeout)
+	do
 	{
-#if Unix
-		struct stat buffer;
-		if (stat(fullPath, &buffer) == 0)
-#elif Win32
-		if (GetFileAttributesA(fullPath) != INVALID_FILE_ATTRIBUTES)
-#endif
+		if (fileExists(fullPath))
 			return true;
 		delayMs(10);
 	}
+	while (getMilliSeconds() - startTime < timeout);
 	return false;
 }
 
