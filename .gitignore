@@ -8,3 +8,7 @@ Installers
 /LabVIEW/resource
 /LabVIEW/vi.lib/MakerHub/LINX/*.aliases
 /LabVIEW/vi.lib/MakerHub/LINX/*.lvlps
+/LabVIEW/vi.lib/MakerHub/LINX/Firmware/Source/make/VS2005/*.user
+/LabVIEW/vi.lib/MakerHub/LINX/Firmware/Source/make/VS2005/*.res
+/LabVIEW/vi.lib/MakerHub/LINX/Firmware/Source/make/VS2005/*.ncb
+/LabVIEW/vi.lib/MakerHub/LINX/Firmware/Source/make/VS2005/*.suo
