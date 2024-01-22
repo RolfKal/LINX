@@ -36,6 +36,7 @@
 #define LinxNumChannelTypes			IID_LinxServoChannel
 
 // Forward declaration
+class LinxCommChannel;
 class LinxFmtChannel;
 
 class LinxChannel
@@ -48,23 +49,27 @@ class LinxChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
+		LinxChannel(void);
 		LinxChannel(const unsigned char *channelName);
 		LinxChannel(LinxFmtChannel *debug, const unsigned char *channelName);
-		virtual ~LinxChannel();
+		virtual ~LinxChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned int AddRef();
-		virtual unsigned int Release();
+		virtual unsigned int AddRef(void);
+		virtual unsigned int Release(void);
 
-		virtual unsigned char GetName(unsigned char* buffer, unsigned char numBytes);
+		virtual unsigned int GetName(unsigned char* buffer, unsigned char numBytes);
+		virtual unsigned int PrintName(void);
+		virtual int EnableDebug(LinxCommChannel *channel);
+		virtual int DisableDebug(void);
 
 	protected:
-		char *m_ChannelName;
 		LinxFmtChannel *m_Debug;
 
 	private:
+		char *m_ChannelName;
 		unsigned int m_Refcount;
 };
 
@@ -79,7 +84,7 @@ class LinxAiChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxAiChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxAiChannel() {};
+		virtual ~LinxAiChannel(void) {};
 
 
 		/****************************************************************************************
@@ -99,7 +104,7 @@ class LinxAoChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxAoChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxAoChannel() {};
+		virtual ~LinxAoChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -118,7 +123,7 @@ class LinxDioChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxDioChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxDioChannel() {};
+		virtual ~LinxDioChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -141,7 +146,7 @@ class LinxPwmChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxPwmChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxPwmChannel() {};
+		virtual ~LinxPwmChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -161,7 +166,7 @@ class LinxQeChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxQeChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxQeChannel() {};
+		virtual ~LinxQeChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -180,14 +185,14 @@ class LinxCommChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxCommChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxCommChannel() {};
+		virtual ~LinxCommChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead) = 0;
 		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout) = 0;
-		virtual int Close() = 0;
+		virtual int Close(void) = 0;
 };
 
 class LinxUartChannel : public LinxCommChannel
@@ -201,7 +206,7 @@ class LinxUartChannel : public LinxCommChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxUartChannel(LinxFmtChannel *debug, const unsigned char *deviceName) : LinxCommChannel(debug, deviceName) {};
-		virtual ~LinxUartChannel() {};
+		virtual ~LinxUartChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -221,17 +226,17 @@ class LinxI2cChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxI2cChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxI2cChannel() {};
+		virtual ~LinxI2cChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open() = 0;
+		virtual int Open(void) = 0;
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed) = 0;
 		virtual int Read(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned int timeout, unsigned char* recBuffer) = 0;
 		virtual int Write(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned char* sendBuffer) = 0;
 		virtual int Transfer(unsigned char slaveAddress, int numFrames, int *flags, int *numBytes, unsigned int timeout, unsigned char* sendBuffer, unsigned char* recBuffer) = 0;
-		virtual int Close() = 0;
+		virtual int Close(void) = 0;
 };
 
 class LinxSpiChannel : public LinxChannel
@@ -245,17 +250,17 @@ class LinxSpiChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSpiChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxSpiChannel() {};
+		virtual ~LinxSpiChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open() = 0;
+		virtual int Open(void) = 0;
 		virtual int SetBitOrder(unsigned char bitOrder) = 0;
 		virtual int SetMode(unsigned char mode) = 0;
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed) = 0;
 		virtual int WriteRead(unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer) = 0;
-		virtual int Close()= 0;
+		virtual int Close(void)= 0;
 };
 
 class LinxCanChannel : public LinxChannel
@@ -269,7 +274,7 @@ class LinxCanChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxCanChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxCanChannel() {};
+		virtual ~LinxCanChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -290,13 +295,13 @@ class LinxServoChannel : public LinxChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxServoChannel(LinxFmtChannel *debug, const unsigned char *channelName) : LinxChannel(debug, channelName) {};
-		virtual ~LinxServoChannel() {};
+		virtual ~LinxServoChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int SetPulseWidth(unsigned short width) = 0;
-		virtual int Close() = 0;
+		virtual int Close(void) = 0;
 };
 
 // A channel that can wrap a LinxCommChannel and provide formatting functions for simple debug output
@@ -312,7 +317,7 @@ class LinxFmtChannel : public LinxChannel
 		****************************************************************************************/
 		LinxFmtChannel(int timeout = TIMEOUT_INFINITE, const unsigned char *channelName = (unsigned char *)"FormatChannel");
 		LinxFmtChannel(LinxCommChannel *channel, int timeout = TIMEOUT_INFINITE, const unsigned char *channelName = (unsigned char *)"FormatChannel");
-		virtual ~LinxFmtChannel();
+		virtual ~LinxFmtChannel(void);
 
 		/****************************************************************************************
 		**  Functions
@@ -326,7 +331,7 @@ class LinxFmtChannel : public LinxChannel
 		virtual int Write(long n);
 		virtual int Write(unsigned long n);
 		virtual int Write(long n, int base);
-		virtual int Writeln();
+		virtual int Writeln(void);
 		virtual int Writeln(char c);
 		virtual int Writeln(const char s[]);
 		virtual int Writeln(unsigned char c);
@@ -334,7 +339,7 @@ class LinxFmtChannel : public LinxChannel
 		virtual int Writeln(long n);
 		virtual int Writeln(unsigned long n);
 		virtual int Writeln(long n, int base);
-		virtual int Close();
+		virtual int Close(void);
 
 		int SetTimeout(int timeout);
 		int SetDebugChannel(LinxCommChannel *channel);

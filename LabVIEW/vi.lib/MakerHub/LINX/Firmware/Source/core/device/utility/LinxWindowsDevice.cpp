@@ -61,7 +61,7 @@ LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 	//------------------------------------ SERVO ------------------------------------
 }
 
-LinxWindowsDevice::~LinxWindowsDevice()
+LinxWindowsDevice::~LinxWindowsDevice(void)
 {
 }
 

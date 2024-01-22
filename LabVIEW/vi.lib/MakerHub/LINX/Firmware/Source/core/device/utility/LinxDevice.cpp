@@ -27,7 +27,7 @@
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
-LinxDevice::LinxDevice(LinxFmtChannel *debug)
+LinxDevice::LinxDevice(LinxFmtChannel *debug) : LinxChannel(debug, NULL)
 {
 	if (debug)
 	{
@@ -79,7 +79,7 @@ LinxDevice::LinxDevice(LinxFmtChannel *debug)
 	// Debug
 }
 
-LinxDevice::~LinxDevice()
+LinxDevice::~LinxDevice(void)
 {
 	if (m_Debug)
 		m_Debug->Release();
@@ -115,11 +115,6 @@ LinxDevice::~LinxDevice()
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-int LinxDevice::EnableDebug(LinxCommChannel *channel)
-{	
-	return m_Debug->SetDebugChannel(channel);
-}
-
 void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* packetBuffer)
 {
 	if (direction == RX)
@@ -709,12 +704,12 @@ int LinxDevice::Ws2812WriteNPixels(unsigned short startPixel, unsigned short num
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxDevice::Ws2812Refresh()
+int LinxDevice::Ws2812Refresh(void)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxDevice::Ws2812Close()
+int LinxDevice::Ws2812Close(void)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
@@ -732,12 +727,12 @@ unsigned char LinxDevice::NonVolatileRead(int address)
 
 
 //----------------- Support Functions -----------------------------
-unsigned int LinxDevice::GetMilliSeconds()
+unsigned int LinxDevice::GetMilliSeconds(void)
 {
 	return getMilliSeconds();
 }
 
-unsigned int LinxDevice::GetSeconds()
+unsigned int LinxDevice::GetSeconds(void)
 {
 	return getSeconds();
 }

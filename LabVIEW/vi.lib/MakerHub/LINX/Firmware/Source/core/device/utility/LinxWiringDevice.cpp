@@ -61,12 +61,12 @@ void LinxWiringDevice::DelayMs(unsigned long ms)
 	delay(ms);
 } 
 
-unsigned long LinxWiringDevice::GetMilliSeconds()
+unsigned long LinxWiringDevice::GetMilliSeconds(void)
 {
 	return millis();
 }
 
-unsigned long LinxWiringDevice::GetSeconds()
+unsigned long LinxWiringDevice::GetSeconds(void)
 {
 	return (millis() / 1000);
 }
@@ -83,19 +83,19 @@ int LinxWiringDevice::AnalogRead(unsigned char numChans, unsigned char* channels
 	values[responseByteOffset] = 0x00;    //Clear First	Response Byte   
 
 	//Loop Over All AI channels In Command Packet
-	for(int i=0; i<numChans; i++)
+	for (int i = 0; i < numChans; i++)
 	{
 		analogValue = analogRead(channels[i]);	
 		
 		dataBitsRemaining = AiResolution;
 
 		//Byte Packet AI Values In Response Packet
-		while(dataBitsRemaining > 0)
+		while (dataBitsRemaining > 0)
 		{
-			*(values+responseByteOffset) |= ( (analogValue>>(AiResolution - dataBitsRemaining)) << (8 - responseBitsRemaining) );
+			*(values + responseByteOffset) |= ( (analogValue >> (AiResolution - dataBitsRemaining)) << (8 - responseBitsRemaining));
 			//*(values+responseByteOffset) = 69;
 
-			if(responseBitsRemaining > dataBitsRemaining)
+			if (responseBitsRemaining > dataBitsRemaining)
 			{
 				//Current Byte Still Has Empty Bits
 				responseBitsRemaining -= dataBitsRemaining;
@@ -118,20 +118,20 @@ int LinxWiringDevice::AnalogRead(unsigned char numChans, unsigned char* channels
 int LinxWiringDevice::AnalogSetRef(unsigned char mode, unsigned long voltage)
 {
 	#if NUM_AI_INT_REFS > 0
-	switch(mode)
+	switch (mode)
 	{
 		case 0: //Default
 			analogReference(DEFAULT);
 			AiRefSet = AiRefDefault;
 			break;
 		case 1: //Internal
-			if(NumAiRefIntVals > 0)
+			if (NumAiRefIntVals > 0)
 			{
 				//Check If Internal AI Ref Value Is Supported
-				for(int i=0; i<NumAiRefIntVals; i++)
+				for (int i = 0; i < NumAiRefIntVals; i++)
 				{				
 					//Voltage Is Supported
-					if(AiRefIntVals[i] == voltage)
+					if (AiRefIntVals[i] == voltage)
 					{
 						analogReference(AiRefCodes[i]);
 						AiRefSet = voltage;
@@ -148,7 +148,7 @@ int LinxWiringDevice::AnalogSetRef(unsigned char mode, unsigned long voltage)
 			}			
 			break;
 		case 2: //External
-			if(voltage >= AiRefExtMin && voltage <= AiRefExtMax)
+			if (voltage >= AiRefExtMin && voltage <= AiRefExtMax)
 			{
 				analogReference(EXTERNAL);
 				AiRefSet = voltage;
@@ -173,12 +173,11 @@ int LinxWiringDevice::AnalogSetRef(unsigned char mode, unsigned long voltage)
 
 int LinxWiringDevice::DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	for(int i=0; i<numChans; i++)
+	for (int i = 0; i < numChans; i++)
 	{		
 		pinMode(channels[i], OUTPUT);
-		digitalWrite( channels[i], (values[i/8] >> i%8) & 0x01);
+		digitalWrite(channels[i], (values[i / 8] >> i % 8) & 0x01);
 	}
-	
 	return L_OK;
 }
 
@@ -189,10 +188,10 @@ int LinxWiringDevice::DigitalRead(unsigned char numChans, unsigned char* channel
 	unsigned char retVal = 0;
  
 	//Loop Over channels To Read
-	for(int i=0; i<numChans; i++)
+	for (int i = 0; i < numChans; i++)
 	{
 		//If bitOffset Is 0 We Have To Start A New Byte, Store Old Byte And Increment OFfsets
-		if(bitOffset == 0)
+		if (bitOffset == 0)
 		{
 			//Insert retVal Into Response Buffer
 			values[byteOffset] = retVal;
@@ -221,10 +220,10 @@ int LinxWiringDevice::DigitalRead(unsigned char numChans, unsigned char* channel
 
 int LinxWiringDevice::DigitalWriteSquareWave(unsigned char channel, unsigned long freq, unsigned long duration)
 {
-	if(freq > 0)
+	if (freq > 0)
 	{
 		pinMode(channel, OUTPUT);
-		if(duration > 0)
+		if (duration > 0)
 		{
 			tone(channel, freq, duration);
 		}
@@ -237,14 +236,13 @@ int LinxWiringDevice::DigitalWriteSquareWave(unsigned char channel, unsigned lon
 	{
 		noTone(channel);
 	}	
-	
 	return L_OK;
 }
 
 int LinxWiringDevice::DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned long timeout, unsigned long* width)
 {
 	//Stimulus
-	if(stimType == 1)
+	if (stimType == 1)
 	{
 		//High->Low->High
 		pinMode(stimChan, OUTPUT);
@@ -255,7 +253,7 @@ int LinxWiringDevice::DigitalReadPulseWidth(unsigned char stimChan, unsigned cha
 		delay(1);
 		digitalWrite(stimChan, HIGH);		
 	}
-	else if(stimType == 2)
+	else if (stimType == 2)
 	{
 		//Low->High->Low
 		pinMode(stimChan, OUTPUT);
@@ -270,15 +268,14 @@ int LinxWiringDevice::DigitalReadPulseWidth(unsigned char stimChan, unsigned cha
 	//Read Pulse
 	pinMode(respChan, INPUT);
 	
-	if(respType == 0)
+	if (respType == 0)
 	{
 		*width = pulseIn(respChan, LOW, timeout);
 	}
-	else if(respType == 1)
+	else if (respType == 1)
 	{
 		*width = pulseIn(respChan, HIGH, timeout);
 	}	
-	
 	return L_OK;	
 }
 
@@ -286,12 +283,11 @@ int LinxWiringDevice::DigitalReadPulseWidth(unsigned char stimChan, unsigned cha
 
 int LinxWiringDevice::PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	for(int i=0; i<numChans; i++)
+	for (int i = 0; i < numChans; i++)
 	{		
 		pinMode(channels[i], OUTPUT);
 		analogWrite(channels[i], values[i]);
 	}
-	
 	return L_OK;
 }
 
@@ -325,31 +321,29 @@ int LinxWiringDevice::SpiSetMode(unsigned char channel, unsigned char mode)
 		case 3: 
 			SPI.setDataMode(SPI_MODE3);
 			break;
-	 }
-	
+	}
 	return 0;
 }
 
 int LinxWiringDevice::SpiSetSpeed(unsigned char channel, unsigned long speed, unsigned long* actualSpeed)
 {
 	//Loop Over All Supported SPI Speeds (SPI Speeds Should Be Fastest -> Slowest)
-	for(int index=0; index < NumSpiSpeeds; index++)
+	for (int index = 0; index < NumSpiSpeeds; index++)
 	{
 			//If Target Speed Is greater or equal to the current supported speed use current supported speed (it's the fastest supported speed that is less or equal to the target)
-			if(speed >= *(SpiSupportedSpeeds+index))
+			if (speed >= *(SpiSupportedSpeeds + index))
 			{
-				*actualSpeed = *(SpiSupportedSpeeds+index);
-				SPI.setClockDivider(*(SpiSpeedCodes+index));
+				*actualSpeed = *(SpiSupportedSpeeds + index);
+				SPI.setClockDivider(*(SpiSpeedCodes + index));
 				break;
 			}
-			if(index == NumSpiSpeeds-1)
+			if (index == NumSpiSpeeds-1)
 			{
 				//Target speed is slower than slowest supported.  Use slowest supported
-				*actualSpeed = *(SpiSupportedSpeeds+index);
-				SPI.setClockDivider(*(SpiSpeedCodes+index));
+				*actualSpeed = *(SpiSupportedSpeeds + index);
+				SPI.setClockDivider(*(SpiSpeedCodes + index));
 			}
 	}
-	
 	return L_OK;
 }
 
@@ -362,13 +356,13 @@ int LinxWiringDevice::SpiWriteRead(unsigned char channel, unsigned char frameSiz
 	digitalWrite(csChan, (~csLL & 0x01) );  
 
 	//Loop Over Frames
-	for(int i=0; i<numFrames; i++)
+	for (int i = 0; i<numFrames; i++)
 	{
 		//Start of frame, set CS Pin Active
 		digitalWrite(csChan, (csLL & 0x01) );
 		
 		//Loop Over Bytes In Frame
-		for(int j=0; j<frameSize; j++)
+		for (int j = 0; j < frameSize; j++)
 		{
 			//Transfer Data
 			unsigned char byteNum = (i*frameSize) + j;
@@ -394,10 +388,10 @@ void LinxWireWrite(unsigned char data)
 
 int LinxWiringDevice::I2cOpenMaster(unsigned char channel)
 {
-	if(*(I2cRefCount+channel) > 0)
+	if (*(I2cRefCount+channel) > 0)
 	{
 		//Channel Already Open, Increment Ref Count
-		*(I2cRefCount+channel) = *(I2cRefCount+channel)+1;	
+		*(I2cRefCount + channel) = *(I2cRefCount + channel) + 1;	
 	}
 	else
 	{
@@ -420,7 +414,7 @@ int LinxWiringDevice::I2cWrite(unsigned char channel, unsigned char slaveAddress
 		Wire.beginTransmission(slaveAddress);
 		Wire.write(sendBuffer, numBytes);
 		
-		if(eofConfig == EOF_STOP)
+		if (eofConfig == EOF_STOP)
 		{
 			Wire.endTransmission(true);
 		}
@@ -436,13 +430,13 @@ int LinxWiringDevice::I2cWrite(unsigned char channel, unsigned char slaveAddress
 		}	
 	return L_OK;
 	#else
-		if(eofConfig != EOF_STOP)
+		if (eofConfig != EOF_STOP)
 		{
 			//EOF Not Supported, Stop Bus
 			return LI2C_EOF;
 		}
 		Wire.beginTransmission(slaveAddress);
-		for(int i=0; i<numBytes; i++)
+		for (int i = 0; i < numBytes; i++)
 		{
 			Wire.send(*(sendBuffer+i));
 		}
@@ -454,7 +448,7 @@ int LinxWiringDevice::I2cWrite(unsigned char channel, unsigned char slaveAddress
 int LinxWiringDevice::I2cRead(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned int timeout, unsigned char* recBuffer)
 {
 	#if ARDUINO_VERSION >= 100
-		if(eofConfig == EOF_STOP)
+		if (eofConfig == EOF_STOP)
 		{
 			Wire.requestFrom(slaveAddress, numBytes, (uint8_t)1);
 		}
@@ -468,7 +462,7 @@ int LinxWiringDevice::I2cRead(unsigned char channel, unsigned char slaveAddress,
 			return LI2C_EOF;
 		}
 	#else
-		if(eofConfig != EOF_STOP)
+		if (eofConfig != EOF_STOP)
 		{
 			//EOF Not Supported		
 			return LI2C_EOF;
@@ -478,7 +472,7 @@ int LinxWiringDevice::I2cRead(unsigned char channel, unsigned char slaveAddress,
 		
 		//Wait For Data, Potentially Timeout
 		unsigned long tickCount = millis();
-		while(Wire.available() < numBytes)
+		while (Wire.available() < numBytes)
 		{
 			if( (millis() - tickCount) > timeout)
 			{
@@ -487,7 +481,7 @@ int LinxWiringDevice::I2cRead(unsigned char channel, unsigned char slaveAddress,
 		}
 		
 		//Data Read, Read And Return
-		for(int i=0; i<numBytes; i++)
+		for (int i = 0; i < numBytes; i++)
 		{
 			#if ARDUINO_VERSION >= 100
 				*(recBuffer+i) = Wire.read();
@@ -510,9 +504,9 @@ int LinxWiringDevice::UartOpen(unsigned char channel, unsigned long baudRate, un
 {
 	int index = 0;
 	
-	for(index=0; index < NumUartSpeeds; index++)
+	for (index = 0; index < NumUartSpeeds; index++)
 	{
-			if(baudRate < *(UartSupportedSpeeds+index))
+			if (baudRate < *(UartSupportedSpeeds+index))
 			{		
 				//Previous Index Was Closest Supported Baud Without Going Over, Index Will Be Decremented Accordingly Below.
 				break;
@@ -521,39 +515,38 @@ int LinxWiringDevice::UartOpen(unsigned char channel, unsigned long baudRate, un
 	
 	//Once Loop Complets Index Is One Higher Than The Correct Baud, But Could Be Zero So Check And Decrement Accordingly
 	//If The Entire Loop Runs Then index == NumUartSpeeds So Decrement It To Get Max Baud
-	if(index != 0)
+	if (index != 0)
 	{
 		index = index -1;
 	}
-	if(channel == 0)
+	if (channel == 0)
 	{		
 		#if NUM_UART_CHANS > 0
 			Serial.begin(*(UartSupportedSpeeds+index));
 			*actualBaud = *(UartSupportedSpeeds+index);
 		#endif
 	}
-	if(channel == 1)
+	if (channel == 1)
 	{
 		#if NUM_UART_CHANS > 1
 			Serial1.begin(*(UartSupportedSpeeds+index));
 			*actualBaud = *(UartSupportedSpeeds+index);
 		#endif
 	}
-	if(channel == 2)
+	if (channel == 2)
 	{
 		#if NUM_UART_CHANS > 2
 			Serial2.begin(*(UartSupportedSpeeds+index));
 			*actualBaud = *(UartSupportedSpeeds+index);
 		#endif
 	}
-	if(channel == 3)
+	if (channel == 3)
 	{
 		#if NUM_UART_CHANS > 3
 			Serial3.begin(*(UartSupportedSpeeds+index));
 			*actualBaud = *(UartSupportedSpeeds+index);
 		#endif
 	}
-	
 	return L_OK;
 }
 
@@ -566,31 +559,30 @@ int LinxWiringDevice::UartSetBaudRate(unsigned char channel, unsigned long baudR
 
 int LinxWiringDevice::UartGetBytesAvailable(unsigned char channel, unsigned int *numBytes)
 {
-	if(channel == 0)
+	if (channel == 0)
 	{		
 		#if NUM_UART_CHANS > 0
 			*numBytes = Serial.available();
 		#endif
 	}
-	if(channel == 1)
+	if (channel == 1)
 	{
 		#if NUM_UART_CHANS > 1
 			*numBytes = Serial1.available();
 		#endif
 	}
-	if(channel == 2)
+	if (channel == 2)
 	{
 		#if NUM_UART_CHANS > 2
 		*numBytes = Serial2.available();
 		#endif
 	}
-	if(channel == 3)
+	if (channel == 3)
 	{
 		#if NUM_UART_CHANS > 3
 			*numBytes = Serial3.available();
 		#endif
 	}
-	
 	return L_OK;
 }
 
@@ -598,32 +590,32 @@ int LinxWiringDevice::UartRead(unsigned char channel, unsigned int numBytes, uns
 {
 	#if ARDUINO_VERSION >= 100
 	
-		if(channel == 0)
+		if (channel == 0)
 		{	
 			#if NUM_UART_CHANS > 0
 				*numBytesRead = Serial.readBytes((char*)recBuffer, numBytes);
 			#endif
 		}
-		else if(channel == 1)
+		else if (channel == 1)
 		{
 			#if NUM_UART_CHANS > 1
 				*numBytesRead = Serial1.readBytes((char*)recBuffer, numBytes);
 			#endif
 		}
-		else if(channel == 2)
+		else if (channel == 2)
 		{
 			#if NUM_UART_CHANS > 2
 				*numBytesRead = Serial2.readBytes((char*)recBuffer, numBytes);
 			#endif
 		}
-		else if(channel == 3)
+		else if (channel == 3)
 		{
 			#if NUM_UART_CHANS > 3
 				*numBytesRead = Serial3.readBytes((char*)recBuffer, numBytes);
 			#endif
 		}	
 				
-		if(*numBytesRead !=numBytes)
+		if (*numBytesRead !=numBytes)
 		{
 			return LUART_READ_FAIL;
 		}
@@ -631,36 +623,36 @@ int LinxWiringDevice::UartRead(unsigned char channel, unsigned int numBytes, uns
 		return L_OK;	
 	
 	#else
-		for(int i=0; i<numBytes; i++)
+		for (int i = 0; i < numBytes; i++)
 		{
 			int data = -1;
 			
-			if(channel == 0)
+			if (channel == 0)
 			{	
 				#if NUM_UART_CHANS > 0
 					data = Serial.read();
 				#endif
 			}
-			else if(channel == 1)
+			else if (channel == 1)
 			{
 				#if NUM_UART_CHANS > 1
 					data = Serial1.read();
 				#endif
 			}
-			else if(channel == 2)
+			else if (channel == 2)
 			{
 				#if NUM_UART_CHANS > 2
 					data = Serial2.read();
 				#endif
 			}
-			else if(channel == 3)
+			else if (channel == 3)
 			{
 				#if NUM_UART_CHANS > 3
 					data = Serial3.read();
 				#endif
 			}			
 			
-			if(data < 0)
+			if (data < 0)
 			{
 				return LUART_READ_FAIL;
 			}
@@ -671,63 +663,61 @@ int LinxWiringDevice::UartRead(unsigned char channel, unsigned int numBytes, uns
 			
 			//Read All Bytes Without Error.  Return Num Bytes Read So Listener Can Pass It To PacketizeAndSend()
 			*numBytesRead = numBytes;
-		}
-		
+		}	
 		return L_OK;
 	#endif
 }
 
 int LinxWiringDevice::UartWrite(unsigned char channel, unsigned int numBytes, unsigned char* sendBuffer)
 {
-	if(channel == 0)
+	if (channel == 0)
 	{		
 		#if NUM_UART_CHANS > 0
 			Serial.write(sendBuffer, numBytes);
 		#endif
 	}
-	if(channel == 1)
+	if (channel == 1)
 	{
 		#if NUM_UART_CHANS > 1
 			Serial1.write(sendBuffer, numBytes);
 		#endif
 	}
-	if(channel == 2)
+	if (channel == 2)
 	{
 		#if NUM_UART_CHANS > 2
 			Serial2.write(sendBuffer, numBytes);
 		#endif
 	}
-	if(channel == 3)
+	if (channel == 3)
 	{
 		#if NUM_UART_CHANS > 3
 			Serial3.write(sendBuffer, numBytes);
 		#endif
 	}
-	
 	return L_OK;
 }
 
 int LinxWiringDevice::UartClose(unsigned char channel)
 {
-	if(channel == 0)
+	if (channel == 0)
 	{		
 		#if NUM_UART_CHANS > 0
 			Serial.end();
 		#endif
 	}
-	if(channel == 1)
+	if (channel == 1)
 	{
 		#if NUM_UART_CHANS > 1
 			Serial1.end();
 		#endif
 	}
-	if(channel == 2)
+	if (channel == 2)
 	{
 		#if NUM_UART_CHANS > 2
 		Serial2.end();
 		#endif
 	}
-	if(channel == 3)
+	if (channel == 3)
 	{
 		#if NUM_UART_CHANS > 3
 			Serial3.end();
@@ -742,7 +732,7 @@ int LinxWiringDevice::ServoOpen(unsigned char numChans, unsigned char* chans)
 	for(int i=0; i<numChans; i++)
 	{
 		unsigned char pin = chans[i];
-		if(Servos[pin] == 0)
+		if (Servos[pin] == 0)
 		{
 			//Servo Not Yet Intialized On Specified Channel, Init
 			Servos[pin] = new Servo();
@@ -758,7 +748,7 @@ int LinxWiringDevice::ServoOpen(unsigned char numChans, unsigned char* chans)
 int LinxWiringDevice::ServoSetPulseWidth(unsigned char numChans, unsigned char* chans, unsigned short* pulseWidths)
 {
 	
-	for(int i=0; i<numChans; i++)
+	for (int i = 0; i < numChans; i++)
 	{	
 		
 		DebugPrint("Servo ");
@@ -767,7 +757,6 @@ int LinxWiringDevice::ServoSetPulseWidth(unsigned char numChans, unsigned char* 
 		DebugPrintln(pulseWidths[i], DEC);
 		Servos[chans[i]]->writeMicroseconds(pulseWidths[i]);		
 	}
-	
 	return L_OK;
 }
 
@@ -775,7 +764,7 @@ int LinxWiringDevice::ServoSetPulseWidth(unsigned char numChans, unsigned char* 
 
 int LinxWiringDevice::ServoClose(unsigned char numChans, unsigned char* chans)
 {
-	for(int i=0; i<numChans; i++)
+	for (int i = 0; i < numChans; i++)
 	{
 		Servos[chans[i]]->detach();
 		Servos[chans[i]] = 0;

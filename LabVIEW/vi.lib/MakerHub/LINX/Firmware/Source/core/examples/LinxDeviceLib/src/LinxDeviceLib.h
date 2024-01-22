@@ -25,11 +25,14 @@
 #endif
 
 //------------------------------------- Constructor/Destructor -------------------------------------
+LibAPI(LinxDevice *) LinxOpenLocalClient(void);
 LibAPI(LinxDevice *) LinxOpenSerialDevice(const unsigned char *deviceName, unsigned int *baudrate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout);
-LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *address, unsigned short port, int timeout);
+LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *clientAddress, unsigned short port, int timeout);
 
-LibAPI(LinxListener *) LinxOpenUartServer(LinxDevice *dev, const unsigned char *deviceName, unsigned int baudRate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout, bool autostart);
+LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char *deviceName, unsigned int baudRate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout, bool autostart);
 LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *interfaceAddress, short port, int timeout, bool autostart);
+
+LibAPI(int) LinxCloseRef(LinxChannel *device);
 
 //------------------------------------- Enumeration -------------------------------------
 LibAPI(unsigned char) LinxGetDeviceFamilyRef(LinxDevice *dev);
@@ -102,24 +105,24 @@ LibAPI(int) LinxUartCloseRef(LinxDevice *dev, unsigned char channel);
 //--------------------------------------------------------------------------------------------------
 
 //------------------------------------- Constructor/Destructor -------------------------------------
-LibAPI(int) LinxOpen();
-LibAPI(int) LinxClose();
+LibAPI(int) LinxOpen(void);
+LibAPI(int) LinxClose(void);
 
 //------------------------------------- Enumeration -------------------------------------
-LibAPI(unsigned char) LinxGetDeviceFamily();
-LibAPI(unsigned char) LinxGetDeviceId();
+LibAPI(unsigned char) LinxGetDeviceFamily(void);
+LibAPI(unsigned char) LinxGetDeviceId(void);
 LibAPI(int) LinxGetDeviceName(unsigned char *name);
 
 //------------------------------------- General -------------------------------------
-LibAPI(unsigned int) LinxGetMilliSeconds();
+LibAPI(unsigned int) LinxGetMilliSeconds(void);
 
 //------------------------------------- Analog -------------------------------------
-LibAPI(unsigned int) LinxAiGetRefSetVoltage();
-LibAPI(unsigned int) LinxAoGetRefSetVoltage();
-LibAPI(unsigned char) LinxAiGetResolution();
-LibAPI(unsigned char) LinxAoGetResolution();
-LibAPI(unsigned char) LinxAiGetNumChans();
-LibAPI(unsigned char) LinxAoGetNumChans();
+LibAPI(unsigned int) LinxAiGetRefSetVoltage(void);
+LibAPI(unsigned int) LinxAoGetRefSetVoltage(void);
+LibAPI(unsigned char) LinxAiGetResolution(void);
+LibAPI(unsigned char) LinxAoGetResolution(void);
+LibAPI(unsigned char) LinxAiGetNumChans(void);
+LibAPI(unsigned char) LinxAoGetNumChans(void);
 LibAPI(int) LinxAiGetChans(unsigned char numChans, unsigned char* channels);
 LibAPI(int) LinxAoGetChans(unsigned char numChans, unsigned char* channels);
 LibAPI(int) LinxAnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
@@ -127,11 +130,11 @@ LibAPI(int) LinxAnalogReadNoPacking(unsigned char numChans, unsigned char* chann
 LibAPI(int) LinxAnalogWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);
 
 //------------------------------------- CAN -------------------------------------
-LibAPI(unsigned char) LinxCanGetNumChans();
+LibAPI(unsigned char) LinxCanGetNumChans(void);
 LibAPI(int) LinxCanGetChans(unsigned char numChans, unsigned char* channels);
 
 //------------------------------------- Digital -------------------------------------
-LibAPI(unsigned char) LinxDigitalGetNumChans();
+LibAPI(unsigned char) LinxDigitalGetNumChans(void);
 LibAPI(int) LinxDigitalGetChans(unsigned char numChans, unsigned char* channels);
 LibAPI(int) LinxDigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char* states);
 LibAPI(int) LinxDigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);
@@ -140,7 +143,7 @@ LibAPI(int) LinxDigitalRead(unsigned char numChans, unsigned char* channels, uns
 LibAPI(int) LinxDigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);
 
 //------------------------------------- I2C -------------------------------------
-LibAPI(unsigned char) LinxI2cGetNumChans();
+LibAPI(unsigned char) LinxI2cGetNumChans(void);
 LibAPI(int) LinxI2cGetChans(unsigned char numChans, unsigned char* channels);
 LibAPI(int) LinxI2cOpenMaster(unsigned char channel);
 LibAPI(int) LinxI2cSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed);
@@ -149,20 +152,20 @@ LibAPI(int) LinxI2cRead(unsigned char channel, unsigned char slaveAddress, unsig
 LibAPI(int) LinxI2cClose(unsigned char channel);
 		
 //------------------------------------- PWM -------------------------------------
-LibAPI(unsigned char) LinxPwmGetNumChans();
+LibAPI(unsigned char) LinxPwmGetNumChans(void);
 LibAPI(int) LinxPwmGetChans(unsigned char numChans, unsigned char* channels);
 LibAPI(int) LinxPwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values);
 
 //------------------------------------- QE -------------------------------------
-LibAPI(unsigned char) LinxQeGetNumChans();
+LibAPI(unsigned char) LinxQeGetNumChans(void);
 LibAPI(int) LinxQeGetChans(unsigned char numChans, unsigned char* channels);
 
 //------------------------------------- Servo -------------------------------------
-LibAPI(unsigned char) LinxServoGetNumChans();
+LibAPI(unsigned char) LinxServoGetNumChans(void);
 LibAPI(int) LinxServoGetChans(unsigned char numChans, unsigned char* channels);
 
 //------------------------------------- SPI -------------------------------------
-LibAPI(unsigned char) LinxSpiGetNumChans();
+LibAPI(unsigned char) LinxSpiGetNumChans(void);
 LibAPI(int) LinxSpiGetChans(unsigned char numChans, unsigned char* channels);
 LibAPI(int) LinxSpiOpenMaster(unsigned char channel);
 LibAPI(int) LinxSpiSetBitOrder(unsigned char channel, unsigned char bitOrder);
@@ -172,7 +175,7 @@ LibAPI(int) LinxSpiWriteRead(unsigned char channel, unsigned char frameSize, uns
 LibAPI(int) LinxSpiCloseMaster(unsigned char channel);
 		
 //------------------------------------- UART -------------------------------------
-LibAPI(unsigned char) LinxUartGetNumChans();
+LibAPI(unsigned char) LinxUartGetNumChans(void);
 LibAPI(int) LinxUartGetChans(unsigned char numChans, unsigned char* channels);
 LibAPI(int) LinxUartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
 LibAPI(int) LinxUartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);

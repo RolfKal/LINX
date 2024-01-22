@@ -35,7 +35,7 @@ int ReadStringFromBuff(unsigned char *buffer, int offset, unsigned char *arr, in
 unsigned char ReverseBits(unsigned char b);
 void ReverseBits(unsigned char *buffer, int length);
 
-unsigned long long getMsTicks();
+unsigned long long getMsTicks(void);
 void delayMs(unsigned int ms);
 
 int fileExists(const char* path);

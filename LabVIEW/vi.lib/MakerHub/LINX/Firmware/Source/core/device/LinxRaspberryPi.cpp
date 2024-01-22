@@ -383,7 +383,7 @@ LinxRaspberryPi::LinxRaspberryPi(LinxFmtChannel *debug) : LinxDevice(debug)
 }
 
 //Destructor
-LinxRaspberryPi::~LinxRaspberryPi()
+LinxRaspberryPi::~LinxRaspberryPi(void)
 {
  	//------------------------------------- Digital -------------------------------------
     // close gpio memory map if opened 

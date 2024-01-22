@@ -49,7 +49,7 @@ LinxTcpListener::LinxTcpListener(LinxDevice* device, bool autoLaunch) : LinxList
 #endif
 }
 
-LinxTcpListener::~LinxTcpListener()
+LinxTcpListener::~LinxTcpListener(void)
 {
 	Close();
 #if Win32
@@ -133,7 +133,7 @@ int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *se
 	return L_OK;
 }
 
-int LinxTcpListener::Close()
+int LinxTcpListener::Close(void)
 {
 	ControlMutex(true);
 	if (IsANetObject(m_ServerSocket))
@@ -148,7 +148,7 @@ int LinxTcpListener::Close()
 /****************************************************************************************
 **  Protected Functions
 ****************************************************************************************/
-int LinxTcpListener::WaitForConnection()
+int LinxTcpListener::WaitForConnection(void)
 {
 	struct sockaddr_storage addr;
 	int retval, clientlen = sizeof(addr);

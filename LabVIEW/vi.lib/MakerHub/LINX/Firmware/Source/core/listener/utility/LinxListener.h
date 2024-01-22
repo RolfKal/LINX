@@ -29,19 +29,19 @@
 typedef int (*CustomCommand)(unsigned char* commandPacketBuffer, int length, unsigned char* responsePacketBuffer, int* responseLength);
 typedef int (*PeriodicTask)(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer);
 
-class LinxListener
+class LinxListener : public LinxChannel
 {
 	public:	
 		/****************************************************************************************
 		**  Constructors/Destructors
 		****************************************************************************************/
 		LinxListener(LinxDevice *device, bool autoLaunch = false);
-		virtual ~LinxListener();
+		virtual ~LinxListener(void);
 
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
-		virtual int Stop(void);						// Channel to use for listening for messages
+		virtual int Stop(void);
 		virtual int Close(void);
 
 		// Attach a custom command callback function. The class allows up to MAX_CUSTOM_CMDS to be installed and
@@ -50,23 +50,20 @@ class LinxListener
 		int AttachCustomCommand(unsigned short commandNumber, CustomCommand callback);
 		int AttachPeriodicTask(PeriodicTask task);
 
-		int SetDebugChannel(LinxCommChannel *channel);
-
 		int ProcessLoop(bool loop = false);
 	protected:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
 		LinxDevice *m_LinxDev;
-		LinxFmtChannel *m_Debug;
 
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
 		// Start Listener with the device to relay commands to
-		int Run(LinxCommChannel *channel,	// Channel to use for listening for messages
-				int bufferSize = 255);		// maximum buffer size for messages
-		virtual int WaitForConnection();	// Wait for incoming connection
+		int Run(LinxCommChannel *channel,		// Channel to use for listening for messages
+				int bufferSize = 255);			// maximum buffer size for messages
+		virtual int WaitForConnection(void);	// Wait for incoming connection
 		int ControlMutex(bool lock);
 
 	private:
@@ -95,7 +92,7 @@ class LinxListener
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
-		int CheckForCommand();	// Check for next command and decode it to relay it to the device
+		int CheckForCommand(void);	// Check for next command and decode it to relay it to the device
 		
 		int EnumerateChannels(int type, unsigned char request, unsigned char *responseBuffer, unsigned int offset, unsigned int responseLength);
 		int PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, int dataSize, int status);

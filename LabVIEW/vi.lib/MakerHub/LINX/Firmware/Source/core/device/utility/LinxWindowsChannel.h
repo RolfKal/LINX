@@ -33,14 +33,14 @@ class LinxWindowsCommChannel : public LinxCommChannel
 		****************************************************************************************/
 		LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, NetObject socket);
 		LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port);
-		~LinxWindowsCommChannel();
+		~LinxWindowsCommChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead);
 		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout);
-		virtual int Close();
+		virtual int Close(void);
 
 	protected:
 		/****************************************************************************************
@@ -62,7 +62,7 @@ class LinxWindowsUartChannel : public LinxUartChannel
 		****************************************************************************************/
 		LinxWindowsUartChannel(LinxFmtChannel *debug, const unsigned char *deviceName);
 		LinxWindowsUartChannel(LinxFmtChannel *debug, unsigned char channel, const unsigned char *deviceName);
-		~LinxWindowsUartChannel();
+		~LinxWindowsUartChannel(void);
 
 		/****************************************************************************************
 		**  Functions
@@ -71,20 +71,20 @@ class LinxWindowsUartChannel : public LinxUartChannel
 		virtual int SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
 		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead);
 		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout);
-		virtual int Close();
+		virtual int Close(void);
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SmartOpen();
+		virtual int SmartOpen(void);
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
 		HANDLE m_Handle;
-		CHAR m_Channel[10];
+		CHAR m_DeviceName[10];
 };
 
 class LinxWindowsSocketChannel : public LinxCommChannel
@@ -95,14 +95,14 @@ class LinxWindowsSocketChannel : public LinxCommChannel
 		****************************************************************************************/
 		LinxWindowsSocketChannel(LinxFmtChannel *debug, const char *name, NetObject socket);
 		LinxWindowsSocketChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
-		~LinxWindowsSocketChannel();
+		~LinxWindowsSocketChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
 		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
-		virtual int Close();
+		virtual int Close(void);
 
 	protected:
 		/****************************************************************************************

@@ -28,7 +28,7 @@
 /****************************************************************************************
 **  Constructors/Destructors
 ****************************************************************************************/
-LinxListener::LinxListener(LinxDevice *device, bool autoLaunch)
+LinxListener::LinxListener(LinxDevice *device, bool autoLaunch) : LinxChannel()
 {
 	unsigned char buffer[255];
 
@@ -47,7 +47,6 @@ LinxListener::LinxListener(LinxDevice *device, bool autoLaunch)
 	m_Thread = 0;
 	m_Run = FALSE;
 
-	m_Debug = new LinxFmtChannel();
 	m_LinxDev = device;
 	m_LinxDev->GetDeviceName(buffer, 255);
 	m_Debug->Write("Initializing Listener on ");
@@ -61,11 +60,10 @@ LinxListener::LinxListener(LinxDevice *device, bool autoLaunch)
 #endif
 }
 
-LinxListener::~LinxListener()
+LinxListener::~LinxListener(void)
 {
 	Close();
 	ControlMutex(true);
-	m_Debug->Release();
 	free(m_SendBuffer);
 	free(m_RecBuffer);
 	ControlMutex(false);
@@ -101,8 +99,10 @@ int LinxListener::Stop(void)
 	if (m_Thread)
 	{
 		m_Run = FALSE;
+		ControlMutex(false);
 #if Win32
 		DWORD dwStatus = WaitForSingleObject(m_Thread, 2000);
+		ControlMutex(true);
 		if (dwStatus == WAIT_TIMEOUT)
 		{
 			TerminateThread(m_Thread, 1);
@@ -113,6 +113,7 @@ int LinxListener::Stop(void)
 		//status = pthread_cancel(m_Thread);
 		// Waiting for the created thread to terminate 
 		status = pthread_join(ptid, NULL);
+		ControlMutex(true);
 #else
 #endif
 	}
@@ -120,15 +121,17 @@ int LinxListener::Stop(void)
 	return L_OK;
 }
 
-int LinxListener::Close()
+int LinxListener::Close(void)
 {
 	Stop();
+	ControlMutex(true);
 	if (m_Channel)
 	{
 		m_Channel->Close();
 		m_Channel->Release();
 		m_Channel = NULL;
 	}
+	ControlMutex(false);
 	return L_OK;
 }
 
@@ -150,14 +153,6 @@ int LinxListener::AttachPeriodicTask(PeriodicTask task)
 	m_PeriodicTask = task;
 	ControlMutex(false);
 	return L_OK;
-}
-
-int LinxListener::SetDebugChannel(LinxCommChannel *channel)
-{
-	ControlMutex(true);
-	int status = m_Debug->SetDebugChannel(channel);
-	ControlMutex(false);
-	return status;
 }
 
 int LinxListener::ProcessLoop(bool loop)
@@ -217,7 +212,7 @@ int LinxListener::Run(LinxCommChannel *channel, int bufferSize)
 	return status;
 }
 
-int LinxListener::WaitForConnection()
+int LinxListener::WaitForConnection(void)
 {
 	return L_OK;
 }
@@ -288,7 +283,7 @@ int LinxListener::ControlMutex(bool lock)
 
 
 
-int LinxListener::CheckForCommand()
+int LinxListener::CheckForCommand(void)
 {
 	int status = LERR_BADCHAN;
 	if (m_Channel)
@@ -463,12 +458,12 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 				offset = WriteU8ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->DeviceFamily);
 				offset = WriteU8ToBuff(responsePacketBuffer, offset, m_LinxDev->DeviceId);
 				length = 2;
+				status = L_OK;
 			}
 			else
 			{
 				length = 0;
 			}
-			status = L_OK;
 			break;
 
 		case LCMD_GET_API_VER: //Get LINX API Version
@@ -483,8 +478,8 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 				offset = WriteU8ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->LinxApiMajor);
 				offset = WriteU8ToBuff(responsePacketBuffer, offset, m_LinxDev->LinxApiMinor);
 				offset = WriteU8ToBuff(responsePacketBuffer, offset, m_LinxDev->LinxApiSubminor);
-				status = L_OK;
 				length = 3;
+				status = L_OK;
 			}
 			else
 			{

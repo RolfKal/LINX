@@ -40,7 +40,7 @@ class LinxWindowsDevice : public LinxDevice
 		**  Constructors
 		****************************************************************************************/
 		LinxWindowsDevice(LinxFmtChannel *debug = NULL);
-		~LinxWindowsDevice();
+		~LinxWindowsDevice(void);
 
 		/****************************************************************************************
 		**  Functions

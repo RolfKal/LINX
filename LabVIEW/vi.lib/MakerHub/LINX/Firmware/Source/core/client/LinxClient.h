@@ -38,13 +38,13 @@ class LinxClient : public LinxDevice
 		****************************************************************************************/
 		LinxClient(const unsigned char *uartDevice, unsigned int *baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout);
 		LinxClient(const unsigned char *netAddress, unsigned short port, int timeout);
-		virtual ~LinxClient();
+		virtual ~LinxClient(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
-		int IsInitialized();
+		int IsInitialized(void);
 
 		//Analog
 		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
@@ -122,7 +122,7 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		unsigned short GetNextPacketNum();
+		unsigned short GetNextPacketNum(void);
 		int PrepareHeader(unsigned char* buffer, unsigned short command, unsigned int dataLength, unsigned int expLength, unsigned int *headerLength);
 		int WriteAndRead(unsigned char *buffer, unsigned int buffLength, unsigned int *headerLength, unsigned int dataLength, unsigned int *dataRead);
 		void CopyArrayToSet(int type, unsigned char *arr, unsigned int length);

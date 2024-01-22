@@ -46,7 +46,7 @@ LinxSysfsAiChannel::LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channe
 	m_ValHandle = NULL;
 }
 
-LinxSysfsAiChannel::~LinxSysfsAiChannel()
+LinxSysfsAiChannel::~LinxSysfsAiChannel(void)
 {
 	if (m_ValHandle)
 	{
@@ -55,7 +55,7 @@ LinxSysfsAiChannel::~LinxSysfsAiChannel()
 }
 
 // Open direction and value handles if it is not already open
-int LinxSysfsAiChannel::SmartOpen()
+int LinxSysfsAiChannel::SmartOpen(void)
 {
 	// Open value handle if it is not already open
 	if (m_ValHandle == NULL)
@@ -92,7 +92,7 @@ LinxSysfsDioChannel::LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char li
 	m_EdgeHandle = NULL;
 }
 
-LinxSysfsDioChannel::~LinxSysfsDioChannel()
+LinxSysfsDioChannel::~LinxSysfsDioChannel(void)
 {
 	if (m_EdgeHandle != NULL)
 	{			
@@ -122,7 +122,7 @@ LinxSysfsDioChannel::~LinxSysfsDioChannel()
 }
 
 // Open direction and value handles if it is not already open
-int LinxSysfsDioChannel::SmartOpen()
+int LinxSysfsDioChannel::SmartOpen(void)
 {
 	char gpioPath[64];
 
@@ -234,7 +234,7 @@ LinxSysfsPwmChannel::LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *devi
 	m_DefaultPeriod = defaultPeriod;
 }
 
-LinxSysfsPwmChannel::~LinxSysfsPwmChannel()
+LinxSysfsPwmChannel::~LinxSysfsPwmChannel(void)
 {
 	if (m_DutyCycleHandle != NULL)
 	{
@@ -260,7 +260,7 @@ LinxSysfsPwmChannel::~LinxSysfsPwmChannel()
 	}
 }
 
-int LinxSysfsPwmChannel::SmartOpen()
+int LinxSysfsPwmChannel::SmartOpen(void)
 {
 	char tempPath[64];
 	//Open Period Handle If It Is Not Already
@@ -382,7 +382,7 @@ LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned c
 	}
 }
 
-LinxUnixCommChannel::~LinxUnixCommChannel()
+LinxUnixCommChannel::~LinxUnixCommChannel(void)
 {
 	if (IsANetObject(m_Socket)
 		close(m_Socket);
@@ -433,7 +433,7 @@ int LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int numBytes, in
 	return L_OK;
 }
 
-int LinxUnixCommChannel::Close()
+int LinxUnixCommChannel::Close(void)
 {
 	if (IsANetObject(m_Socket))
 		close(m_Socket);
@@ -622,7 +622,7 @@ int LinxUnixUartChannel::Write(const unsigned char* sendBuffer, int numBytes, in
 	return  L_OK;
 }
 
-int LinxUnixUartChannel::Close()
+int LinxUnixUartChannel::Close(void)
 {
 	if (IsANetObject(m_Fd))
 		close(m_Fd);
@@ -637,13 +637,13 @@ LinxSysfsI2cChannel::LinxSysfsI2cChannel(LinxFmtChannel *debug, const char *chan
 	m_Funcs = 0;
 }
 
-LinxSysfsI2cChannel::~LinxSysfsI2cChannel()
+LinxSysfsI2cChannel::~LinxSysfsI2cChannel(void)
 {
 	if (m_Fd >= 0)
 		close(m_Fd);
 }
 
-int LinxSysfsI2cChannel::Open()
+int LinxSysfsI2cChannel::Open(void)
 {
 	if (m_Fd < 0)
 	{
@@ -760,7 +760,7 @@ int LinxSysfsI2cChannel::Transfer(unsigned char slaveAddress, int numFrames, int
 	return L_OK;
 }
 
-int LinxSysfsI2cChannel::Close()
+int LinxSysfsI2cChannel::Close(void)
 {
 	if ((m_Fd >= 0) && (close(m_Fd) < 0))
 		return LI2C_CLOSE_FAIL;
@@ -777,13 +777,13 @@ LinxSysfsSpiChannel::LinxSysfsSpiChannel(LinxFmtChannel *debug, LinxDevice *devi
 	m_Fd = -1;
 }
 
-LinxSysfsSpiChannel::~LinxSysfsSpiChannel()
+LinxSysfsSpiChannel::~LinxSysfsSpiChannel(void)
 {
 	if (m_Fd >= 0)
 		close(m_Fd);
 }
 
-int LinxSysfsSpiChannel::Open()
+int LinxSysfsSpiChannel::Open(void)
 {
 	if (m_Fd < 0)
 	{
@@ -925,7 +925,7 @@ int LinxSysfsSpiChannel::WriteRead(unsigned char frameSize, unsigned char numFra
 	return L_OK;
 }
 
-int LinxSysfsSpiChannel::Close()
+int LinxSysfsSpiChannel::Close(void)
 {
 	// Close SPI handle
 	if ((m_Fd >= 0) && (close(m_Fd) < 0))

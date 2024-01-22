@@ -32,7 +32,7 @@
 #define TX 0
 #define RX 1
 
-class LinxDevice
+class LinxDevice : public LinxChannel
 {
 	public:
 		/****************************************************************************************
@@ -95,7 +95,7 @@ class LinxDevice
 		**  Constructors/Destructor
 		****************************************************************************************/
 		LinxDevice(LinxFmtChannel *debug = NULL);
-		virtual ~LinxDevice();
+		virtual ~LinxDevice(void);
 
 		/****************************************************************************************
 		**  Functions
@@ -161,24 +161,21 @@ class LinxDevice
 		virtual int Ws2812Open(unsigned short numLeds, unsigned char dataChan);
 		virtual int Ws2812WriteOnePixel(unsigned short pixelIndex, unsigned char red, unsigned char green, unsigned char blue, unsigned char refresh);
 		virtual int Ws2812WriteNPixels(unsigned short startPixel, unsigned short numPixels, unsigned char* data, unsigned char refresh);
-		virtual int Ws2812Refresh();
-		virtual int Ws2812Close();
+		virtual int Ws2812Refresh(void);
+		virtual int Ws2812Close(void);
 
 		// General
 		virtual void NonVolatileWrite(int address, unsigned char data);
 		virtual unsigned char NonVolatileRead(int address);
 
-		virtual unsigned int GetMilliSeconds();
-		virtual unsigned int GetSeconds();
+		virtual unsigned int GetMilliSeconds(void);
+		virtual unsigned int GetSeconds(void);
 		virtual void DelayMs(unsigned int ms);
 
 		virtual bool ChecksumPassed(unsigned char* buffer, int length);
 		virtual unsigned char ComputeChecksum(unsigned char* buffer, int length);
 
 		virtual int EnumerateChannels(int type, unsigned char *buffer = NULL, unsigned int length = 0, unsigned int *reqLen = NULL);
-
-		// Debug
-		virtual int EnableDebug(LinxCommChannel *channel);
 
 		virtual void DebugPrintPacket(unsigned char direction, const unsigned char* packetBuffer);
 

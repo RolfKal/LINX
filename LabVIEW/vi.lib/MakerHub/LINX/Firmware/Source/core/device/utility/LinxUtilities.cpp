@@ -123,7 +123,7 @@ void ReverseBits(unsigned char *buffer, int length)
 #if Win32
 static LARGE_INTEGER g_Frequency = {0};
 static int isAvailable = -1;
-static int initializeFrequency()
+static int initializeFrequency(void)
 {
 	if (isAvailable < 0)
 	{
@@ -135,7 +135,7 @@ static int initializeFrequency()
 }
 #endif
 
-unsigned long long getMsTicks()
+unsigned long long getMsTicks(void)
 {
 #if Unix
 	timespec mTime;

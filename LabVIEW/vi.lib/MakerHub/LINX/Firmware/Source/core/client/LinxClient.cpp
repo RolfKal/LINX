@@ -75,7 +75,7 @@ LinxClient::LinxClient(const unsigned char *netAddress, unsigned short port, int
 	}
 }
 
-LinxClient::~LinxClient()
+LinxClient::~LinxClient(void)
 {
 	if (m_CommChannel)
 		m_CommChannel->Release();
@@ -86,7 +86,7 @@ LinxClient::~LinxClient()
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-int LinxClient::IsInitialized()
+int LinxClient::IsInitialized(void)
 {
 	return (m_CommChannel != NULL);
 }
@@ -622,7 +622,7 @@ int LinxClient::Initialize(LinxCommChannel *channel)
 /****************************************************************************************
 **  Private Functions
 ****************************************************************************************/
-unsigned short LinxClient::GetNextPacketNum()
+unsigned short LinxClient::GetNextPacketNum(void)
 {
 	return m_PacketNum++;
 }
@@ -633,13 +633,13 @@ int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, uns
 	if (dataLength >= (int)m_ListenerBufferSize || dataLength > 0xFFFFFD)
 		return LERR_MSG_TO_LONG;
 
-	if (dataLength <= 255 && expLength <= 248)
+	if (dataLength <= 248 && expLength <= 249)
 	{
-		*headerLength = WriteU16ToBuff(buffer, 0, 0xFF00 + (unsigned short)dataLength);
+		*headerLength = WriteU16ToBuff(buffer, 0, 0xFF00 + (unsigned short)dataLength + 7);
 	}
 	else
 	{
-		*headerLength = WriteU32ToBuff(buffer, 0, 0xFE000000 + dataLength + 2);
+		*headerLength = WriteU32ToBuff(buffer, 0, 0xFE000000 + dataLength + 9);
 	}
 	*headerLength += WriteU16ToBuff(buffer, *headerLength, GetNextPacketNum());
 	*headerLength += WriteU16ToBuff(buffer, *headerLength, command);
@@ -648,7 +648,7 @@ int LinxClient::PrepareHeader(unsigned char* buffer, unsigned short command, uns
 
 int LinxClient::WriteAndRead(unsigned char *buffer, unsigned int buffLength, unsigned int *headerLength, unsigned int dataLength, unsigned int *dataRead)
 {
-	unsigned short packetNum = GetU16FromBuff(buffer, *headerLength - 2);
+	unsigned short packetNum = GetU16FromBuff(buffer, *headerLength - 4);
 	unsigned int start = getMilliSeconds();
 	int timeout = m_Timeout;
 

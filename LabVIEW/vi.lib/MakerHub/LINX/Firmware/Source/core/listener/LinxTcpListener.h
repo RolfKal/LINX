@@ -43,20 +43,20 @@ class LinxTcpListener : public LinxListener
 		**  Constructors/Destructor
 		****************************************************************************************/
 		LinxTcpListener(LinxDevice* device, bool autoLaunch = false);
-		virtual ~LinxTcpListener();
+		virtual ~LinxTcpListener(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int Start(const unsigned char *interfaceAddress, unsigned short port = 44300, int timeout = 2000);
 		virtual int Start(const unsigned char *interfaceAddress, const char *servName, int timeout = 2000);
-		virtual int Close();
+		virtual int Close(void);
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int WaitForConnection();
+		virtual int WaitForConnection(void);
 
 	private:
 		/****************************************************************************************

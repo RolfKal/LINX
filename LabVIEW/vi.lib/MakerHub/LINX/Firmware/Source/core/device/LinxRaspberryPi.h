@@ -52,7 +52,7 @@ class LinxRaspiDioChannel : public LinxSysfsDioChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin) : LinxSysfsDioChannel(debug, linxPin, gpioPin) {};
-		virtual ~LinxRaspiDioChannel() {};
+		virtual ~LinxRaspiDioChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -82,7 +82,7 @@ class LinxRaspberryPi : public LinxDevice
 		**  Constructors /  Destructor
 		****************************************************************************************/
 		LinxRaspberryPi(LinxFmtChannel *debug = NULL);
-		virtual ~LinxRaspberryPi();
+		virtual ~LinxRaspberryPi(void);
 
 		/****************************************************************************************
 		**  Functions

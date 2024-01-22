@@ -48,19 +48,10 @@
 
 LinxDevice* gLinxDev = NULL;
 
-static LinxDevice * LinxGetRef(LinxDevice * dev)
-{
-	if (!dev)
-	{	
-		  dev = gLinxDev;
-	}
-	return dev;
-}
-
 //------------------------------------- Constructor / Destructor -------------------------------------
-LibAPI(LinxDevice *) LinxOpenRef(void)
+LibAPI(LinxDevice *) LinxOpenLocalClient(void)
 {
-	//Instantiate The LINX Device
+	//Instantiate the LINX Device
 	return new LINXDEVICETYPE();
 }
 
@@ -69,7 +60,7 @@ LibAPI(int) LinxOpen(void)
 	if (!gLinxDev)
 	{
 		//Instantiate The LINX Device
-		gLinxDev = LinxOpenRef();
+		gLinxDev = LinxOpenLocalClient();
 	}
 	return L_OK;
 }
@@ -79,33 +70,52 @@ LibAPI(LinxDevice *) LinxOpenSerialClient(const unsigned char *deviceName, unsig
 	LinxClient *client = new LinxClient(deviceName, baudrate, dataBits, stopBits, parity, timeout);
 	if (client && !client->IsInitialized())
 	{
-		delete client;
+		client->Release();
 		return NULL;
 	}
 	return client;
 }
 
-LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *address, unsigned short port, int timeout)
+LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *clientAddress, unsigned short port, int timeout)
 {
-	LinxClient *client = new LinxClient(address, port, timeout);
+	LinxClient *client = new LinxClient(clientAddress, port, timeout);
 	if (client && !client->IsInitialized())
 	{
-		delete client;
+		client->Release();
 		return NULL;
 	}
 	return client;
 }
 
-LibAPI(LinxListener *) LinxOpenUartServer(LinxDevice *dev, const unsigned char *deviceName, unsigned int baudRate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout, bool autostart)
+LibAPI(int) LinxCloseRef(LinxChannel *channel)
+{
+	if (channel)
+		channel->Release();
+	return L_OK;
+}
+
+LibAPI(int) LinxClose(void)
+{
+	int status = LinxCloseRef(gLinxDev);
+	gLinxDev = NULL;
+	return status;
+}
+
+LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char *deviceName, unsigned int baudRate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout, bool autostart)
 {
 	int status = L_DISCONNECT;
+	if (!dev)
+		dev = LinxOpenLocalClient();
+	else
+		dev->AddRef();
+
 	LinxSerialListener *listener = new LinxSerialListener(dev, autostart);
 	if (listener)
 	{
 		status = listener->Start(deviceName, baudRate, dataBits, stopBits, parity, timeout);
 		if (status)
 		{
-			delete listener;
+			listener->Release();
 			return NULL;
 		}
 	}
@@ -115,31 +125,21 @@ LibAPI(LinxListener *) LinxOpenUartServer(LinxDevice *dev, const unsigned char *
 LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *interfaceAddress, short port, int timeout, bool autostart)
 {
 	int status = L_DISCONNECT;
+	if (!dev)
+		dev = LinxOpenLocalClient();
+	else
+		dev->AddRef();
 	LinxTcpListener *listener = new LinxTcpListener(dev, autostart);
 	if (listener)
 	{
 		status = listener->Start(interfaceAddress, port, timeout);
 		if (status)
 		{
-			delete listener;
+			listener->Release();
 			return NULL;
 		}
 	}
 	return listener;
-}
-
-LibAPI(int) LinxCloseRef(LinxDevice *dev)
-{
-	if (dev)
-		delete dev;
-	return L_OK;
-}
-
-LibAPI(int) LinxClose()
-{
-	int status = LinxCloseRef(gLinxDev);
-	gLinxDev = NULL;
-	return status;
 }
 
 //------------------------------------- Enumeration -------------------------------------
@@ -150,7 +150,7 @@ LibAPI(unsigned char) LinxGetDeviceFamilyRef(LinxDevice *dev)
 	return 0;
 }
 
-LibAPI(unsigned char) LinxGetDeviceFamily()
+LibAPI(unsigned char) LinxGetDeviceFamily(void)
 {
 	return LinxGetDeviceFamilyRef(gLinxDev);
 }
@@ -162,7 +162,7 @@ LibAPI(unsigned char) LinxGetDeviceIdRef(LinxDevice *dev)
 	return 0;
 }
 
-LibAPI(unsigned char) LinxGetDeviceId()
+LibAPI(unsigned char) LinxGetDeviceId(void)
 {
 	return LinxGetDeviceIdRef(gLinxDev);
 }
@@ -190,7 +190,7 @@ LibAPI(unsigned int) LinxGetMilliSecondsRef(LinxDevice *dev)
 	return 0;
 }
 
-LibAPI(unsigned int) LinxGetMilliSeconds()
+LibAPI(unsigned int) LinxGetMilliSeconds(void)
 {
 	return LinxGetMilliSecondsRef(gLinxDev);
 }
@@ -203,7 +203,7 @@ LibAPI(unsigned int) LinxAiGetRefSetVoltageRef(LinxDevice *dev)
 	return 0;
 }
 
-LibAPI(unsigned int) LinxAiGetRefSetVoltage()
+LibAPI(unsigned int) LinxAiGetRefSetVoltage(void)
 {
 	return LinxAiGetRefSetVoltageRef(gLinxDev);
 }
@@ -215,7 +215,7 @@ LibAPI(unsigned int) LinxAoGetRefSetVoltageRef(LinxDevice *dev)
 	return 0;
 }
 
-LibAPI(unsigned int) LinxAoGetRefSetVoltage()
+LibAPI(unsigned int) LinxAoGetRefSetVoltage(void)
 {
 	return LinxAoGetRefSetVoltageRef(gLinxDev);
 }
@@ -227,7 +227,7 @@ LibAPI(unsigned char) LinxAiGetResolutionRef(LinxDevice *dev)
 	return 0;
 }
 
-LibAPI(unsigned char) LinxAiGetResolution()
+LibAPI(unsigned char) LinxAiGetResolution(void)
 {
 	return LinxAiGetResolutionRef(gLinxDev);
 }
@@ -239,7 +239,7 @@ LibAPI(unsigned char) LinxAoGetResolutionRef(LinxDevice *dev)
 	return 0;
 }
 
-LibAPI(unsigned char) LinxAoGetResolution()
+LibAPI(unsigned char) LinxAoGetResolution(void)
 {
 	return LinxAoGetResolutionRef(gLinxDev);
 }
@@ -258,12 +258,12 @@ LibAPI(int) LinxAoGetChansRef(LinxDevice *dev, unsigned char *buffer, unsigned i
 	return 0;
 }
 
-LibAPI(unsigned char) LinxAiGetNumChans()
+LibAPI(unsigned char) LinxAiGetNumChans(void)
 {
 	return LinxAiGetChansRef(gLinxDev, NULL, NULL);
 }
 
-LibAPI(unsigned char) LinxAoGetNumChans()
+LibAPI(unsigned char) LinxAoGetNumChans(void)
 {
 	return LinxAoGetChansRef(gLinxDev, NULL, NULL);
 }
@@ -322,7 +322,7 @@ LibAPI(int) LinxCanGetChansRef(LinxDevice *dev, unsigned char *buffer, unsigned 
 	return 0;
 }
 
-LibAPI(unsigned char) LinxCanGetNumChans()
+LibAPI(unsigned char) LinxCanGetNumChans(void)
 {
 	return LinxCanGetChansRef(gLinxDev, NULL, NULL);
 }
@@ -340,7 +340,7 @@ LibAPI(int) LinxDigitalGetChansRef(LinxDevice *dev, unsigned char* buffer, unsig
 	return 0;
 }
 
-LibAPI(unsigned char) LinxDigitalGetNumChans()
+LibAPI(unsigned char) LinxDigitalGetNumChans(void)
 {
 	return LinxDigitalGetChansRef(gLinxDev, NULL, NULL);
 }
@@ -418,7 +418,7 @@ LibAPI(int) LinxI2cGetChansRef(LinxDevice *dev, unsigned char* buffer, unsigned 
 	return 0;
 }
 
-LibAPI(unsigned char) LinxI2cGetNumChans()
+LibAPI(unsigned char) LinxI2cGetNumChans(void)
 {
 	return LinxI2cGetChansRef(gLinxDev, NULL, NULL);
 }
@@ -496,7 +496,7 @@ LibAPI(int) LinxPwmGetChansRef(LinxDevice *dev, unsigned char* buffer, unsigned 
 	return 0;
 }
 
-LibAPI(unsigned char) LinxPwmGetNumChans()
+LibAPI(unsigned char) LinxPwmGetNumChans(void)
 {
 	return LinxPwmGetChansRef(gLinxDev, NULL, NULL);
 }
@@ -526,7 +526,7 @@ LibAPI(int) LinxQeGetChansRef(LinxDevice *dev, unsigned char* buffer, unsigned i
 	return 0;
 }
 
-LibAPI(unsigned char) LinxQeGetNumChans()
+LibAPI(unsigned char) LinxQeGetNumChans(void)
 {
 	return LinxQeGetChansRef(gLinxDev, NULL, NULL);
 }
@@ -544,7 +544,7 @@ LibAPI(int) LinxServoGetChansRef(LinxDevice *dev, unsigned char* buffer, unsigne
 	return 0;
 }
 
-LibAPI(unsigned char) LinxServoGetNumChans()
+LibAPI(unsigned char) LinxServoGetNumChans(void)
 {
 	return LinxServoGetChansRef(gLinxDev, NULL, NULL);
 }
@@ -562,7 +562,7 @@ LibAPI(int) LinxSpiGetChansRef(LinxDevice *dev, unsigned char* buffer, unsigned 
 	return 0;
 }
 
-LibAPI(unsigned char) LinxSpiGetNumChans()
+LibAPI(unsigned char) LinxSpiGetNumChans(void)
 {
 	return LinxSpiGetChansRef(gLinxDev, NULL, NULL);
 }
@@ -652,7 +652,7 @@ LibAPI(int) LinxUartGetChansRef(LinxDevice *dev, unsigned char* buffer, unsigned
 	return 0;
 }
 
-LibAPI(unsigned char) LinxUartGetNumChans()
+LibAPI(unsigned char) LinxUartGetNumChans(void)
 {
 	return LinxUartGetChansRef(gLinxDev, NULL, NULL);
 }

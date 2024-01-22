@@ -34,7 +34,7 @@ class LinxSysfsAiChannel : public LinxAiChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName);
-		virtual ~LinxSysfsAiChannel();
+		virtual ~LinxSysfsAiChannel(void);
 
 		/****************************************************************************************
 		**  Functions
@@ -47,7 +47,7 @@ class LinxSysfsAiChannel : public LinxAiChannel
 	private:
 		FILE *m_ValHandle;	// File Handles For Digital Pin Value
 
-		int SmartOpen();
+		int SmartOpen(void);
 };
 
 class LinxSysfsAoChannel : public LinxAoChannel
@@ -57,7 +57,7 @@ class LinxSysfsAoChannel : public LinxAoChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsAoChannel(LinxFmtChannel *debug, const char *channelName);
-		virtual ~LinxSysfsAoChannel();
+		virtual ~LinxSysfsAoChannel(void);
 
 		/****************************************************************************************
 		**  Functions
@@ -70,7 +70,7 @@ class LinxSysfsAoChannel : public LinxAoChannel
 	private:
 		FILE *m_ValHandle;	// File Handles For Digital Pin Value
 
-		int SmartOpen();
+		int SmartOpen(void);
 };
 
 class LinxSysfsDioChannel : public LinxDioChannel
@@ -80,7 +80,7 @@ class LinxSysfsDioChannel : public LinxDioChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin);
-		virtual ~LinxSysfsDioChannel();
+		virtual ~LinxSysfsDioChannel(void);
 
 		/****************************************************************************************
 		**  Functions
@@ -101,7 +101,7 @@ class LinxSysfsDioChannel : public LinxDioChannel
 		FILE *m_DirHandle;	// File Handles For Digital Pin Direction
 		FILE *m_EdgeHandle;	// File Handles For Digital Pin Edge
 
-		int SmartOpen();
+		int SmartOpen(void);
 };
 
 class LinxSysfsPwmChannel : public LinxPwmChannel
@@ -111,7 +111,7 @@ class LinxSysfsPwmChannel : public LinxPwmChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableFileName, const char *periodName, const char *dutyCycleName, unsigned int defaultPeriod);
-		virtual ~LinxSysfsPwmChannel();
+		virtual ~LinxSysfsPwmChannel(void);
 
 		/****************************************************************************************
 		**  Functions
@@ -134,7 +134,7 @@ class LinxSysfsPwmChannel : public LinxPwmChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		int SmartOpen();
+		int SmartOpen(void);
 };
 
 class LinxUnixCommChannel : public LinxCommChannel
@@ -145,14 +145,14 @@ class LinxUnixCommChannel : public LinxCommChannel
 		****************************************************************************************/
 		LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, NetObject socket);
 		LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port);
-		virtual ~LinxUnixCommChannel();
+		virtual ~LinxUnixCommChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
 		virtual int Write(const unsigned char* sendBuffer, int numBytes, int timeout);
-		virtual int Close();
+		virtual int Close(void);
 
 	private:
 		NetObject m_Socket;
@@ -165,7 +165,7 @@ class LinxUnixUartChannel : public LinxUartChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxUnixUartChannel(LinxFmtChannel *debug, const char *deviceName);
-		virtual ~LinxUnixUartChannel() {};
+		virtual ~LinxUnixUartChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -174,13 +174,13 @@ class LinxUnixUartChannel : public LinxUartChannel
 		virtual int SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
 		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead);
 		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout);
-		virtual int Close();
+		virtual int Close(void);
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SmartOpen();
+		virtual int SmartOpen(void);
 
 private:
 		int m_Fd;
@@ -193,17 +193,17 @@ class LinxSysfsI2cChannel : public LinxI2cChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsI2cChannel(LinxFmtChannel *debug, const char *channelName);
-		virtual ~LinxSysfsI2cChannel();
+		virtual ~LinxSysfsI2cChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open();
+		virtual int Open(void);
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
 		virtual int Read(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned int timeout, unsigned char* recBuffer);
 		virtual int Write(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned char* sendBuffer);
 		virtual int Transfer(unsigned char slaveAddress, int numFrames, int *flags, int *numBytes, unsigned int timeout, unsigned char* sendBuffer, unsigned char* recBuffer);
-		virtual int Close();
+		virtual int Close(void);
 
 	protected:
 		/****************************************************************************************
@@ -229,17 +229,17 @@ class LinxSysfsSpiChannel : public LinxSpiChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxSysfsSpiChannel(LinxFmtChannel *debug, LinxDevice *device, const char *channelName, unsigned int maxSpeed);
-		virtual ~LinxSysfsSpiChannel();
+		virtual ~LinxSysfsSpiChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open();
+		virtual int Open(void);
 		virtual int SetBitOrder(unsigned char bitOrder);
 		virtual int SetMode(unsigned char mode);
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
 		virtual int WriteRead(unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer);
-		virtual int Close();
+		virtual int Close(void);
 
 	protected:
 		/****************************************************************************************

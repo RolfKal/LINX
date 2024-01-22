@@ -76,7 +76,7 @@ LinxBBBUartChannel::LinxBBBUartChannel(LinxFmtChannel *debug, const char *device
 	m_DtoSlotsPath = dtoSlotsPath;
 }
 
-int LinxBBBUartChannel::SmartOpen()
+int LinxBBBUartChannel::SmartOpen(void)
 {
 	//Load DTO If Needed
 	if (!fileExists(m_DeviceName) && m_DtoName)
@@ -102,7 +102,7 @@ LinxBBBI2cChannel::LinxBBBI2cChannel(LinxFmtChannel *debug, const char *channelN
 	m_DtoSlotsPath = dtoSlotsPath;
 }
 
-int LinxBBBI2cChannel::Open()
+int LinxBBBI2cChannel::Open(void)
 {
 	//Export Dev Tree Overlay If Device does not exist
 	if (!fileExists(m_ChannelName) && m_DtoName && m_DtoName[0])
@@ -136,7 +136,7 @@ LinxBBBSpiChannel::LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelN
 	m_SpiSpeedCodes = g_SpiSpeedCodes;
 }
 
-int LinxBBBSpiChannel::Open()
+int LinxBBBSpiChannel::Open(void)
 {
 	//Load SPI DTO if necessary
 	if (!fileExists(m_ChannelName))
@@ -542,7 +542,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 }
 
 //Destructor
-LinxBeagleBoneBlack::~LinxBeagleBoneBlack()
+LinxBeagleBoneBlack::~LinxBeagleBoneBlack(void)
 {	
 }
 

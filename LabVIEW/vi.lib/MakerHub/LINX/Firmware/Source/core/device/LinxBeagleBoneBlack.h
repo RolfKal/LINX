@@ -51,7 +51,7 @@ class LinxBBBUartChannel : public LinxUnixUartChannel
 		**  Constructor
 		****************************************************************************************/
 		LinxBBBUartChannel(LinxFmtChannel *debug, const char *channelName, const char *dtoName, const char *dtoSlotsPath);
-		virtual ~LinxBBBUartChannel() {};
+		virtual ~LinxBBBUartChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
@@ -61,7 +61,7 @@ class LinxBBBUartChannel : public LinxUnixUartChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SmartOpen();
+		virtual int SmartOpen(void);
 
 	private:
 		/****************************************************************************************
@@ -78,12 +78,12 @@ class LinxBBBI2cChannel : public LinxSysfsI2cChannel
 		**  Constructor
 		****************************************************************************************/
 		LinxBBBI2cChannel(LinxFmtChannel *debug, const char *channelName, const char *dtoName, const char *dtoSlotsPath);
-		virtual ~LinxBBBI2cChannel() {};
+		virtual ~LinxBBBI2cChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open();
+		virtual int Open(void);
 
 	protected:
 		/****************************************************************************************
@@ -105,12 +105,12 @@ class LinxBBBSpiChannel : public LinxSysfsSpiChannel
 		**  Constructor
 		****************************************************************************************/
 		LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath);
-		virtual ~LinxBBBSpiChannel() {};
+		virtual ~LinxBBBSpiChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open();
+		virtual int Open(void);
 
 	protected:
 		/****************************************************************************************
@@ -138,7 +138,7 @@ class LinxBeagleBoneBlack : public LinxDevice
 		**  Constructors /  Destructor
 		****************************************************************************************/
 		LinxBeagleBoneBlack(LinxFmtChannel *debug = NULL);
-		virtual ~LinxBeagleBoneBlack();
+		virtual ~LinxBeagleBoneBlack(void);
 		
 		/****************************************************************************************
 		**  Functions

@@ -49,7 +49,7 @@ class LinxWiringDevice : public LinxDevice
 		**  Constructors
 		****************************************************************************************/
 		LinxWiringDevice(LinxFmtChannel *debug = NULL);
-		virtual ~LinxWiringDevice(){};
+		virtual ~LinxWiringDevice(void) {};
 			
 		/****************************************************************************************
 		**  Functions
@@ -117,7 +117,7 @@ class LinxWiringDevice : public LinxDevice
 	/****************************************************************************************
 	**  Functions
 	****************************************************************************************/
-	void LinxWireWrite();
+		void LinxWireWrite(void);
 				
 };
 

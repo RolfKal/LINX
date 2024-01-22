@@ -83,7 +83,10 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsi
 	}
 }
 
-LinxWindowsCommChannel::~LinxWindowsCommChannel()
+/****************************************************************************************
+**  Functions
+****************************************************************************************/
+LinxWindowsCommChannel::~LinxWindowsCommChannel(void)
 {
 	if (IsANetObject(m_Socket))
 		closesocket(m_Socket);
@@ -226,7 +229,7 @@ int LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, unsigned int 
 	return L_OK;
 }
 
-int LinxWindowsCommChannel::Close()
+int LinxWindowsCommChannel::Close(void)
 {
 	if (IsANetObject(m_Socket))
 		closesocket(m_Socket);
@@ -249,15 +252,15 @@ LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, const unsi
 	{
 		length = 3;
 		while (isdigit(sPortName[length])) length++;
-		strncpy(m_Channel, sPortName, length);
+		strncpy(m_DeviceName, sPortName, length);
 	}
-	m_Channel[length] = 0;
+	m_DeviceName[length] = 0;
 }
 
 LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, unsigned char channel, const unsigned char *deviceName) : LinxUartChannel(debug, deviceName)
 {
 	m_Handle = INVALID_HANDLE_VALUE;
-	sprintf(m_Channel, "COM%c", channel);
+	sprintf(m_DeviceName, "COM%c", channel);
 }
 
 LinxWindowsUartChannel::~LinxWindowsUartChannel()
@@ -269,11 +272,11 @@ LinxWindowsUartChannel::~LinxWindowsUartChannel()
 /****************************************************************************************
 **  Functions
 ****************************************************************************************/
-int LinxWindowsUartChannel::SmartOpen()
+int LinxWindowsUartChannel::SmartOpen(void)
 {
 	if (m_Handle == INVALID_HANDLE_VALUE)
 	{
-		m_Handle = CreateFileA(m_Channel,					 // Name of the Port to be Opened
+		m_Handle = CreateFileA(m_DeviceName,				 // Name of the Port to be Opened
 		                       GENERIC_READ | GENERIC_WRITE, // Read/Write Access
 							   0,                            // No Sharing, ports cant be shared
 							   NULL,                         // No Security
@@ -283,7 +286,8 @@ int LinxWindowsUartChannel::SmartOpen()
 		if (m_Handle == INVALID_HANDLE_VALUE)
 		{
 			m_Debug->Write("UART Fail - Failed To Open UART Handle - ");
-			m_Debug->Writeln(m_ChannelName);
+			PrintName();
+			m_Debug->Writeln();
 			return  LUART_OPEN_FAIL;
 		}
 		COMMTIMEOUTS timeouts = {0};
@@ -411,7 +415,7 @@ int LinxWindowsUartChannel::Write(const unsigned char* sendBuffer, unsigned int 
 	return status ? L_OK : LERR_IO;
 }
 
-int LinxWindowsUartChannel::Close()
+int LinxWindowsUartChannel::Close(void)
 {
 	if (m_Handle != INVALID_HANDLE_VALUE)
 		CloseHandle(m_Handle);
