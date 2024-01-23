@@ -29,7 +29,7 @@
 typedef int (*CustomCommand)(unsigned char* commandPacketBuffer, int length, unsigned char* responsePacketBuffer, int* responseLength);
 typedef int (*PeriodicTask)(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer);
 
-class LinxListener : public LinxChannel
+class LinxListener : public LinxBase
 {
 	public:	
 		/****************************************************************************************
@@ -41,9 +41,6 @@ class LinxListener : public LinxChannel
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
-		virtual int Stop(void);
-		virtual int Close(void);
-
 		// Attach a custom command callback function. The class allows up to MAX_CUSTOM_CMDS to be installed and
 		// any message with the command word being 0xFCxx whit xx being the command number between 0 and 15 is then
 		// forwarded to this callback function to be processed
@@ -56,14 +53,18 @@ class LinxListener : public LinxChannel
 		**  Variables
 		****************************************************************************************/
 		LinxDevice *m_LinxDev;
+		LinxFmtChannel *m_Debug;
 
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
 		// Start Listener with the device to relay commands to
 		int Run(LinxCommChannel *channel,		// Channel to use for listening for messages
+			    int timeout,                    // Communication timeout
 				int bufferSize = 255);			// maximum buffer size for messages
 		virtual int WaitForConnection(void);	// Wait for incoming connection
+		virtual int Close(void);
+
 		int ControlMutex(bool lock);
 
 	private:
@@ -87,7 +88,7 @@ class LinxListener : public LinxChannel
 		unsigned char* m_SendBuffer;
 		unsigned char m_ProtocolVersion;
 		int m_Run;
-		int m_timeout;
+		int m_Timeout;
 
 		/****************************************************************************************
 		** Functions

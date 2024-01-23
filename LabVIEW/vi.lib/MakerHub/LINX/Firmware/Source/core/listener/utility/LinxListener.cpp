@@ -28,7 +28,7 @@
 /****************************************************************************************
 **  Constructors/Destructors
 ****************************************************************************************/
-LinxListener::LinxListener(LinxDevice *device, bool autoLaunch) : LinxChannel()
+LinxListener::LinxListener(LinxDevice *device, bool autoLaunch) : LinxBase()
 {
 	unsigned char buffer[255];
 
@@ -54,7 +54,7 @@ LinxListener::LinxListener(LinxDevice *device, bool autoLaunch) : LinxChannel()
 #if Win32
 	InitializeCriticalSection(&m_Mutex);
 #elif Linux
-	m_Mutex = PTHREAD_MUTEX_INITIALIZER
+	m_Mutex = PTHREAD_MUTEX_INITIALIZER;
 #else
 #else
 #endif
@@ -93,48 +93,6 @@ static void *ThreadFunction(void *lpParam)
 /****************************************************************************************
 ** Public Functions
 ****************************************************************************************/
-int LinxListener::Stop(void)
-{
-	ControlMutex(true);
-	if (m_Thread)
-	{
-		m_Run = FALSE;
-		ControlMutex(false);
-#if Win32
-		DWORD dwStatus = WaitForSingleObject(m_Thread, 2000);
-		ControlMutex(true);
-		if (dwStatus == WAIT_TIMEOUT)
-		{
-			TerminateThread(m_Thread, 1);
-		}
-		CloseHandle(m_Thread);
-#elif Linux
-		int status;
-		//status = pthread_cancel(m_Thread);
-		// Waiting for the created thread to terminate 
-		status = pthread_join(ptid, NULL);
-		ControlMutex(true);
-#else
-#endif
-	}
-	ControlMutex(false);
-	return L_OK;
-}
-
-int LinxListener::Close(void)
-{
-	Stop();
-	ControlMutex(true);
-	if (m_Channel)
-	{
-		m_Channel->Close();
-		m_Channel->Release();
-		m_Channel = NULL;
-	}
-	ControlMutex(false);
-	return L_OK;
-}
-
 int LinxListener::AttachCustomCommand(unsigned short commandNumber, CustomCommand callback)
 {
 	if (commandNumber < MAX_CUSTOM_CMDS)
@@ -173,7 +131,7 @@ int LinxListener::ProcessLoop(bool loop)
 ** Protected Functions
 ****************************************************************************************/
 // Start Listener with the device to relay commands to and a debug channel
-int LinxListener::Run(LinxCommChannel *channel, int bufferSize)
+int LinxListener::Run(LinxCommChannel *channel, int timeout, int bufferSize)
 {
 	int status = L_OK;
 	ControlMutex(true);
@@ -183,14 +141,15 @@ int LinxListener::Run(LinxCommChannel *channel, int bufferSize)
 		m_SendBuffer = (unsigned char*)realloc(m_SendBuffer, bufferSize);
 		m_RecBuffer = (unsigned char*)realloc(m_RecBuffer, bufferSize);
 	}
+	m_Timeout = timeout;
 	if (m_Channel)
 		m_Channel->Release();
 	if (channel)
 		channel->AddRef();
 	m_Channel = channel;
+	m_Run = TRUE;
 	if (m_LaunchThread)
 	{
-		m_Run = TRUE;
 #if Win32
 		DWORD dwThreadID = 0;
 		m_Thread = CreateThread(NULL, 0, ThreadFunction, this, 0, &dwThreadID);
@@ -214,6 +173,42 @@ int LinxListener::Run(LinxCommChannel *channel, int bufferSize)
 
 int LinxListener::WaitForConnection(void)
 {
+	return m_Run ? L_OK : L_DISCONNECT;
+}
+
+int LinxListener::Close(void)
+{
+	ControlMutex(true);
+	if (m_Thread)
+	{
+		m_Run = FALSE;
+		ControlMutex(false);
+#if Win32
+		DWORD dwStatus = WaitForSingleObject(m_Thread, 2000);
+		ControlMutex(true);
+		if (dwStatus == WAIT_TIMEOUT)
+		{
+			TerminateThread(m_Thread, 1);
+		}
+		CloseHandle(m_Thread);
+#elif Linux
+		int status;
+		//status = pthread_cancel(m_Thread);
+		// Waiting for the created thread to terminate 
+		status = pthread_join(ptid, NULL);
+		ControlMutex(true);
+#else
+
+#endif
+	}
+
+	if (m_Channel)
+	{
+		m_Channel->Close();
+		m_Channel->Release();
+		m_Channel = NULL;
+	}
+	ControlMutex(false);
 	return L_OK;
 }
 
@@ -280,17 +275,16 @@ int LinxListener::ControlMutex(bool lock)
 //   7            len - 8 bytes data
 //   n - 1        checksum
 
-
-
-
 int LinxListener::CheckForCommand(void)
 {
 	int status = LERR_BADCHAN;
 	if (m_Channel)
 	{
-		unsigned int dataRead = 0;
+		unsigned long long start = getMsTicks();
+		unsigned int timeout = m_Timeout, dataRead = 0;
+
 		// Try to read first 4 bytes
-		status = m_Channel->Read(m_SendBuffer, 4, m_timeout, &dataRead);
+		status = m_Channel->Read(m_SendBuffer, 4, timeout, &dataRead);
 		if (!status)
 		{
 			unsigned short command;
@@ -315,8 +309,15 @@ int LinxListener::CheckForCommand(void)
 			// if expected msgLength is greater than the data already received then read the remainder
 			while (msgLength > length)
 			{
+				if (timeout >= 0)
+				{
+					timeout = m_Timeout - (int)(getMsTicks() - start);
+					if (timeout < 0)
+						timeout = 0;
+				}
+						
 				dataRead = 0;
-				status = m_Channel->Read(m_SendBuffer + dataRead, msgLength - dataRead, TIMEOUT_INFINITE, &dataRead);
+				status = m_Channel->Read(m_SendBuffer + dataRead, msgLength - dataRead, timeout, &dataRead);
 				if (status)
 					return status;
 
@@ -371,7 +372,7 @@ int LinxListener::PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned 
 	responsePacketBuffer[offset] = m_LinxDev->ComputeChecksum(responsePacketBuffer, offset);
 
 	// Send it off
-	return m_Channel->Write(responsePacketBuffer, offset + 1, TIMEOUT_INFINITE);
+	return m_Channel->Write(responsePacketBuffer, offset + 1, m_Timeout);
 }
 
 int LinxListener::EnumerateChannels(int type, unsigned char request, unsigned char *responsePacketBuffer, unsigned int offset, unsigned int responseLength)

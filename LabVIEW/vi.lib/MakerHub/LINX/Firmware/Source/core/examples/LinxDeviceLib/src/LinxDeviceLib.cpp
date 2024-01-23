@@ -87,23 +87,8 @@ LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *clientAddress, unsig
 	return client;
 }
 
-LibAPI(int) LinxCloseRef(LinxChannel *channel)
-{
-	if (channel)
-		channel->Release();
-	return L_OK;
-}
-
-LibAPI(int) LinxClose(void)
-{
-	int status = LinxCloseRef(gLinxDev);
-	gLinxDev = NULL;
-	return status;
-}
-
 LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char *deviceName, unsigned int baudRate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout, bool autostart)
 {
-	int status = L_DISCONNECT;
 	if (!dev)
 		dev = LinxOpenLocalClient();
 	else
@@ -112,7 +97,7 @@ LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char
 	LinxSerialListener *listener = new LinxSerialListener(dev, autostart);
 	if (listener)
 	{
-		status = listener->Start(deviceName, baudRate, dataBits, stopBits, parity, timeout);
+		int status = listener->Start(deviceName, baudRate, dataBits, stopBits, parity, timeout);
 		if (status)
 		{
 			listener->Release();
@@ -124,15 +109,15 @@ LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char
 
 LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *interfaceAddress, short port, int timeout, bool autostart)
 {
-	int status = L_DISCONNECT;
 	if (!dev)
 		dev = LinxOpenLocalClient();
 	else
 		dev->AddRef();
+
 	LinxTcpListener *listener = new LinxTcpListener(dev, autostart);
 	if (listener)
 	{
-		status = listener->Start(interfaceAddress, port, timeout);
+		int status = listener->Start(interfaceAddress, port, timeout);
 		if (status)
 		{
 			listener->Release();
@@ -142,6 +127,26 @@ LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *i
 	return listener;
 }
 
+LibAPI(int) LinxServerProcess(LinxListener *listener, bool loop)
+{
+	if (listener)
+		return listener->ProcessLoop(loop);
+	return L_DISCONNECT;
+}
+
+LibAPI(int) LinxCloseRef(LinxBase *base)
+{
+	if (base)
+		base->Release();
+	return L_OK;
+}
+
+LibAPI(int) LinxClose(void)
+{
+	int status = LinxCloseRef(gLinxDev);
+	gLinxDev = NULL;
+	return status;
+}
 //------------------------------------- Enumeration -------------------------------------
 LibAPI(unsigned char) LinxGetDeviceFamilyRef(LinxDevice *dev)
 {

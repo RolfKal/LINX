@@ -361,6 +361,10 @@
 				Name="Device"
 				>
 				<File
+					RelativePath="..\..\core\device\utility\LinxBase.cpp"
+					>
+				</File>
+				<File
 					RelativePath="..\..\core\device\LinxBeagleBoneBlack.cpp"
 					>
 					<FileConfiguration
@@ -554,6 +558,10 @@
 			<Filter
 				Name="Device"
 				>
+				<File
+					RelativePath="..\..\core\device\utility\LinxBase.h"
+					>
+				</File>
 				<File
 					RelativePath="..\..\core\device\LinxBeagleBoneBlack.h"
 					>

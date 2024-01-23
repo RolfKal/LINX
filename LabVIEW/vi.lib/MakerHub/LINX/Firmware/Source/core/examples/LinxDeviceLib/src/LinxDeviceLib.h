@@ -31,8 +31,9 @@ LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *clientAddress, unsig
 
 LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char *deviceName, unsigned int baudRate, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity, int timeout, bool autostart);
 LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *interfaceAddress, short port, int timeout, bool autostart);
+LibAPI(int) LinxServerProcess(LinxListener *listener, bool loop);
 
-LibAPI(int) LinxCloseRef(LinxChannel *device);
+LibAPI(int) LinxCloseRef(LinxBase *base);
 
 //------------------------------------- Enumeration -------------------------------------
 LibAPI(unsigned char) LinxGetDeviceFamilyRef(LinxDevice *dev);

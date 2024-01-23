@@ -94,7 +94,7 @@ LinxWindowsCommChannel::~LinxWindowsCommChannel(void)
 
 #define kRetryLimit 25
 
-int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead)
+int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead)
 {
 	int retval;
 	
@@ -102,7 +102,6 @@ int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes
 
 	if (recBuffer && numBytes)
 	{
-		unsigned long long start = getMsTicks();
 		struct timeval tout, *pto = timeout < 0 ? NULL : &tout;
  		int syserr;
         fd_set readfds;     /* read sockets */
@@ -168,11 +167,10 @@ int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes
 	return L_OK;
 }
 
-int LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout)
+int LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout)
 {
 	if (sendBuffer && numBytes)
 	{
-		unsigned long long start = getMsTicks();
 		struct timeval tout, *pto = timeout < 0 ? NULL : &tout;
  		unsigned int bytesSent = 0;
 		int retval, syserr;
@@ -354,7 +352,7 @@ int LinxWindowsUartChannel::SetParameters(unsigned char dataBits, unsigned char 
 	return status ? L_OK : LUART_SET_PARAM_FAIL;
 }
 
-int LinxWindowsUartChannel::Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead)
+int LinxWindowsUartChannel::Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead)
 {
 	int status = SmartOpen();
 	if (status)
@@ -397,7 +395,7 @@ int LinxWindowsUartChannel::Read(unsigned char* recBuffer, unsigned int numBytes
 	return status ? L_OK : LERR_IO;
 }
 
-int LinxWindowsUartChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout)
+int LinxWindowsUartChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout)
 {
 	int status = SmartOpen();
 	if (status)

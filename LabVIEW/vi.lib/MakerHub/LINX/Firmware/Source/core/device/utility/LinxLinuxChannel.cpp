@@ -388,7 +388,7 @@ LinxUnixCommChannel::~LinxUnixCommChannel(void)
 		close(m_Socket);
 }
 
-int LinxUnixCommChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+int LinxUnixCommChannel::Read(unsigned char* recBuffer, int numBytes, unsigned long long start, int timeout, int* numBytesRead)
 {
 	*numBytesRead = 0;
 
@@ -396,7 +396,6 @@ int LinxUnixCommChannel::Read(unsigned char* recBuffer, int numBytes, int timeou
 	{
 		struct pollfd fds[1];
 		int retval, offset = 0;
-		unsigned long long start = getMilliSeconds();
 
 		fds[0].fd = m_Socket;
 		fds[0].events = POLLIN ;
@@ -423,7 +422,7 @@ int LinxUnixCommChannel::Read(unsigned char* recBuffer, int numBytes, int timeou
 	return L_OK;
 }
 
-int LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int numBytes, int timeout)
+int LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int numBytes, iunsigned long long start, nt timeout)
 {
 	int bytesSent = write(m_Socket, sendBuffer, numBytes);
 	if (bytesSent != numBytes)
@@ -577,7 +576,7 @@ int LinxUnixUartChannel::SetParameters(unsigned char dataBits, unsigned char sto
 	return LUART_SET_PARAM_FAIL;
 }
 
-int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead)
+int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, unsigned long long start, int timeout, int* numBytesRead)
 {
 	*numBytesRead = 0;
 
@@ -585,7 +584,6 @@ int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeou
 	{
 		struct pollfd fds[1];
 		int retval, offset = 0;
-		unsigned long long start = getMilliSeconds();
 
 		fds[0].fd = m_Fd;
 		fds[0].events = POLLIN ;
@@ -612,7 +610,7 @@ int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, int timeou
 	return status;
 }
 
-int LinxUnixUartChannel::Write(const unsigned char* sendBuffer, int numBytes, int timeout)
+int LinxUnixUartChannel::Write(const unsigned char* sendBuffer, int numBytes, unsigned long long start, int timeout)
 {
 	int bytesSent = write(m_Fd, sendBuffer, numBytes);
 	if (bytesSent != numBytes)

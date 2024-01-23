@@ -150,8 +150,8 @@ class LinxUnixCommChannel : public LinxCommChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
-		virtual int Write(const unsigned char* sendBuffer, int numBytes, int timeout);
+		virtual int Read(unsigned char* recBuffer, int numBytes, unsigned long long start, int timeout, int* numBytesRead);
+		virtual int Write(const unsigned char* sendBuffer, int numBytes, unsigned long long start, int timeout);
 		virtual int Close(void);
 
 	private:

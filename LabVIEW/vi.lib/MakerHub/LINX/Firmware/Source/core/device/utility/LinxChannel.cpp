@@ -16,31 +16,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "LinxDefines.h"
-#if Unix
-#include <alloca.h>
-//#include <sys/types.h>
-#include <sys/socket.h>
-//#include <unistd.h>
-#include <arpa/inet.h>
-#elif Win32
-#include <malloc.h>
-#endif
 #include "LinxChannel.h" 
 #include "LinxUtilities.h"
 
 /************************************ Linx Channel *************************************/
-
 /****************************************************************************************
 **  Constructor/Destructors
 ****************************************************************************************/
-LinxChannel::LinxChannel(void)
-{
-	m_Debug = new LinxFmtChannel();
-	m_ChannelName = NULL;
-	// Start with refcount 1
-	m_Refcount = 1;
-}
-
 LinxChannel::LinxChannel(const unsigned char *channelName)
 {
 	m_Debug = new LinxFmtChannel();
@@ -51,8 +33,6 @@ LinxChannel::LinxChannel(const unsigned char *channelName)
 		m_ChannelName = (char*)malloc(len + 1);
 		strcpy(m_ChannelName, (char*)channelName);
 	}
-	// Start with refcount 1
-	m_Refcount = 1;
 }
 
 LinxChannel::LinxChannel(LinxFmtChannel *debug, const unsigned char *channelName)
@@ -73,8 +53,6 @@ LinxChannel::LinxChannel(LinxFmtChannel *debug, const unsigned char *channelName
 		m_ChannelName = (char*)malloc(len + 1);
 		strcpy(m_ChannelName, (char*)channelName);
 	}
-	// Start with refcount 1
-	m_Refcount = 1;
 }
 
 LinxChannel::~LinxChannel(void)
@@ -86,28 +64,6 @@ LinxChannel::~LinxChannel(void)
 /****************************************************************************************
 **  Functions
 ****************************************************************************************/
-unsigned int LinxChannel::AddRef(void)
-{
-#if Win32
-	return InterlockedIncrement(&m_Refcount);
-#elif Unix
-	return __sync_fetch_and_add(&m_Refcount, 1);
-#endif
-}
-
-unsigned int LinxChannel::Release(void)
-{
-	unsigned int refcount = 
-#if Win32
-	InterlockedDecrement(&m_Refcount);
-#elif Unix
-	__sync_sub_and_fetch(&m_Refcount, 1);
-#endif
-	if (!refcount)
-		delete this;
-	return refcount;
-}
-
 unsigned int LinxChannel::GetName(unsigned char* buffer, unsigned char numBytes)
 {
 	unsigned int len = m_ChannelName ? (unsigned int)strlen(m_ChannelName) : 0;
@@ -135,6 +91,24 @@ int LinxChannel::DisableDebug(void)
 	return m_Debug->SetDebugChannel(NULL);
 }
 
+/************************************ Linx Communication Channel ************************/
+/****************************************************************************************
+**  Functions
+****************************************************************************************/
+int LinxCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead)
+{
+	return Read(recBuffer, numBytes, timeout > 0 ? getMsTicks() : 0, timeout, numBytesRead);
+}
+
+int LinxCommChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout)
+{
+	return Write(sendBuffer, numBytes, timeout > 0 ? getMsTicks() : 0, timeout);
+}
+
+/************************************ Linx Format Channel ******************************/
+/****************************************************************************************
+**  Constructor/Destructors
+****************************************************************************************/
 LinxFmtChannel::LinxFmtChannel(int timeout, const unsigned char *channelName) : LinxChannel(channelName)
 {
 	m_Timeout = timeout;
@@ -158,6 +132,9 @@ LinxFmtChannel::~LinxFmtChannel(void)
 	}
 }
 
+/****************************************************************************************
+**  Functions
+****************************************************************************************/
 int LinxFmtChannel::Write(char c)
 {
 	if (m_Channel)

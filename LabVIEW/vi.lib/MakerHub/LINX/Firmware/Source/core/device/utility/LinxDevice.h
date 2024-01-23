@@ -22,6 +22,7 @@
 #endif
 #include <stddef.h>
 #include <map>
+#include "LinxBase.h"
 #include "LinxChannel.h"
 
 /****************************************************************************************
@@ -32,7 +33,7 @@
 #define TX 0
 #define RX 1
 
-class LinxDevice : public LinxChannel
+class LinxDevice : public LinxBase
 {
 	public:
 		/****************************************************************************************
@@ -204,6 +205,5 @@ class LinxDevice : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-//		init(LinxFmtChannel)
 };
 #endif //LINX_DEVICE_H

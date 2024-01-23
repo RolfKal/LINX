@@ -50,13 +50,13 @@ class LinxTcpListener : public LinxListener
 		****************************************************************************************/
 		virtual int Start(const unsigned char *interfaceAddress, unsigned short port = 44300, int timeout = 2000);
 		virtual int Start(const unsigned char *interfaceAddress, const char *servName, int timeout = 2000);
-		virtual int Close(void);
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
 		virtual int WaitForConnection(void);
+		virtual int Close(void);
 
 	private:
 		/****************************************************************************************

@@ -21,6 +21,7 @@
 	#include "../config/LinxConfig.h"
 #endif
 #include "LinxDefines.h"
+#include "LinxBase.h"
 
 #define IID_LinxChannel				0
 #define IID_LinxAiChannel			1
@@ -35,11 +36,10 @@
 #define IID_LinxServoChannel		10
 #define LinxNumChannelTypes			IID_LinxServoChannel
 
-// Forward declaration
-class LinxCommChannel;
 class LinxFmtChannel;
+class LinxCommChannel;
 
-class LinxChannel
+class LinxChannel : public LinxBase
 {
 	public:
 		/****************************************************************************************
@@ -49,7 +49,6 @@ class LinxChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxChannel(void);
 		LinxChannel(const unsigned char *channelName);
 		LinxChannel(LinxFmtChannel *debug, const unsigned char *channelName);
 		virtual ~LinxChannel(void);
@@ -57,9 +56,6 @@ class LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned int AddRef(void);
-		virtual unsigned int Release(void);
-
 		virtual unsigned int GetName(unsigned char* buffer, unsigned char numBytes);
 		virtual unsigned int PrintName(void);
 		virtual int EnableDebug(LinxCommChannel *channel);
@@ -70,7 +66,6 @@ class LinxChannel
 
 	private:
 		char *m_ChannelName;
-		unsigned int m_Refcount;
 };
 
 class LinxAiChannel : public LinxChannel
@@ -190,8 +185,10 @@ class LinxCommChannel : public LinxChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead) = 0;
-		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout) = 0;
+		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead);
+		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead) = 0;
+		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout);
+		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout) = 0;
 		virtual int Close(void) = 0;
 };
 
@@ -365,5 +362,4 @@ class LinxFmtChannel : public LinxChannel
 		****************************************************************************************/
 		int WriteNumber(unsigned long n, unsigned char base);
 };
-
 #endif // LINX_CHANNEL_H

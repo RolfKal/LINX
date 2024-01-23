@@ -27,7 +27,7 @@
 /****************************************************************************************
 **  Constructors/Destructor
 ****************************************************************************************/
-LinxDevice::LinxDevice(LinxFmtChannel *debug) : LinxChannel(debug, NULL)
+LinxDevice::LinxDevice(LinxFmtChannel *debug)
 {
 	if (debug)
 	{

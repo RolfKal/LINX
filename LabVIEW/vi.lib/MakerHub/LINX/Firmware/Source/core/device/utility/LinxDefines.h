@@ -165,7 +165,7 @@ typedef enum DioStatus
 
 typedef enum SPIStatus
 {
-	LSPI_OPEN_FAIL = 132,
+	LSPI_OPEN_FAIL = 128,
 	LSPI_TRANSFER_FAIL,
 	LSPI_CLOSE_FAIL,
 	LSPI_DEVICE_NOT_OPEN,
@@ -173,7 +173,7 @@ typedef enum SPIStatus
 
 typedef enum I2CStatus
 {
-	LI2C_SADDR = 138,
+	LI2C_SADDR = 128,
 	LI2C_EOF,
 	LI2C_WRITE_FAIL,
 	LI2C_READ_FAIL,
@@ -184,7 +184,7 @@ typedef enum I2CStatus
 
 typedef enum UartStatus
 {
-	LUART_OPEN_FAIL = 148,
+	LUART_OPEN_FAIL = 128,
 	LUART_SET_PARAM_FAIL,
 	LUART_AVAILABLE_FAIL,
 	LUART_READ_FAIL,

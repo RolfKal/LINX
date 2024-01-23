@@ -150,70 +150,74 @@ int LinxTcpListener::Close(void)
 ****************************************************************************************/
 int LinxTcpListener::WaitForConnection(void)
 {
-	struct sockaddr_storage addr;
-	int retval, clientlen = sizeof(addr);
-	NetObject clientSocket = kInvalNetObject;
+	int status = LinxListener::WaitForConnection();
+	if (!status)
+	{
+		struct sockaddr_storage addr;
+		int retval, clientlen = sizeof(addr);
+		NetObject clientSocket = kInvalNetObject;
 	
-	m_Debug->Writeln("Waiting For Client Connection\n");
+		m_Debug->Writeln("Waiting For Client Connection\n");
 
-	ControlMutex(true);
-	clientSocket = accept(m_ServerSocket, (struct sockaddr *)&addr, &clientlen);
-	ControlMutex(false);
-	if  (clientSocket < 0)
-	{
-		m_Debug->Writeln("Failed to accept client connection\n");
-		return L_DISCONNECT;
-	}
+		ControlMutex(true);
+		clientSocket = accept(m_ServerSocket, (struct sockaddr *)&addr, &clientlen);
+		ControlMutex(false);
+		if  (clientSocket < 0)
+		{
+			m_Debug->Writeln("Failed to accept client connection\n");
+			return L_DISCONNECT;
+		}
 
-	retval = setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&m_TcpTimeout, sizeof(m_TcpTimeout));
-	if (retval < 0)
-	{
-		m_Debug->Writeln("Failed to set socket receive time-out\n");
-		closesocket(clientSocket);
-		return L_DISCONNECT;
-	}
-
-	unsigned char *buf;
-	unsigned short port;
-	switch (addr.ss_family)
-	{
-		case AF_INET:
-			{
-				struct sockaddr_in *addr_in = ((struct sockaddr_in *)&addr);
-				port = addr_in->sin_port;
-				buf = (unsigned char*)malloc(INET_ADDRSTRLEN + 6);
-				inet_ntop(AF_INET, &(addr_in->sin_addr), (char*)buf, INET_ADDRSTRLEN);
-			}
-			break;
-		case AF_INET6:
-			{
-				struct sockaddr_in6 *addr_in = (struct sockaddr_in6 *)&addr;
-				port = addr_in->sin6_port;
-				buf = (unsigned char*)malloc(INET6_ADDRSTRLEN + 6);
-				inet_ntop(AF_INET6, &(addr_in->sin6_addr), (char*)buf, INET6_ADDRSTRLEN);
-			}
-			break;
-		default:
-			m_Debug->Writeln("Invalid socket family\n");
+		retval = setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&m_TcpTimeout, sizeof(m_TcpTimeout));
+		if (retval < 0)
+		{
+			m_Debug->Writeln("Failed to set socket receive time-out\n");
 			closesocket(clientSocket);
 			return L_DISCONNECT;
-	}
-	sprintf((char*)buf + strlen((char*)buf), ":%hd", port); 
-	LinxCommChannel *clientChannel =
+		}
+
+		unsigned char *buf;
+		unsigned short port;
+		switch (addr.ss_family)
+		{
+			case AF_INET:
+				{
+					struct sockaddr_in *addr_in = ((struct sockaddr_in *)&addr);
+					port = addr_in->sin_port;
+					buf = (unsigned char*)malloc(INET_ADDRSTRLEN + 6);
+					inet_ntop(AF_INET, &(addr_in->sin_addr), (char*)buf, INET_ADDRSTRLEN);
+				}
+				break;
+			case AF_INET6:
+				{
+					struct sockaddr_in6 *addr_in = (struct sockaddr_in6 *)&addr;
+					port = addr_in->sin6_port;
+					buf = (unsigned char*)malloc(INET6_ADDRSTRLEN + 6);
+					inet_ntop(AF_INET6, &(addr_in->sin6_addr), (char*)buf, INET6_ADDRSTRLEN);
+				}
+				break;
+			default:
+				m_Debug->Writeln("Invalid socket family\n");
+				closesocket(clientSocket);
+				return L_DISCONNECT;
+		}
+		sprintf((char*)buf + strlen((char*)buf), ":%hd", port); 
+		LinxCommChannel *clientChannel =
 #if Unix
-		new LinxUnixCommChannel(m_Debug, buf, clientSocket);
+			new LinxUnixCommChannel(m_Debug, buf, clientSocket);
 #elif Win32
-		new LinxWindowsCommChannel(m_Debug, buf, clientSocket);
+			new LinxWindowsCommChannel(m_Debug, buf, clientSocket);
 #endif
-	if (clientChannel)
-	{
-		m_TcpUpdateTime = m_LinxDev->GetSeconds();
-		m_Debug->Write((char*)buf);
-		m_Debug->Writeln(" successfully connected\n");
-		retval = LinxListener::Run(clientChannel, 4095);
+		if (clientChannel)
+		{
+			m_TcpUpdateTime = m_LinxDev->GetSeconds();
+			m_Debug->Write((char*)buf);
+			m_Debug->Writeln(" successfully connected\n");
+			status = LinxListener::Run(clientChannel, 4095);
+		}
+		free(buf);
 	}
-	free(buf);
-	return retval;
+	return status;
 }
 
 /****************************************************************************************

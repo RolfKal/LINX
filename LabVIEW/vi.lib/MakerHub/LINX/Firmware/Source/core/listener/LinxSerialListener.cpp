@@ -41,7 +41,7 @@ int LinxSerialListener::Start(unsigned char uartChannel, unsigned int baudRate,
 			status = uartChan->SetParameters(dataBits, stopBits, parity);
 		if (!status)
 		{
-			status = Run(uartChan);
+			status = Run(uartChan, timeout);
 		}
 		uartChan->Release();
 	}
@@ -61,7 +61,7 @@ int LinxSerialListener::Start(const unsigned char *deviceName, unsigned int baud
 			status = uartChan->SetParameters(dataBits, stopBits, parity);
 		if (!status)
 		{
-			status = Run(uartChan);
+			status = Run(uartChan, timeout);
 		}
 		uartChan->Release();
 	}

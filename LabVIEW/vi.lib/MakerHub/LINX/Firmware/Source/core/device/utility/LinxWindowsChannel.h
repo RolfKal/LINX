@@ -38,8 +38,8 @@ class LinxWindowsCommChannel : public LinxCommChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead);
-		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout);
+		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead);
+		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout);
 		virtual int Close(void);
 
 	protected:
@@ -69,8 +69,8 @@ class LinxWindowsUartChannel : public LinxUartChannel
 		****************************************************************************************/
 		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
 		virtual int SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
-		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead);
-		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout);
+		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead);
+		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout);
 		virtual int Close(void);
 
 	protected:
