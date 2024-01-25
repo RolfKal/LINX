@@ -62,7 +62,7 @@ Servo* LinxESP8266::m_Servos[NUM_SERVO_CHANS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 ****************************************************************************************/
 LinxESP8266::LinxESP8266()
 {
-	DeviceFamily = 0x07;
+	DeviceFamily = LINX_FAMILY_ESP;
 	DeviceId = 0x00;	//??
 	DeviceNameLen = DEVICE_NAME_LEN;	 
 	DeviceName =  m_DeviceName;

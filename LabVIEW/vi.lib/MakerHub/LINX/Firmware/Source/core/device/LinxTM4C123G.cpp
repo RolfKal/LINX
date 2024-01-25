@@ -62,7 +62,7 @@ Servo* TM4C123G::m_Servos[NUM_SERVO_CHANS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 ****************************************************************************************/
 TM4C123G::TM4C123G()
 {
-	DeviceFamily = 0x06;	//TI Family Family Code
+	DeviceFamily = LINX_FAMILY_TI;	//TI Family Family Code
 	DeviceID = 0x00;			//RedBoard
 	DeviceNameLen = DEVICE_NAME_LEN;	 
 	DeviceName =  m_DeviceName;

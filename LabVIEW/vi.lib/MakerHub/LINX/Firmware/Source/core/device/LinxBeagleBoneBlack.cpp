@@ -158,8 +158,8 @@ int LinxBBBSpiChannel::Open(void)
 LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(debug)
 {
 	//LINX Device Information
-	DeviceFamily = 0x06;	// TI Family Code
-	DeviceId = 0x01;		// BeagleBone Black
+	DeviceFamily = LINX_FAMILY_TI;	// TI Family Code
+	DeviceId = 0x01;				// BeagleBone Black
 
 	//LINX API Version
 	LinxApiMajor = 2;

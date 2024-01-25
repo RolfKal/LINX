@@ -30,7 +30,7 @@ LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 	LinxApiSubminor = 0;
 
 	//-------------------------------- Device Detection ------------------------------
-	DeviceFamily = 0x04;	// Windows Family Code
+	DeviceFamily = LINX_FAMILY_WINDOWS;	// Windows Family Code
 #if Win64
 	DeviceId = 0x1;		// Windows 64-bit
 #elif Win32

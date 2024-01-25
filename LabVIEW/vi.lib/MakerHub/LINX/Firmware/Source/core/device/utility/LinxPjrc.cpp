@@ -19,5 +19,5 @@
 ****************************************************************************************/
 LinxPjrc::LinxPjrc()
 {
-	DeviceFamily = 0x03;	//PJRC Family Code
+	DeviceFamily = LINX_FAMILY_PJRC;	//PJRC Family Code
 }

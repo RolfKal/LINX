@@ -19,5 +19,5 @@
 ****************************************************************************************/
 LinxArduino::LinxArduino()
 {
-	DeviceFamily = 0x02;	//Arduino Family Code
+	DeviceFamily = LINX_FAMILY_ARDUINO;	//Arduino Family Code
 }

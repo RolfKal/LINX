@@ -51,7 +51,7 @@ class LinxRaspiDioChannel : public LinxSysfsDioChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin) : LinxSysfsDioChannel(debug, linxPin, gpioPin) {};
+		LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin, , unsigned char cpuModell);
 		virtual ~LinxRaspiDioChannel(void) {};
 
 		/****************************************************************************************
@@ -64,9 +64,11 @@ class LinxRaspiDioChannel : public LinxSysfsDioChannel
 		virtual int ReadPulseWidth(unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
 
 	private:
-		void setState(unsigned char state);
-		void setPull(unsigned char pud);
-		void setDirection(unsigned char direction);
+		int setState(unsigned char state);
+		int setPull(unsigned char pud);
+		int setDirection(unsigned char direction);
+
+		static unsigned char m_CpuModel;
 };
 
 using namespace std;
@@ -97,6 +99,8 @@ class LinxRaspberryPi : public LinxDevice
 		****************************************************************************************/
 		//System
 		static char m_DeviceName[DEVICE_NAME_MAX];
+		static unsigned int m_DeviceCode;
+		static unsigned int m_SerialNum;
 		
 		/****************************************************************************************
 		**  Functions

@@ -66,6 +66,18 @@
 # define ioctlsocket(s, t, p) ioctl(s, t, p)
 #endif
 
+
+
+// Family codes
+#define LINX_FAMILY_DIGILENT	0x01
+#define LINX_FAMILY_ARDUINO		0x02
+#define LINX_FAMILY_PJRC		0x03
+#define LINX_FAMILY_RASPBERRY	0x04
+#define LINX_FAMILY_SPARKFUN	0x05
+#define LINX_FAMILY_TI			0x06
+#define LINX_FAMILY_ESP			0x07
+#define LINX_FAMILY_WINDOWS		0x08
+
 // GPIO Values
 #define GPIO_LOW		0
 #define GPIO_HIGH		1
@@ -73,7 +85,13 @@
 #define GPIO_INPUT		0x00
 #define GPIO_OUTPUT		0x01
 #define GPIO_ALT0		0x04
-#define GPIO_IOMASK		0x06
+#define GPIO_ALT1		0x05
+#define GPIO_ALT2		0x06
+#define GPIO_ALT3		0x07
+#define GPIO_ALT4		0x03
+#define GPIO_ALT5		0x02
+
+#define GPIO_ALTMASK	0x06
 #define GPIO_DIRMASK	0x01
 
 #define GPIO_PULLNONE	0x00
