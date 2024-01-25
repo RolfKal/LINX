@@ -12,3 +12,5 @@ Installers
 /LabVIEW/vi.lib/MakerHub/LINX/Firmware/Source/make/VS2005/*.res
 /LabVIEW/vi.lib/MakerHub/LINX/Firmware/Source/make/VS2005/*.ncb
 /LabVIEW/vi.lib/MakerHub/LINX/Firmware/Source/make/VS2005/*.suo
+/LabVIEW/vi.lib/MakerHub/LINX/API/*.aliases
+/LabVIEW/vi.lib/MakerHub/LINX/API/*.lvlps
