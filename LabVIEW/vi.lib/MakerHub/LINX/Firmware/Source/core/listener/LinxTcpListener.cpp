@@ -40,7 +40,7 @@ LinxTcpListener::LinxTcpListener(LinxDevice* device, bool autoLaunch) : LinxList
 	m_ServerSocket = kInvalNetObject;
 #if Win32
 	WSADATA wsaData;
-	int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+	int32_t iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
 	if (iResult != 0)
 	{
 		m_Debug->Write("WSAStartup failed: ");
@@ -53,25 +53,25 @@ LinxTcpListener::~LinxTcpListener(void)
 {
 	Close();
 #if Win32
-	int iResult = WSACleanup();
+	int32_t iResult = WSACleanup();
 #endif
 }
 
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-int LinxTcpListener::Start(const unsigned char *interfaceAddress, unsigned short port, int timeout)
+int32_t LinxTcpListener::Start(const unsigned char *interfaceAddress, uint16_t port, int32_t timeout)
 {
 	char servName[10] = "";
 	sprintf(servName, "%hu", port);
 	return Start(interfaceAddress, servName, timeout);
 }
 
-int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *servName, int timeout)
+int32_t LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *servName, int32_t timeout)
 {
 	struct addrinfo hints = {0};
 	struct addrinfo *addrinfo = NULL;
-	int retval;
+	int32_t retval;
 
 	m_Debug->Write("Starting listener on TCP/IP address: ");
 	m_Debug->Write((char*)interfaceAddress);
@@ -108,7 +108,7 @@ int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *se
 	}
 	
 	//Bind the server socket
-	retval = bind(s, addrinfo->ai_addr, (int)addrinfo->ai_addrlen);
+	retval = bind(s, addrinfo->ai_addr, (int32_t)addrinfo->ai_addrlen);
 	freeaddrinfo(addrinfo);
 	if (retval < 0)
 	{
@@ -133,7 +133,7 @@ int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *se
 	return L_OK;
 }
 
-int LinxTcpListener::Close(void)
+int32_t LinxTcpListener::Close(void)
 {
 	ControlMutex(true);
 	if (IsANetObject(m_ServerSocket))
@@ -148,13 +148,13 @@ int LinxTcpListener::Close(void)
 /****************************************************************************************
 **  Protected Functions
 ****************************************************************************************/
-int LinxTcpListener::WaitForConnection(void)
+int32_t LinxTcpListener::WaitForConnection(void)
 {
-	int status = LinxListener::WaitForConnection();
+	int32_t status = LinxListener::WaitForConnection();
 	if (!status)
 	{
 		struct sockaddr_storage addr;
-		int retval, clientlen = sizeof(addr);
+		int32_t retval, clientlen = sizeof(addr);
 		NetObject clientSocket = kInvalNetObject;
 	
 		m_Debug->Writeln("Waiting For Client Connection\n");
@@ -177,7 +177,7 @@ int LinxTcpListener::WaitForConnection(void)
 		}
 
 		unsigned char *buf;
-		unsigned short port;
+		uint16_t port;
 		switch (addr.ss_family)
 		{
 			case AF_INET:

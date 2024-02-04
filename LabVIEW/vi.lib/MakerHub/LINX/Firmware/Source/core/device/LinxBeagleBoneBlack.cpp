@@ -43,20 +43,20 @@ static const char *g_AiPaths[NUM_AI_CHANS] = {"/sys/bus/iio/devices/iio:device0/
 											  "/sys/bus/iio/devices/iio:device0/in_voltage4_raw",
 											  "/sys/bus/iio/devices/iio:device0/in_voltage5_raw",
 											  "/sys/bus/iio/devices/iio:device0/in_voltage6_raw"};
-//static const unsigned int m_AiRefIntVals[NUM_AI_INT_REFS] = {};
-//static const int m_AiRefCodes[NUM_AI_INT_REFS] = {};
+//static const uint32_t m_AiRefIntVals[NUM_AI_INT_REFS] = {};
+//static const int32_t m_AiRefCodes[NUM_AI_INT_REFS] = {};
 
 //-------------------------------------- AO -------------------------------------
 //None
 
 //-------------------------------------- DIO ------------------------------------
-static const unsigned char g_DigitalChans[NUM_DIGITAL_CHANS] = { 7,  8,  9, 10, 11, 12, 15, 16, 17, 18, 26, 58, 61, 69,  73,  76};
-static const unsigned char g_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61, 60, 48, 49, 115, 112};
+static const uint8_t g_DigitalChans[NUM_DIGITAL_CHANS] = { 7,  8,  9, 10, 11, 12, 15, 16, 17, 18, 26, 58, 61, 69,  73,  76};
+static const uint8_t g_gpioChan[NUM_DIGITAL_CHANS] =     {66, 67, 69, 68, 45, 44, 47, 46, 27, 65, 61, 60, 48, 49, 115, 112};
 
 
 //-------------------------------------- PWM ------------------------------------
 // Default to 7.x Layout, Updated in Constructor if newer
-static const unsigned char g_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
+static const uint8_t g_PwmChans[NUM_PWM_CHANS] = {13, 19, 60, 62};
 static string g_PwmDirPaths[NUM_PWM_CHANS] = {"/sys/class/pwm/pwm6", "/sys/class/pwm/pwm5", "/sys/class/pwm/pwm3", "/sys/class/pwm/pwm4"};
 //static const string m_PwmDtoNames[NUM_PWM_CHANS] = {"bone_pwm_P8_13", "bone_pwm_P8_19", "bone_pwm_P9_14", "bone_pwm_P9_16"};
 static const char *g_DutyCycleFileName = "duty_ns";
@@ -65,7 +65,7 @@ static const char *g_EnableFileName = "run";
 
 
 //------------------------------------- Uart ------------------------------------
-static unsigned char g_UartChans[NUM_UART_CHANS] = {0, 1, 4};
+static uint8_t g_UartChans[NUM_UART_CHANS] = {0, 1, 4};
 static const char *g_UartPaths[NUM_UART_CHANS] = { "/dev/ttyO0", "/dev/ttyO1", "/dev/ttyO4"};
 static const char *g_UartDtoNames[NUM_UART_CHANS] = { "BB-UART0", "BB-UART1", "BB-UART4"};
 
@@ -76,7 +76,7 @@ LinxBBBUartChannel::LinxBBBUartChannel(LinxFmtChannel *debug, const char *device
 	m_DtoSlotsPath = dtoSlotsPath;
 }
 
-int LinxBBBUartChannel::SmartOpen(void)
+int32_t LinxBBBUartChannel::SmartOpen(void)
 {
 	//Load DTO If Needed
 	if (!fileExists(m_DeviceName) && m_DtoName)
@@ -92,7 +92,7 @@ int LinxBBBUartChannel::SmartOpen(void)
 }
 
 //------------------------------------- I2c -------------------------------------
-static const unsigned char g_I2cChans[NUM_I2C_CHANS] = {2};
+static const uint8_t g_I2cChans[NUM_I2C_CHANS] = {2};
 static const char *g_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1" };		//Out of order numbering is correct for BBB 7.x!!
 static const char *g_I2cDtoNames[NUM_I2C_CHANS] = {"BB-I2C2"};
 
@@ -102,7 +102,7 @@ LinxBBBI2cChannel::LinxBBBI2cChannel(LinxFmtChannel *debug, const char *channelN
 	m_DtoSlotsPath = dtoSlotsPath;
 }
 
-int LinxBBBI2cChannel::Open(void)
+int32_t LinxBBBI2cChannel::Open(void)
 {
 	//Export Dev Tree Overlay If Device does not exist
 	if (!fileExists(m_ChannelName) && m_DtoName && m_DtoName[0])
@@ -120,14 +120,14 @@ int LinxBBBI2cChannel::Open(void)
 
 
 //------------------------------------- SPI -------------------------------------
-static const unsigned char g_SpiChans[NUM_SPI_CHANS] = {0};
+static const uint8_t g_SpiChans[NUM_SPI_CHANS] = {0};
 static const char *g_SpiPaths[NUM_SPI_CHANS] = { "/dev/spidev1.1"};
 static const char *g_SpiDtoNames[NUM_SPI_CHANS] = { "BB-SPIDEV0"};
-static unsigned int g_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
-static int g_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
-static int g_SpiDefaultSpeed = 3900000;
+static uint32_t g_SpiSupportedSpeeds[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
+static int32_t g_SpiSpeedCodes[NUM_SPI_SPEEDS] = {7629, 15200, 30500, 61000, 122000, 244000, 488000, 976000, 1953000, 3900000, 7800000, 15600000, 31200000};
+static int32_t g_SpiDefaultSpeed = 3900000;
 
-LinxBBBSpiChannel::LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsSpiChannel(debug, channelName, device, speed)
+LinxBBBSpiChannel::LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, uint32_t speed, const char *dtoName, const char *dtoSlotsPath) : LinxSysfsSpiChannel(debug, channelName, device, speed)
 {
 	m_DtoName = dtoName;
 	m_DtoSlotsPath = dtoSlotsPath;
@@ -136,7 +136,7 @@ LinxBBBSpiChannel::LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelN
 	m_SpiSpeedCodes = g_SpiSpeedCodes;
 }
 
-int LinxBBBSpiChannel::Open(void)
+int32_t LinxBBBSpiChannel::Open(void)
 {
 	//Load SPI DTO if necessary
 	if (!fileExists(m_ChannelName))
@@ -208,7 +208,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	//PWM
 	//Shared Non Varying Components
 	
-	unsigned int g_PwmDefaultPeriod = 500000;	
+	uint32_t g_PwmDefaultPeriod = 500000;	
 	const char *g_PolarityFileName = "polarity";
 	
 	//7.x Only
@@ -257,7 +257,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 				char* token = strtok(pwmChipSymlinkTarget, "\\/");
 				while(token != NULL)
 				{
-					unsigned int val = 0;
+					uint32_t val = 0;
 					sscanf(token, "%u", &val);
 					//printf("%u\n", val);
 					if (val == 48304200)
@@ -370,7 +370,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	if (dtoLoaded)
 	{
 		//Open AI Handles		
-		for (int i = 0; i < NUM_AI_CHANS; i++)
+		for (int32_t i = 0; i < NUM_AI_CHANS; i++)
 		{
 			LinxChannel *chan = new LinxSysfsAiChannel(m_Debug, g_AiPaths[i]);
 			if (chan)
@@ -399,7 +399,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 			
 			//Export PWM Channels Before Loading Channel Specific DTOs Below
 			/*
-			for(int i=0; i< NUM_PWM_CHANS; i++)
+			for(int32_t i=0; i< NUM_PWM_CHANS; i++)
 			{
 				
 			}
@@ -409,7 +409,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	else if (m_FilePathLayout >= 8)
 	{
 		// Set Mux to PWM
-		for (int i = 0; i < NUM_PWM_CHANS; i++)
+		for (int32_t i = 0; i < NUM_PWM_CHANS; i++)
 		{
 			FILE* pwmMuxHandle = fopen(g_PwmMuxPaths[i], "r+w+");
 			if (pwmMuxHandle != NULL)
@@ -421,7 +421,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	}
 	
 	// Per Pin Initialization
-	for (int i = 0; i < NUM_PWM_CHANS; i++)
+	for (int32_t i = 0; i < NUM_PWM_CHANS; i++)
 	{
 		//Store Default Values
 //		PwmDirPaths[g_PwmChans[i]] = g_PwmDirPaths[i];
@@ -484,7 +484,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	
 	//------------------------------------- I2C -------------------------------------
 	// Store I2C Master Paths In Map
-	for (int i = 0; i < NUM_I2C_CHANS; i++)
+	for (int32_t i = 0; i < NUM_I2C_CHANS; i++)
 	{	
 		LinxI2cChannel *chan = new LinxBBBI2cChannel(m_Debug, g_I2cPaths[i], m_FilePathLayout == 7 ? g_I2cDtoNames[i] : NULL, m_DtoSlotsPath);
 		RegisterChannel(IID_LinxI2cChannel, g_I2cChans[i], chan);
@@ -494,7 +494,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	if (m_FilePathLayout >= 8)
 	{
 		// Set Mux to UART
-		for (int i = 0; i < 4; i++)
+		for (int32_t i = 0; i < 4; i++)
 		{
 			FILE* uartMuxHandle = fopen(g_UartMuxPaths[i], "r+w+");
 			if (uartMuxHandle != NULL)
@@ -506,7 +506,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	}
 	
 	// Store Uart Paths In Map
-	for (int i = 0; i < NUM_UART_CHANS; i++)
+	for (int32_t i = 0; i < NUM_UART_CHANS; i++)
 	{
 		RegisterChannel(IID_LinxUartChannel, g_UartChans[i], (LinxUartChannel*)new LinxBBBUartChannel(m_Debug, g_UartPaths[i], g_UartDtoNames[i], m_DtoSlotsPath));
 	}
@@ -515,7 +515,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	if (m_FilePathLayout >= 8)
 	{
 		//Set Mux to SPI
-		for (int i = 0; i < 3; i++)
+		for (int32_t i = 0; i < 3; i++)
 		{
 			FILE* spiMuxHandle = fopen(g_SpiMuxPaths[i], "r+w+");
 			if (spiMuxHandle != NULL)
@@ -535,7 +535,7 @@ LinxBeagleBoneBlack::LinxBeagleBoneBlack(LinxFmtChannel *debug) : LinxDevice(deb
 	}
 	
 	//Load SPI Paths and DTO Names, Configure SPI Master Default Values
-	for (int i = 0; i < NUM_SPI_CHANS; i++)
+	for (int32_t i = 0; i < NUM_SPI_CHANS; i++)
 	{
 		RegisterChannel(IID_LinxSpiChannel, g_SpiChans[i], new LinxBBBSpiChannel(m_Debug, g_SpiPaths[i], this, g_SpiDefaultSpeed, g_SpiDtoNames[i], m_DtoSlotsPath));
 	}
@@ -568,11 +568,11 @@ bool LinxBeagleBoneBlack::loadDto(const char *slotsPath, const char* dtoName)
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-unsigned char LinxBeagleBoneBlack::GetDeviceName(unsigned char* buffer, unsigned char length)
+uint8_t LinxBeagleBoneBlack::GetDeviceName(unsigned char* buffer, uint8_t length)
 {
 	if (buffer)
 		strncpy((char*)buffer, m_DeviceName, length); 
-	return (unsigned char)strlen(m_DeviceName);
+	return (uint8_t)strlen(m_DeviceName);
 }
 
 //--------------------------------------------------------PWM-------------------------------------------------------

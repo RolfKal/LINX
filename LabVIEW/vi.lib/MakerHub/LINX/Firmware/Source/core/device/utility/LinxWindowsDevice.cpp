@@ -24,6 +24,9 @@
 ****************************************************************************************/
 LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 {
+	int32_t i;
+	char sFriendlyName[32];
+
 	//LINX API Version
 	LinxApiMajor = 2;
 	LinxApiMinor = 2;
@@ -38,10 +41,34 @@ LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 #endif
 
 	//------------------------------------- AI ---------------------------------------
-	
+	AiResolution = 12;
+	AiRefDefault = 5;
+	AiRefSet = 5;
+#if DEBUG
+	for (i = 1; i <= 8; i++)
+	{
+		sprintf(sFriendlyName, "AI%d", i);
+		LinxAnalogChannel *channel = new LinxAiChannel(m_Debug, (unsigned char*)sFriendlyName, AiResolution);
+		RegisterChannel(IID_LinxAiChannel, i, channel);
+	}
+#endif
+
 	//------------------------------------- AO ---------------------------------------
+	AoResolution = 12;
+	AoRefDefault = 5;
+	AoRefSet = 5;
+#if DEBUG
+	for (i = 1; i <= 4; i++)
+	{
+		sprintf(sFriendlyName, "AO%d", i);
+		LinxAnalogChannel *channel = new LinxAoChannel(m_Debug, (unsigned char*)sFriendlyName, AoResolution);
+		RegisterChannel(IID_LinxAoChannel, i, channel);
+	}
+#endif
 
 	//------------------------------------- DIO --------------------------------------
+#if DEBUG
+#endif
 
 	//------------------------------------- PWM --------------------------------------
 
@@ -98,8 +125,8 @@ unsigned char LinxWindowsDevice::EnumerateCommPorts(const GUID *guid, DWORD dwFl
 							//If it looks like "COMx" then add it to the array which will be returned
 							if (length / sizeof(WCHAR) > 3 && !_wcsnicmp(sPortName, L"COM", 3) && iswdigit(sPortName[3]))
 							{
-								//Work out the port number
-								int nPort = _wtoi(sPortName + 3);
+								//Work out the port number-
+								int32_t nPort = _wtoi(sPortName + 3);
 								
 								//Query initially to get the buffer size required
 								if (!SetupDiGetDeviceRegistryPropertyW(hDevInfo, &devInfoData, SPDRP_FRIENDLYNAME, &dwType, NULL, 0, &dwSize))
@@ -111,7 +138,7 @@ unsigned char LinxWindowsDevice::EnumerateCommPorts(const GUID *guid, DWORD dwFl
 
 								if (SetupDiGetDeviceRegistryPropertyA(hDevInfo, &devInfoData, SPDRP_FRIENDLYNAME, &dwType, (PBYTE)sFriendlyName, dwSize, &dwSize) && dwType == REG_SZ)
 								{
-									RegisterChannel(IID_LinxUartChannel, (unsigned char)nPort, (LinxUartChannel*)new LinxWindowsUartChannel(m_Debug, nPort, sFriendlyName));
+									RegisterChannel(IID_LinxUartChannel, nPort, (LinxUartChannel*)new LinxWindowsUartChannel(m_Debug, sFriendlyName));
 								}
 								free(sFriendlyName);
 							}

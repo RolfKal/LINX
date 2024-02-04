@@ -1,0 +1,25 @@
+RCversion: 3
+include: "LinxAPI.rch"
+
+///// LinxAPI Base Class Definition /////
+class: LinxAPI_Base
+genericType: LinxAPI
+control: "LinxAPI Base.ctl"
+className: "LinxAPI Base"
+flags: 0
+
+///// LinxAPI Client Class Definition /////
+class: LinxAPI_Client
+genericType: LinxAPI
+control: "LinxAPI Client.ctl"
+className: "LinxAPI Client"
+super: LinxAPI_Base
+flags: 0
+
+///// LinxAPI Server Class Definition /////
+class: LinxAPI_Server
+genericType: LinxAPI
+control: "LinxAPI Server.ctl"
+className: "LinxAPI Server"
+super: LinxAPI_Base
+flags: 0

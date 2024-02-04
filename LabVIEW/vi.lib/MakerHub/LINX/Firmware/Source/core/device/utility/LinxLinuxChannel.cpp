@@ -38,10 +38,12 @@
 /****************************************************************************************
 **  Defines
 ****************************************************************************************/
-#define GPIO_EXPORTED	0x80
 
-//------------------------------------- Digital -------------------------------------
-LinxSysfsAiChannel::LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName) : LinxAiChannel(debug, channelName)
+/************************************ Analog Input SysFS Channel ***********************/
+/****************************************************************************************
+**  Constructor/Destructors
+****************************************************************************************/
+LinxSysfsAiChannel::LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName, uint8_t resolution) : LinxAiChannel(debug, channelName, resolution)
 {
 	m_ValHandle = NULL;
 }
@@ -54,8 +56,11 @@ LinxSysfsAiChannel::~LinxSysfsAiChannel(void)
 	}
 }
 
+/****************************************************************************************
+**  Private Functions
+****************************************************************************************/
 // Open direction and value handles if it is not already open
-int LinxSysfsAiChannel::SmartOpen(void)
+int32_t LinxSysfsAiChannel::SmartOpen(void)
 {
 	// Open value handle if it is not already open
 	if (m_ValHandle == NULL)
@@ -71,9 +76,12 @@ int LinxSysfsAiChannel::SmartOpen(void)
 	return L_OK;
 }
 
-int LinxSysfsAiChannel::Read(unsigned int *value)
+/****************************************************************************************
+**  Public Functions
+****************************************************************************************/
+int32_t LinxSysfsAiChannel::Read(uint32_t *value)
 {
-	int status = SmartOpen();
+	int32_t status = SmartOpen();
 	if (status)
 		return status;
 
@@ -82,11 +90,12 @@ int LinxSysfsAiChannel::Read(unsigned int *value)
 	return L_OK;
 }
 
-//------------------------------------- Digital -------------------------------------
-LinxSysfsDioChannel::LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin) : LinxDioChannel(debug, "LinxDioPin")
+/************************************ Digtal Input SysFS Channel ***********************/
+/****************************************************************************************
+**  Constructor/Destructors
+****************************************************************************************/
+LinxSysfsDioChannel::LinxSysfsDioChannel(LinxFmtChannel *debug, uint16_t linxPin, uint16_t gpioPin) : LinxDioChannel(debug, linxPin, gpioPin)
 {
-	m_GpioChan = gpioPin;
-	m_LinxChan = linxPin;
 	m_ValHandle = NULL;
 	m_DirHandle = NULL;
 	m_EdgeHandle = NULL;
@@ -109,22 +118,23 @@ LinxSysfsDioChannel::~LinxSysfsDioChannel(void)
 	if (m_ValHandle != NULL)
 	{
 		fclose(m_ValHandle);
-		if (m_State & GPIO_EXPORTED)
+
+		FILE* digitalExportHandle = fopen("/sys/class/gpio/unexport", "r+w+");
+		if (digitalExportHandle != NULL)
 		{
-			FILE* digitalExportHandle = fopen("/sys/class/gpio/unexport", "r+w+");
-			if (digitalExportHandle != NULL)
-			{
-				fprintf(digitalExportHandle, "%d", m_GpioChan);
-				fclose(digitalExportHandle);
-			}
+			fprintf(digitalExportHandle, "%d", m_GpioChan);
+			fclose(digitalExportHandle);
 		}
 	}
 }
 
+/****************************************************************************************
+**  Private Functions
+****************************************************************************************/
 // Open direction and value handles if it is not already open
-int LinxSysfsDioChannel::SmartOpen(void)
+int32_t LinxSysfsDioChannel::SmartOpen(void)
 {
-	char gpioPath[64];
+	char gpioPath[32];
 
 	// Open direction handle if it is not already open
 	if (m_DirHandle == NULL)
@@ -143,12 +153,11 @@ int LinxSysfsDioChannel::SmartOpen(void)
 			{
 				fprintf(digitalExportHandle, "%d", m_GpioChan);
 				fclose(digitalExportHandle);
-				m_State |= GPIO_EXPORTED;
 			}
 			else
 			{
 				m_Debug->Writeln("Digital Fail - Unable To Open Direction File Handle");
-				return L_UNKNOWN_ERROR;
+				return LDIGITAL_PIN_NOT_AVAIL;
 			}
 		}
 		m_DirHandle = fopen(gpioPath, "r+w+");
@@ -163,68 +172,125 @@ int LinxSysfsDioChannel::SmartOpen(void)
 		if (m_ValHandle == NULL)
 		{
 			m_Debug->Writeln("Digital Fail - Unable To Open Value File Handle");
-			return L_UNKNOWN_ERROR;
+			return LDIGITAL_PIN_NOT_AVAIL;
 		}
 	}
 	return L_OK;
 }
 
-int LinxSysfsDioChannel::SetState(unsigned char state)
+/****************************************************************************************
+**  Protected Functions
+****************************************************************************************/
+int32_t LinxSysfsDioChannel::setDirection(uint8_t dir)
 {
-	char direction = state & GPIO_DIRMASK;
-	if ((m_State & GPIO_DIRMASK) != direction)
+	int32_t status = SmartOpen();
+	if (!status)
 	{
-		//Set as input or output
-		fprintf(m_DirHandle, direction ? "out" : "in");
-		fflush(m_DirHandle);
-		m_State = (m_State & ~GPIO_DIRMASK) | direction;
+		status = LinxDIOChannel::setDirection(dir);
+		if (!status)
+		{
+			//Set as input or output
+			fprintf(m_DirHandle, dir & GPIO_DIRMASK ? "out" : "in");
+			fflush(m_DirHandle);
+		}
+		else if (status == LDIGITAL_PIN_NOCHANGE)
+		{
+			return L_OK;
+		}
 	}
-	return L_OK;
+	return status;
 }
 
-int LinxSysfsDioChannel::Write(unsigned char value)
+int32_t LinxSysfsDioChannel::setPull(uint8_t pud)
 {
-	// Set direction
-	int status = SetState(GPIO_OUTPUT);
+	int32_t status = SmartOpen();
+	if (!status)
+	{
+		status = LinxDIOChannel::setPull(pud);
+		if (!status)
+		{
+			return L_FUNCTION_NOT_SUPPORTED;
+		}
+		else if (status == LDIGITAL_PIN_NOCHANGE)
+		{
+			return L_OK;
+		}
+	}
+	return status;
+}
+
+int32_t LinxSysfsDioChannel::setValue(uint8_t value)
+{
+	int32_t status = SmartOpen();
 	if (!status)
 	{
 		// Set value
-		fprintf(m_ValHandle, value ? "1" : "0");
+		status = fprintf(m_ValHandle, value ? "1" : "0");
 		fflush(m_ValHandle);
+		return status == 1 ? L_OK : LDIGITAL_PIN_NOT_AVAIL;
 	}
 	return status;
 }
 
-int LinxSysfsDioChannel::Read(unsigned char *value)
+int32_t LinxSysfsDioChannel::getValue(uint8_t *value)
 {
-	char valPath[128];
-
-	// Set direction
-	int status = SetState(GPIO_INPUT);
+	int32_t status = SmartOpen();
 	if (!status)
 	{
+		char gpioPath[32];
+
 		//Reopen value handle
-		sprintf(valPath, "/sys/class/gpio/gpio%d/value", m_GpioChan);
-		m_ValHandle = freopen(valPath, "r+w+", m_ValHandle);
+		sprintf(gpioPath, "/sys/class/gpio/gpio%d/value", m_GpioChan);
+		m_ValHandle = freopen(gpioPath, "r+w+", m_ValHandle);
 
 		//Read from next pin
-		fscanf(m_ValHandle, "%hhu", value);
+		status = fscanf(m_ValHandle, "%hhu", value);
+		return status == 1 ? L_OK : LDIGITAL_PIN_NOT_AVAIL;
 	}
 	return status;
 }
 
-int LinxSysfsDioChannel::WriteSquareWave(unsigned int freq, unsigned int duration)
+/************************************ Digtal Input GPIO Channel ************************/
+/****************************************************************************************
+**  Constructor/Destructors
+****************************************************************************************/
+LinxGPIODioChannel::LinxGPIODioChannel(LinxFmtChannel *debug, uint16_t linxPin, uint16_t gpioPin) : LinxDioChannel(debug, linxPin, gpioPin)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxSysfsDioChannel::ReadPulseWidth(unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width)
+LinxGPIODioChannel::~LinxGPIODioChannel(void)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+}
+
+/****************************************************************************************
+**  Private Functions
+****************************************************************************************/
+// Open direction and value handles if it is not already open
+int32_t LinxGPIODioChannel::SmartOpen(void)
+{
+}
+
+/****************************************************************************************
+**  Protected Functions
+****************************************************************************************/
+int32_t LinxGPIODioChannel::setDirection(uint8_t dir)
+{
+}
+
+int32_t LinxGPIODioChannel::setPull(uint8_t pud)
+{
+}
+
+int32_t LinxGPIODioChannel::setValue(uint8_t value)
+{
+}
+
+int32_t LinxGPIODioChannel::getValue(uint8_t *value)
+{
 }
 
 //------------------------------------- UART -------------------------------------
-LinxSysfsPwmChannel::LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableName, const char *periodName, const char *dutyCycleName, unsigned int defaultPeriod) : LinxPwmChannel(debug, deviceName)
+LinxSysfsPwmChannel::LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableName, const char *periodName, const char *dutyCycleName, uint32_t defaultPeriod) : LinxPwmChannel(debug, deviceName)
 {
 	m_PeriodHandle = NULL;
 	m_DutyCycleHandle = NULL;
@@ -260,7 +326,7 @@ LinxSysfsPwmChannel::~LinxSysfsPwmChannel(void)
 	}
 }
 
-int LinxSysfsPwmChannel::SmartOpen(void)
+int32_t LinxSysfsPwmChannel::SmartOpen(void)
 {
 	char tempPath[64];
 	//Open Period Handle If It Is Not Already
@@ -302,10 +368,10 @@ int LinxSysfsPwmChannel::SmartOpen(void)
 	return L_OK;
 }
 
-int LinxSysfsPwmChannel::SetDutyCycle(unsigned char value)
+int32_t LinxSysfsPwmChannel::SetDutyCycle(uint8_t value)
 {
-	//unsigned int period = 500000;		//Period Defaults To 500,000 nS. To Do Update This When Support For Changing Period / Frequency Is Added
-	unsigned int dutyCycle = 0;
+	//uint32_t period = 500000;		//Period Defaults To 500,000 nS. To Do Update This When Support For Changing Period / Frequency Is Added
+	uint32_t dutyCycle = 0;
 
 	if (value == 0)
 	{
@@ -317,7 +383,7 @@ int LinxSysfsPwmChannel::SetDutyCycle(unsigned char value)
 	}
 	else
 	{
-		dutyCycle = (unsigned int)(m_Period * (value / 255.0));
+		dutyCycle = (uint32_t)(m_Period * (value / 255.0));
 	}
 
 	//Update Output
@@ -334,10 +400,10 @@ int LinxSysfsPwmChannel::SetDutyCycle(unsigned char value)
 //------------------------------------- Unix Comm -------------------------------------
 LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, OSSocket socket) : LinxCommChannel(debug, channelName)
 {
-	m_Socket = socket;
+	m_Fd = socket;
 }
 
-LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port) : LinxCommChannel(debug, address)
+LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *address, uint16_t port) : LinxCommChannel(debug, address)
 {
     struct addrinfo hints, *result, *rp;
 	char str[10];
@@ -353,8 +419,8 @@ LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned c
 	{
 		for (rp = result; rp != NULL; rp = rp->ai_next)
 		{
-			m_Socket = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-			if (m_Socket < 0)
+			m_Fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+			if (m_Fd < 0)
 				continue;
 
 			switch (rp->ai_addr->sa_family)
@@ -368,10 +434,11 @@ LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned c
 				default:
 					continue;
 			}
-            if (connect(m_Socket, rp->ai_addr, (socklen_t)rp->ai_addrlen) != -1)
+            if (connect(m_Fd, rp->ai_addr, (socklen_t)rp->ai_addrlen) != -1)
 				break;
 
-			closesocket(m_Socket);
+			close(m_Fd);
+			m_Fd = -1;
 		}
 		freeaddrinfo(result);
 		if (rp == NULL)
@@ -384,30 +451,30 @@ LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned c
 
 LinxUnixCommChannel::~LinxUnixCommChannel(void)
 {
-	if (IsANetObject(m_Socket)
-		close(m_Socket);
+	if (m_Fd >= 0)
+		close(m_Fd);
 }
 
-int LinxUnixCommChannel::Read(unsigned char* recBuffer, int numBytes, unsigned long long start, int timeout, int* numBytesRead)
+int32_t LinxUnixCommChannel::Read(unsigned char* recBuffer, int32_t numBytes, uint32_t start, int32_t timeout, int32_t* numBytesRead)
 {
 	*numBytesRead = 0;
 
 	if (recBuffer && numBytes)
 	{
 		struct pollfd fds[1];
-		int retval, offset = 0;
+		int32_t retval, offset = 0;
 
-		fds[0].fd = m_Socket;
+		fds[0].fd = m_Fd;
 		fds[0].events = POLLIN ;
 
 		while (*numBytesRead < numBytes)
 		{
-			retval = poll(fds, 1, timeout < 0 ? -1 : Min(timeout - (int)(getMilliSeconds() - start), 0));
+			retval = poll(fds, 1, timeout < 0 ? -1 : Min(timeout - (getMsTicks() - start), 0));
 			if (retval <= 0)
 				return retval ? LUART_READ_FAIL : LUART_TIMEOUT;
 
 			// Read bytes from input buffer
-			retval = read(m_Socket, recBuffer + offset, numBytes - offset);
+			retval = read(m_Fd, recBuffer + offset, numBytes - offset);
 			if (retval < 0)
 				return LUART_READ_FAIL;
 			*numBytesRead += retval;
@@ -416,15 +483,15 @@ int LinxUnixCommChannel::Read(unsigned char* recBuffer, int numBytes, unsigned l
 	else
 	{
 		// Check how many bytes are available
-		if (ioctl(m_Socket, FIONREAD, numBytesRead) < 0)
+		if (ioctl(m_Fd, FIONREAD, numBytesRead) < 0)
 			return LUART_READ_FAIL;
 	}
 	return L_OK;
 }
 
-int LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int numBytes, iunsigned long long start, nt timeout)
+int32_t LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int32_t numBytes, uint32_t start, nt timeout)
 {
-	int bytesSent = write(m_Socket, sendBuffer, numBytes);
+	int32_t bytesSent = write(m_Fd, sendBuffer, numBytes);
 	if (bytesSent != numBytes)
 	{
 		return LUART_WRITE_FAIL;
@@ -432,11 +499,11 @@ int LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int numBytes, iu
 	return L_OK;
 }
 
-int LinxUnixCommChannel::Close(void)
+int32_t LinxUnixCommChannel::Close(void)
 {
-	if (IsANetObject(m_Socket))
-		close(m_Socket);
-	m_Socket = kInvalNetObject;
+	if (m_Fd >= 0)
+		close(m_Fd);
+	m_Fd = -1;
 	return L_OK;
 }
 
@@ -446,33 +513,33 @@ LinxUnixUartChannel::LinxUnixUartChannel(LinxFmtChannel *debug, const char *devi
 	struct termios2 options;
 
 	// Open device as read/write, no CTRL-C handling and non-blocking
-	m_Socket = open(m_ChannelName, O_RDWR | O_NOCTTY | O_NONBLOCK);
-	if (m_Socket < 0)
+	m_Fd = open(m_ChannelName, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	if (m_Fd < 0)
 	{
 		m_Debug->Write("Unix Socket Fail - Failed to open file handle - ");
 		m_Debug->Writeln(m_ChannelName);
 		return  LUART_OPEN_FAIL;
 	}
-	if (ioctl(m_Socket, TCGETS, &options) < 0)
+	if (ioctl(m_Fd, TCGETS, &options) < 0)
 		return LERR_IO;
 
 	options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // Use raw input mode
 	options.c_oflag &= ~OPOST;							// Use raw output mode
 
-	if (ioctl(m_Socket, TCSETS, &options) < 0)
+	if (ioctl(m_Fd, TCSETS, &options) < 0)
 		return LERR_IO;
 
 	return L_OK;
 }
 
-static unsigned int g_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
-static unsigned int g_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
+static uint32_t g_UartSupportedSpeeds[NUM_UART_SPEEDS] = {0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+static uint32_t g_UartSupportedSpeedsCodes[NUM_UART_SPEEDS] = {B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800, B9600, B19200, B38400, B57600, B115200};
 
-int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBaud)
+int32_t LinxUnixUartChannel::SetSpeed(uint32_t baudRate, uint32_t* actualBaud)
 {
 	struct termios2 options;
-	int ioctlval = TCSETS2;
-	int status = SmartOpen();
+	int32_t ioctlval = TCSETS2;
+	int32_t status = SmartOpen();
 	if (status)
 		return status;
 
@@ -480,7 +547,7 @@ int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBau
 	// Actual used baudrate may still be different due to discrete clock generation
 	if (ioctl(m_Fd, TCGETS2, &options) < 0)
 	{
-		int temp;
+		int32_t temp;
 
 		if (ioctl(m_Fd, TCGETS, &options) < 0)
 			return LERR_IO;
@@ -502,7 +569,7 @@ int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBau
 
 		//Store Actual Baud Used
 		if (actualBaud)
-			*actualBaud = (unsigned int) *(g_UartSupportedSpeeds + temp);
+			*actualBaud = (uint32_t) *(g_UartSupportedSpeeds + temp);
 		options.c_cflag = (options.c_cflag & ~(CBAUD | CIBAUD)) | g_UartSupportedSpeedsCodes[temp] | g_UartSupportedSpeedsCodes[temp] << IBSHIFT;
 		ioctlval = TCSETS;
 	}
@@ -526,12 +593,12 @@ int LinxUnixUartChannel::SetSpeed(unsigned int baudRate, unsigned int* actualBau
 #define NUM_BIT_SIZES	4
 #define NUM_PARITY_SIZES	5
 
-static const int BitSizes[NUM_BIT_SIZES] = {CS5, CS6, CS7, CS8};
-static const int Parity[NUM_PARITY_SIZES] = {0, PARENB, PARENB | PARODD, PARENB | PARODD | CMSPAR, PARENB | CMSPAR};
+static const int32_t BitSizes[NUM_BIT_SIZES] = {CS5, CS6, CS7, CS8};
+static const int32_t Parity[NUM_PARITY_SIZES] = {0, PARENB, PARENB | PARODD, PARENB | PARODD | CMSPAR, PARENB | CMSPAR};
 
-int LinxUnixUartChannel::SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
+int32_t LinxUnixUartChannel::SetParameters(uint8_t dataBits, uint8_t stopBits, LinxUartParity parity)
 {
-	int status = SmartOpen();
+	int32_t status = SmartOpen();
 	if (status)
 		return status;
 
@@ -576,58 +643,6 @@ int LinxUnixUartChannel::SetParameters(unsigned char dataBits, unsigned char sto
 	return LUART_SET_PARAM_FAIL;
 }
 
-int LinxUnixUartChannel::Read(unsigned char* recBuffer, int numBytes, unsigned long long start, int timeout, int* numBytesRead)
-{
-	*numBytesRead = 0;
-
-	if (recBuffer && numBytes)
-	{
-		struct pollfd fds[1];
-		int retval, offset = 0;
-
-		fds[0].fd = m_Fd;
-		fds[0].events = POLLIN ;
-
-		while (*numBytesRead < numBytes)
-		{
-			retval = poll(fds, 1, timeout < 0 ? -1 : Min(timeout - (int)(getMilliSeconds() - start), 0));
-			if (retval <= 0)
-				return retval ? LUART_READ_FAIL : LUART_TIMEOUT;
-
-			// Read bytes from input buffer
-			retval = read(m_Fd, recBuffer + offset, numBytes - offset);
-			if (retval < 0)
-				return LUART_READ_FAIL;
-			*numBytesRead += retval;
-		}
-	}
-	else
-	{
-		// Check how many bytes are available
-		if (ioctl(m_Fd, FIONREAD, numBytesRead) < 0)
-			return LUART_READ_FAIL;
-	}
-	return status;
-}
-
-int LinxUnixUartChannel::Write(const unsigned char* sendBuffer, int numBytes, unsigned long long start, int timeout)
-{
-	int bytesSent = write(m_Fd, sendBuffer, numBytes);
-	if (bytesSent != numBytes)
-	{
-		return LUART_WRITE_FAIL;
-	}
-	return  L_OK;
-}
-
-int LinxUnixUartChannel::Close(void)
-{
-	if (IsANetObject(m_Fd))
-		close(m_Fd);
-	m_Fd = kInvalNetObject;
-	return L_OK;
-}
-
 //------------------------------------- I2C -------------------------------------
 LinxSysfsI2cChannel::LinxSysfsI2cChannel(LinxFmtChannel *debug, const char *channelName) : LinxI2cChannel(debug, channelName)
 {
@@ -641,7 +656,7 @@ LinxSysfsI2cChannel::~LinxSysfsI2cChannel(void)
 		close(m_Fd);
 }
 
-int LinxSysfsI2cChannel::Open(void)
+int32_t LinxSysfsI2cChannel::Open(void)
 {
 	if (m_Fd < 0)
 	{
@@ -656,12 +671,12 @@ int LinxSysfsI2cChannel::Open(void)
 	return L_OK;
 }
 
-int LinxSysfsI2cChannel::SetSpeed(unsigned int speed, unsigned int* actualSpeed)
+int32_t LinxSysfsI2cChannel::SetSpeed(uint32_t speed, uint32_t* actualSpeed)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxSysfsI2cChannel::Write(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned char* sendBuffer)
+int32_t LinxSysfsI2cChannel::Write(uint8_t slaveAddress, uint8_t eofConfig, int32_t numBytes, unsigned char* sendBuffer)
 {
 	if (m_Fd < 0)
 		return LI2C_DEVICE_NOT_OPEN;
@@ -690,7 +705,7 @@ int LinxSysfsI2cChannel::Write(unsigned char slaveAddress, unsigned char eofConf
 	return L_OK;
 }
 
-int LinxSysfsI2cChannel::Read(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned int timeout, unsigned char* recBuffer)
+int32_t LinxSysfsI2cChannel::Read(uint8_t slaveAddress, uint8_t eofConfig, int32_t numBytes, uint32_t timeout, unsigned char* recBuffer)
 {
 	if (m_Fd < 0)
 		return LI2C_DEVICE_NOT_OPEN;
@@ -718,7 +733,7 @@ int LinxSysfsI2cChannel::Read(unsigned char slaveAddress, unsigned char eofConfi
 	return L_OK;
 }
 
-int LinxSysfsI2cChannel::Transfer(unsigned char slaveAddress, int numFrames, int *flags, int *numBytes, unsigned int timeout, unsigned char* sendBuffer, unsigned char* recBuffer)
+int32_t LinxSysfsI2cChannel::Transfer(uint8_t slaveAddress, int32_t numFrames, int32_t *flags, int32_t *numBytes, uint32_t timeout, unsigned char* sendBuffer, unsigned char* recBuffer)
 {
 	if (m_Fd < 0)
 		return LI2C_DEVICE_NOT_OPEN;
@@ -731,9 +746,9 @@ int LinxSysfsI2cChannel::Transfer(unsigned char slaveAddress, int numFrames, int
 
 	struct i2c_rdwr_ioctl_data work_queue;
 	struct i2c_msg msg[I2C_RDRW_IOCTL_MAX_MSGS];
-	int sendOffset = 0, recvOffset = 0;
+	int32_t sendOffset = 0, recvOffset = 0;
 
-	for (int i = 0; i < numFrames; i++)
+	for (int32_t i = 0; i < numFrames; i++)
 	{
 		msg[i].addr = slaveAddress;
 		msg[i].len = numBytes[i];
@@ -758,7 +773,7 @@ int LinxSysfsI2cChannel::Transfer(unsigned char slaveAddress, int numFrames, int
 	return L_OK;
 }
 
-int LinxSysfsI2cChannel::Close(void)
+int32_t LinxSysfsI2cChannel::Close(void)
 {
 	if ((m_Fd >= 0) && (close(m_Fd) < 0))
 		return LI2C_CLOSE_FAIL;
@@ -767,7 +782,7 @@ int LinxSysfsI2cChannel::Close(void)
 }
 
 //------------------------------------- SPI -------------------------------------
-LinxSysfsSpiChannel::LinxSysfsSpiChannel(LinxFmtChannel *debug, LinxDevice *device, const char *channelName, unsigned int maxSpeed) : LinxSpiChannel(debug, channelName)
+LinxSysfsSpiChannel::LinxSysfsSpiChannel(LinxFmtChannel *debug, LinxDevice *device, const char *channelName, uint32_t maxSpeed) : LinxSpiChannel(debug, channelName)
 {
 	m_Device = device;
 	m_CurrentSpeed = maxSpeed;
@@ -781,7 +796,7 @@ LinxSysfsSpiChannel::~LinxSysfsSpiChannel(void)
 		close(m_Fd);
 }
 
-int LinxSysfsSpiChannel::Open(void)
+int32_t LinxSysfsSpiChannel::Open(void)
 {
 	if (m_Fd < 0)
 	{
@@ -793,7 +808,7 @@ int LinxSysfsSpiChannel::Open(void)
 		else
 		{
 			// Default To Mode 0 With No CS (LINX Uses GPIO When Performing Write)
-			unsigned char spi_mode = SPI_MODE_0 | SPI_NO_CS;
+			uint8_t spi_mode = SPI_MODE_0 | SPI_NO_CS;
 			if (ioctl(m_Fd, SPI_IOC_WR_MODE, &spi_mode) < 0)
 			{
 				m_Debug->Writeln("Failed To Set SPI Mode");
@@ -815,18 +830,18 @@ int LinxSysfsSpiChannel::Open(void)
 	return L_OK;
 }
 
-int LinxSysfsSpiChannel::SetBitOrder(unsigned char bitOrder)
+int32_t LinxSysfsSpiChannel::SetBitOrder(uint8_t bitOrder)
 {
 	m_BitOrder = bitOrder;
 	return L_OK;
 }
 
-int LinxSysfsSpiChannel::SetMode(unsigned char mode)
+int32_t LinxSysfsSpiChannel::SetMode(uint8_t mode)
 {
 	if (m_Fd < 0)
 		return LSPI_DEVICE_NOT_OPEN;
 
-	unsigned int spi_mode;
+	uint32_t spi_mode;
 	if (ioctl(m_Fd, SPI_IOC_RD_MODE, &spi_mode) < 0)
 	{
 		m_Debug->Writeln("Failed To Set SPI Mode");
@@ -845,14 +860,14 @@ int LinxSysfsSpiChannel::SetMode(unsigned char mode)
 	return L_OK;
 }
 
-int LinxSysfsSpiChannel::SetSpeed(unsigned int speed, unsigned int* actualSpeed)
+int32_t LinxSysfsSpiChannel::SetSpeed(uint32_t speed, uint32_t* actualSpeed)
 {
 	if (m_Fd < 0)
 		return LSPI_DEVICE_NOT_OPEN;
 
 	if (m_NumSpiSpeeds)
 	{
-		int index;
+		int32_t index;
 		//Loop Over All Supported SPI Speeds
 		for (index = 0; index < m_NumSpiSpeeds; index++)
 		{
@@ -874,12 +889,12 @@ int LinxSysfsSpiChannel::SetSpeed(unsigned int speed, unsigned int* actualSpeed)
 	return L_OK;
 }
 
-int LinxSysfsSpiChannel::WriteRead(unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer)
+int32_t LinxSysfsSpiChannel::WriteRead(uint8_t frameSize, uint8_t numFrames, uint8_t csChan, uint8_t csLL, unsigned char* sendBuffer, unsigned char* recBuffer)
 {
 	if (m_Fd < 0)
 		return LSPI_DEVICE_NOT_OPEN;
 
-	unsigned char csInv = ~csLL & 0x01, // Precompute inverse digital value
+	uint8_t csInv = ~csLL & 0x01, // Precompute inverse digital value
 		          nextByte = 0;			// First Byte Of Next SPI Frame
 
 	//SPI hardware only supports MSB First transfer. If  Configured for LSB First reverse bits in software
@@ -892,11 +907,11 @@ int LinxSysfsSpiChannel::WriteRead(unsigned char frameSize, unsigned char numFra
 	if (csChan)
 		m_Device->DigitalWrite(1, &csChan, &csInv);
 
-	for (int i = 0; i < numFrames; i++)
+	for (int32_t i = 0; i < numFrames; i++)
 	{
 		//Setup Transfer
-		transfer.tx_buf = (unsigned long)(sendBuffer + nextByte);
-		transfer.rx_buf = (unsigned long)(recBuffer + nextByte);
+		transfer.tx_buf = (uint32_t)(sendBuffer + nextByte);
+		transfer.rx_buf = (uint32_t)(recBuffer + nextByte);
 		transfer.len = frameSize;
 		transfer.delay_usecs = 0;
 		transfer.speed_hz = m_CurrentSpeed;
@@ -907,7 +922,7 @@ int LinxSysfsSpiChannel::WriteRead(unsigned char frameSize, unsigned char numFra
 			m_Device->DigitalWrite(1, &csChan, &csLL);
 
 		//Transfer Data
-		int retVal = ioctl(m_Fd, SPI_IOC_MESSAGE(1), &transfer);
+		int32_t retVal = ioctl(m_Fd, SPI_IOC_MESSAGE(1), &transfer);
 
 		//CS Idle
 		if (csChan)
@@ -923,7 +938,7 @@ int LinxSysfsSpiChannel::WriteRead(unsigned char frameSize, unsigned char numFra
 	return L_OK;
 }
 
-int LinxSysfsSpiChannel::Close(void)
+int32_t LinxSysfsSpiChannel::Close(void)
 {
 	// Close SPI handle
 	if ((m_Fd >= 0) && (close(m_Fd) < 0))

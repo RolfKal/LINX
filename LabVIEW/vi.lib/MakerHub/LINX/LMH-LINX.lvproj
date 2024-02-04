@@ -72,7 +72,6 @@
 			<Item Name="LINX - PmodTC1.vi" Type="VI" URL="../../../../examples/MakerHub/LINX/LINX - PmodTC1.vi"/>
 		</Item>
 		<Item Name="LMH-LINX.lvlib" Type="Library" URL="../LMH-LINX.lvlib"/>
-		<Item Name="LINX API.lvclass" Type="LVClass" URL="../API/LINX API.lvclass"/>
 		<Item Name="All LINX VIs.vi" Type="VI" URL="../../../../../All LINX VIs.vi"/>
 		<Item Name="Device.lvlib" Type="Library" URL="../Private/Device/Device.lvlib"/>
 		<Item Name="LMH-Toolbox.lvlib" Type="Library" URL="../../Toolbox/LMH-Toolbox.lvlib"/>

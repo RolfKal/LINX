@@ -61,7 +61,7 @@ class LinxBBBUartChannel : public LinxUnixUartChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SmartOpen(void);
+		virtual int32_t SmartOpen(void);
 
 	private:
 		/****************************************************************************************
@@ -83,7 +83,7 @@ class LinxBBBI2cChannel : public LinxSysfsI2cChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open(void);
+		virtual int32_t Open(void);
 
 	protected:
 		/****************************************************************************************
@@ -104,13 +104,13 @@ class LinxBBBSpiChannel : public LinxSysfsSpiChannel
 		/****************************************************************************************
 		**  Constructor
 		****************************************************************************************/
-		LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, unsigned int speed, const char *dtoName, const char *dtoSlotsPath);
+		LinxBBBSpiChannel(LinxFmtChannel *debug, const char *channelName, LinxDevice *device, uint32_t speed, const char *dtoName, const char *dtoSlotsPath);
 		virtual ~LinxBBBSpiChannel(void) {};
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open(void);
+		virtual int32_t Open(void);
 
 	protected:
 		/****************************************************************************************
@@ -143,7 +143,7 @@ class LinxBeagleBoneBlack : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
+		virtual uint8_t GetDeviceName(unsigned char *buffer, uint8_t length);
 
 		static bool loadDto(const char *slotsPath, const char* dtoName);				
 
@@ -159,7 +159,7 @@ class LinxBeagleBoneBlack : public LinxDevice
 		****************************************************************************************/		
 		const char *m_OverlaySlotsPath;		// The overlay slot export path
 		const char *m_DtoSlotsPath;			// Path to device tree overlay slots file.  Varies by OS version.
-		int m_FilePathLayout;				// Used to indicate the file path layout 7 for 7.x and 8 for 8.x
+		int32_t m_FilePathLayout;				// Used to indicate the file path layout 7 for 7.x and 8 for 8.x
 };
 
 #endif //LINX_BEAGLEBONEBLACK_H

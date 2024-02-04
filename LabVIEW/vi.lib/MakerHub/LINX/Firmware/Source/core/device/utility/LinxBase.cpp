@@ -28,7 +28,7 @@ LinxBase::LinxBase(void)
 /****************************************************************************************
 **  Functions
 ****************************************************************************************/
-unsigned int LinxBase::AddRef(void)
+uint32_t LinxBase::AddRef(void)
 {
 #if Win32
 	return InterlockedIncrement(&m_Refcount);
@@ -37,9 +37,9 @@ unsigned int LinxBase::AddRef(void)
 #endif
 }
 
-unsigned int LinxBase::Release(void)
+uint32_t LinxBase::Release(void)
 {
-	unsigned int refcount = 
+	uint32_t refcount = 
 #if Win32
 	InterlockedDecrement(&m_Refcount);
 #elif Unix

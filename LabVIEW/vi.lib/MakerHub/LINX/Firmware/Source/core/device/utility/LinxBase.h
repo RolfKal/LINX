@@ -16,10 +16,6 @@
 #endif
 #include "LinxDefines.h"
 
-typedef struct {
-	int test;
-} TestStruct;
-
 class LinxBase
 {
 	public:
@@ -36,11 +32,11 @@ class LinxBase
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned int AddRef(void);
-		virtual unsigned int Release(void);
+		virtual uint32_t AddRef(void);
+		virtual uint32_t Release(void);
 	protected:
 
 	private:
-		unsigned int m_Refcount;
+		uint32_t m_Refcount;
 };
 #endif

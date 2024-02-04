@@ -1,0 +1,18 @@
+///// LinxAPI Type Definition /////
+genericType: LinxAPI
+genericTypeName: LinxAPI
+refnum: GenericTag
+sorted: no
+adapt: no
+matchExact: no
+menuSelect: yes
+library: libLinxDev.*
+calling: C
+setFunction: LinxSetProperty
+getFunction: LinxGetProperty
+openFunction: LinxOpenDummy
+closeFunction: LinxCleanup
+cleanup: idle
+passAttributeError: none
+passMethodError: none
+hasActiveProp: no

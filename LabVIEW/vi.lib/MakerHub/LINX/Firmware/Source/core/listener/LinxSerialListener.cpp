@@ -28,42 +28,41 @@
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-int LinxSerialListener::Start(unsigned char uartChannel, unsigned int baudRate,
-			                  unsigned char dataBits, unsigned char stopBits,
-						      LinxUartParity parity, int timeout)
+int32_t LinxSerialListener::Start(uint8_t uartChannel, uint32_t baudRate,
+			                      uint8_t dataBits, uint8_t stopBits,
+						          LinxUartParity parity, int32_t timeout)
 {
-	LinxUartChannel *uartChan = NULL;
-	int status = m_LinxDev->UartOpen(uartChannel, &uartChan);
+	LinxUartChannel *channelObj;
+	int32_t status = m_LinxDev->UartOpen(uartChannel, &channelObj);
 	if (!status)
 	{
-		status = uartChan->SetSpeed(baudRate, NULL);
+		status = channelObj->SetSpeed(baudRate, NULL);
 		if (!status)
-			status = uartChan->SetParameters(dataBits, stopBits, parity);
+			status = channelObj->SetParameters(dataBits, stopBits, parity);
 		if (!status)
 		{
-			status = Run(uartChan, timeout);
+			status = Run(channelObj, timeout);
 		}
-		uartChan->Release();
 	}
 	return status;
 }
 
-int LinxSerialListener::Start(const unsigned char *deviceName, unsigned int baudRate,
-			                  unsigned char dataBits, unsigned char stopBits,
-						      LinxUartParity parity, int timeout)
+int32_t LinxSerialListener::Start(const unsigned char *deviceName, uint32_t baudRate,
+			                      uint8_t dataBits, uint8_t stopBits,
+						          LinxUartParity parity, int32_t timeout)
 {
-	LinxUartChannel *uartChan = NULL;
-	int status = m_LinxDev->UartOpen(deviceName,  NULL, &uartChan);
+	LinxUartChannel *channelObj;
+	uint8_t uartChannel;
+	int32_t status = m_LinxDev->UartOpen(deviceName, &uartChannel, &channelObj);
 	if (!status)
 	{
-		status = uartChan->SetSpeed(baudRate, NULL);
+		status = channelObj->SetSpeed(baudRate, NULL);
 		if (!status)
-			status = uartChan->SetParameters(dataBits, stopBits, parity);
+			status = channelObj->SetParameters(dataBits, stopBits, parity);
 		if (!status)
 		{
-			status = Run(uartChan, timeout);
+			status = Run(channelObj, timeout);
 		}
-		uartChan->Release();
 	}
 	return status;
 }
