@@ -186,7 +186,7 @@ class LinxUnixCommChannel : public LinxCommChannel
 		**  Functions
 		****************************************************************************************/
 		virtual int32_t SmartOpen(void);
-		int32_t m_Fd;
+		int32_t m_Socket;
 
 	private:
 

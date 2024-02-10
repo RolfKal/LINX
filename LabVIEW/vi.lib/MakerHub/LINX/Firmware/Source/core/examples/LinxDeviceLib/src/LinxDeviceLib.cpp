@@ -87,7 +87,7 @@ LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *clientAddress, uint1
 	return client;
 }
 
-LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char *deviceName, uint32_t baudRate, uint8_t dataBits, uint8_t stopBits, LinxUartParity parity, int32_t timeout, bool autostart)
+LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char *deviceName, uint32_t baudRate, uint8_t dataBits, uint8_t stopBits, LinxUartParity parity, bool autostart)
 {
 	if (!dev)
 		dev = LinxOpenLocalClient();
@@ -97,7 +97,7 @@ LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char
 	LinxSerialListener *listener = new LinxSerialListener(dev, autostart);
 	if (listener)
 	{
-		int32_t status = listener->Start(deviceName, baudRate, dataBits, stopBits, parity, timeout);
+		int32_t status = listener->Start(deviceName, baudRate, dataBits, stopBits, parity);
 		if (status)
 		{
 			listener->Release();
@@ -107,7 +107,7 @@ LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char
 	return listener;
 }
 
-LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *interfaceAddress, uint16_t port, int32_t timeout, bool autostart)
+LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *interfaceAddress, uint16_t port, bool autostart)
 {
 	if (!dev)
 		dev = LinxOpenLocalClient();
@@ -117,20 +117,21 @@ LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *i
 	LinxTcpListener *listener = new LinxTcpListener(dev, autostart);
 	if (listener)
 	{
-		int32_t status = listener->Start(interfaceAddress, port, timeout);
+		int32_t status = listener->Start(interfaceAddress, port);
 		if (status)
 		{
 			listener->Release();
-			return NULL;
+			listener = NULL;
 		}
 	}
+	dev->Release();
 	return listener;
 }
 
-LibAPI(int32_t) LinxServerProcess(LinxListener *listener, bool loop)
+LibAPI(int32_t) LinxServerProcess(LinxListener *listener, int32_t timeout)
 {
 	if (listener)
-		return listener->ProcessLoop(loop);
+		return listener->ProcessLoop(timeout);
 	return L_DISCONNECT;
 }
 

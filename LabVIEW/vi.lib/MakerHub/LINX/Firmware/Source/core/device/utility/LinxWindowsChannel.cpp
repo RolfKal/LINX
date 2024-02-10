@@ -50,7 +50,7 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsi
 		for (rp = result; rp != NULL; rp = rp->ai_next)
 		{
 			m_Socket = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-			if (m_Socket < 0)
+			if (!IsANetObject(m_Socket))
 				continue;
 
 			switch (rp->ai_addr->sa_family)
@@ -73,6 +73,7 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsi
 					break;
 			}
 			closesocket(m_Socket);
+			m_Socket = kInvalNetObject;
 		}
 		freeaddrinfo(result);
 		if (rp == NULL)
@@ -94,7 +95,7 @@ LinxWindowsCommChannel::~LinxWindowsCommChannel(void)
 
 #define kRetryLimit 25
 
-int32_t LinxWindowsCommChannel::Read(unsigned char* recBuffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead)
+int32_t LinxWindowsCommChannel::Read(uint8_t* recBuffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead)
 {
 	int32_t retval;
 	
@@ -141,7 +142,7 @@ int32_t LinxWindowsCommChannel::Read(unsigned char* recBuffer, uint32_t numBytes
 			while (retval < 0);
 
 			if (!retval)
-				return LUART_TIMEOUT;
+				return LERR_TIMEOUT;
 
 			// some socket event was triggered, check which one
 			if (FD_ISSET(m_Socket, &readfds))
@@ -211,7 +212,7 @@ int32_t LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, uint32_t 
 			while (retval < 0);
 
 			if (!retval)
-				return LUART_TIMEOUT;
+				return LERR_TIMEOUT;
 
 			// some socket event was triggered, check which one
 			if (FD_ISSET(m_Socket, &writefds))
@@ -383,7 +384,7 @@ int32_t LinxWindowsUartChannel::Read(unsigned char* recBuffer, uint32_t numBytes
 			{
 				status = ReadFile(m_Handle, recBuffer, numBytes, (LPDWORD)numBytesRead, NULL);
 				if (status && *numBytesRead < numBytes)
-					return LUART_TIMEOUT;
+					return LERR_TIMEOUT;
 			}
 		}
 	}

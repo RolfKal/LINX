@@ -138,7 +138,7 @@ static int32_t initializeFrequency(void)
 	{
 		isAvailable = QueryPerformanceFrequency(&g_Frequency) != 0;
 		if (isAvailable)
-			g_Frequency.QuadPart;
+			g_Frequency.QuadPart /= 1000;
 	}
 	return isAvailable;
 }
@@ -156,7 +156,7 @@ uint64_t getUsTicks(void)
 		LARGE_INTEGER counter;
 		if (QueryPerformanceCounter(&counter))
 		{
-			counter.QuadPart /= g_Frequency.QuadPart * 1000000;
+			counter.QuadPart /= g_Frequency.QuadPart / 1000;
 			return counter.QuadPart;
 		}
 	}
@@ -178,7 +178,7 @@ uint32_t getMsTicks(void)
 		LARGE_INTEGER counter;
 		if (QueryPerformanceCounter(&counter))
 		{
-			counter.QuadPart /= g_Frequency.QuadPart * 1000;
+			counter.QuadPart /= g_Frequency.QuadPart;
 			return (uint32_t)(counter.QuadPart & UINT_MAX);
 		}
 	}

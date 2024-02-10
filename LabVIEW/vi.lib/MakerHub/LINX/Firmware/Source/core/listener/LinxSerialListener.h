@@ -47,10 +47,10 @@ class LinxSerialListener : public LinxListener
 		****************************************************************************************/
 		int32_t Start(uint8_t uartChan, uint32_t baudRate = 9600,
 			              uint8_t dataBits = 8, uint8_t stopBits = 2,
-						  LinxUartParity parity = None, int32_t timeout = 2000);
+						  LinxUartParity parity = None);
 		int32_t Start(const unsigned char *deviceName, uint32_t baudRate = 9600,
 			              uint8_t dataBits = 8, uint8_t stopBits = 2,
-						  LinxUartParity parity = None, int32_t timeout = 2000);
+						  LinxUartParity parity = None);
 	protected:
 		/****************************************************************************************
 		**  Functions

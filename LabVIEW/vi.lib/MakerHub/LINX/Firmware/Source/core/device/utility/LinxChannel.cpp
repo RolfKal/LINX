@@ -126,7 +126,7 @@ int32_t LinxAnalogChannel::SetResolution(uint8_t resolution)
 	return L_OK;
 }
 
-static const int8_t lookup[] = { 0, 12, 25, 37, 49, 60, 71, 81, 90, 98, 106, 112, 117, 122, 125, 126, 127, 126, 125, 122, 117, 112, 106, 98, 90, 81, 71, 60, 49, 37, 25, 12, 0, -12, -25, -37, -49, -60, -71, -81, -90, -98, -106, -112, -117, -122, -125, -126, -127, -126, -125, -122, -117, -112, -106, -98, -90, -81, -71, -60, -49, -37, -25, -12 };
+static const uint8_t lookup[] = { 128, 140, 153, 165, 177, 188, 199, 209, 218, 226, 234, 240, 245, 250, 253, 254, 255, 254, 253, 250, 245, 240, 234, 226, 218, 209, 199, 188, 177, 165, 153, 140, 128, 116, 103, 91, 79, 68, 57, 47,38, 30, 22, 16, 11, 6, 3, 2, 1, 2, 3, 6, 11, 16, 22, 30, 38, 47, 57, 68, 79, 91, 103, 116 };
 
 int32_t LinxAnalogChannel::GetResolution(uint8_t *resolution)
 {
@@ -136,8 +136,10 @@ int32_t LinxAnalogChannel::GetResolution(uint8_t *resolution)
 
 int32_t LinxAiChannel::Read(uint32_t *value)
 {
-	int32_t sinVal = lookup[getMsTicks() % sizeof(lookup)];
-	*value = m_ResOffset >= 0 ? sinVal >> m_ResOffset : sinVal << -m_ResOffset;
+	uint32_t tick = getMsTicks();
+	uint32_t size = sizeof(lookup);
+	uint32_t sinVal = lookup[tick % size];
+	*value = (m_ResOffset >= 0) ? sinVal << m_ResOffset : sinVal >> -m_ResOffset;
 	return L_OK;
 }
 

@@ -47,22 +47,21 @@ class LinxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int32_t Start(const unsigned char *interfaceAddress, uint16_t port = 44300, int32_t timeout = 2000);
-		virtual int32_t Start(const unsigned char *interfaceAddress, const char *servName, int32_t timeout = 2000);
+		virtual int32_t Start(const unsigned char *interfaceAddress, uint16_t port = 44300);
+		virtual int32_t Start(const unsigned char *interfaceAddress, const char *servName);
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int32_t WaitForConnection(void);
-		virtual int32_t Close(void);
+		virtual int32_t WaitForConnection(int32_t timeout);
+		virtual int32_t Terminate(void);
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
 		uint32_t m_TcpUpdateTime;
-		struct timeval m_TcpTimeout;
 
 		NetObject m_ServerSocket;
 		/****************************************************************************************

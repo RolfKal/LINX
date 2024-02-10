@@ -191,6 +191,9 @@ class LinxDevice : public LinxBase
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
+		virtual uint32_t PackData(uint32_t value, uint32_t resolution, uint32_t *remaining, uint8_t *values, uint32_t offset);
+		virtual uint32_t UnpackData(uint32_t resolution, uint32_t *remaining, uint8_t *values, uint32_t *offset);
+
 		virtual int32_t VerifyChannels(int32_t type, uint8_t numChans, uint8_t *channel);
 		virtual LinxChannel* LookupChannel(int32_t type, const unsigned char *channelName, uint8_t *channel);
 		virtual LinxChannel* LookupChannel(int32_t type, uint8_t channel);

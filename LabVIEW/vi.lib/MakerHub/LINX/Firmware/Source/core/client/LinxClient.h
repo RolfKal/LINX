@@ -50,7 +50,6 @@ class LinxClient : public LinxDevice
 		virtual int32_t AnalogRead(uint8_t numChans, uint8_t* channels, uint8_t* values);
 		virtual int32_t AnalogReadNoPacking(uint8_t numChans, uint8_t* channels, uint32_t* values);		//Values Are ADC Ticks And Not Bit Packed
 		virtual int32_t AnalogReadValues(uint8_t numChans, uint8_t* channels, double* values);
-		virtual int32_t AnalogSetRef(uint8_t mode, uint32_t voltage);
 		virtual int32_t AnalogWrite(uint8_t numChans, uint8_t* channels, uint8_t* values);
 		virtual int32_t AnalogWriteValues(uint8_t numChans, uint8_t* channels, double* values);
 
@@ -84,11 +83,6 @@ class LinxClient : public LinxDevice
 		//UART
 		virtual int32_t UartOpen(uint8_t channel, LinxUartChannel **channelObj = NULL);
 		virtual int32_t UartOpen(const unsigned char *deviceName, uint8_t *channel, LinxUartChannel **channelObj = NULL);
-//		virtual int32_t UartSetBaudRate(uint8_t channel, uint32_t baudRate, uint32_t* actualBaud);
-//		virtual int32_t UartGetBytesAvailable(uint8_t channel, uint32_t *numBytes);
-//		virtual int32_t UartRead(uint8_t channel, uint32_t numBytes, uint8_t* recBuffer, uint32_t* numBytesRead);
-//		virtual int32_t UartWrite(uint8_t channel, uint32_t numBytes, uint8_t* sendBuffer);
-//		virtual int32_t UartClose(uint8_t channel);
 
 		//Servo
 		virtual int32_t ServoOpen(uint8_t numChans, uint8_t* chans);
@@ -111,7 +105,7 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int32_t Initialize(LinxCommChannel *channel);	
+		virtual int32_t Initialize(LinxCommChannel *channel, int32_t timeout);	
 
 	private:
 		/****************************************************************************************

@@ -157,48 +157,24 @@ LinxFmtChannel* LinxDevice::GetDebug(void)
 	return m_Debug;
 }
 
-
 //--------------------------------------------------------Analog-------------------------------------------------------
 int32_t LinxDevice::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	int32_t status = L_OK;
-	uint8_t responseByteOffset = 0;
-	uint8_t responseBitsRemaining = 8;
-	uint8_t dataBitsRemaining;
+	uint32_t aiVal, offset = 0, remaining = 8;
 
-	values[responseByteOffset] = 0x00;				// Clear next response byte
-	for (int32_t i = 0; i < numChans; i++)
+	values[offset] = 0x00;				// Clear next response byte
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
 		LinxAiChannel *channelObj = (LinxAiChannel*)LookupChannel(IID_LinxAiChannel, channels[i]);
 		if (!channelObj)
 			return LERR_BADCHAN;
 
 		// Acquire AI Sample
-		uint32_t aiVal = 0;
 		status = channelObj->Read(&aiVal);
-		if (status)
-			return status;
-
-		dataBitsRemaining = AiResolution;
-		// Byte packed AI values in response data
-		while (dataBitsRemaining > 0)
+		if (!status)
 		{
-			*(values + responseByteOffset) |= (uint8_t)((aiVal >> (AiResolution - dataBitsRemaining)) << (8 - responseBitsRemaining));
-
-			if (responseBitsRemaining > dataBitsRemaining)
-			{
-				// Current Byte Still Has Empty Bits
-				responseBitsRemaining -= dataBitsRemaining;
-				dataBitsRemaining = 0;
-			}
-			else
-			{
-				// Current Byte Full
-				dataBitsRemaining -= responseBitsRemaining;
-				responseByteOffset++;
-				responseBitsRemaining = 8;
-				values[responseByteOffset] = 0x00;	// Clear next response byte
-			}
+			offset = PackData(aiVal, this->AiResolution, &remaining, values, offset);
 		}
 		channelObj->Release();
 	}
@@ -223,8 +199,8 @@ int32_t LinxDevice::AnalogReadNoPacking(unsigned char numChans, unsigned char* c
 int32_t LinxDevice::AnalogReadValues(uint8_t numChans, uint8_t* channels, double* values)
 {
 	int32_t status = L_OK;
-	uint32_t aiVal, resolution = ((1 << this->AiResolution) - 1);
-	double scale = ((double)this->AiRefSet / 1000000.0) / resolution;
+	uint32_t aiVal;
+	double scale = ((double)this->AiRefSet / 1000000.0) / (1 << this->AiResolution);
 	for (int32_t i = 0; !status && i < numChans; i++)
 	{
 		LinxAiChannel *channelObj = (LinxAiChannel*)LookupChannel(IID_LinxAiChannel, channels[i]);
@@ -243,43 +219,37 @@ int32_t LinxDevice::AnalogReadValues(uint8_t numChans, uint8_t* channels, double
 
 int32_t LinxDevice::AnalogSetRef(unsigned char mode, uint32_t voltage)
 {
-	int32_t status = L_FUNCTION_NOT_SUPPORTED;
-	
-	return status;
+	uint32_t num = EnumerateChannels(IID_LinxAiChannel);
+	if (!num)
+		return LANALOG_REF_VAL_ERROR;
+
+	switch (mode)
+	{
+		case 0: //Default
+			this->AiRefSet = this->AiRefDefault;
+			break;
+		case 1: //Internal
+		case 2: //External
+			this->AiRefSet = voltage;
+			break;
+		default:
+			return LANALOG_REF_MODE_ERROR;
+	}
+	return L_OK;
 }
 
 int32_t LinxDevice::AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	int32_t status = L_OK;
-	uint32_t aoVal = 0;
-	uint8_t sourceByteOffset = 0;
-	uint8_t sourceBitsRemaining = 8;
-	uint8_t dataBitsRemaining;
+	uint32_t aoVal = 0, offset = 0, remaining = 8;
+
 	for (int32_t i = 0; !status && i < numChans; i++)
 	{
 		LinxAoChannel *channelObj = (LinxAoChannel*)LookupChannel(IID_LinxAoChannel, channels[i]);
 		if (!channelObj)
 			return LERR_BADCHAN;
 
-		dataBitsRemaining = AoResolution;
-		aoVal = 0;
-		while (dataBitsRemaining)
-		{
-			aoVal |= ((uint32_t)*(values + sourceByteOffset) << (AoResolution - dataBitsRemaining)) >> (8 - sourceBitsRemaining);
-			if (sourceBitsRemaining > dataBitsRemaining)
-			{
-				// Current byte still has unused bits
-				sourceBitsRemaining -= dataBitsRemaining;
-				dataBitsRemaining = 0;
-			}
-			else
-			{
-				// Current Byte Used up
-				dataBitsRemaining -= sourceBitsRemaining;
-				sourceByteOffset++;
-				sourceBitsRemaining = 8;
-			}
-		}
+		aoVal = UnpackData(this->AoResolution, &remaining, values, &offset);
 		status = channelObj->Write(aoVal);
 		channelObj->Release();
 	}
@@ -289,14 +259,14 @@ int32_t LinxDevice::AnalogWrite(unsigned char numChans, unsigned char* channels,
 int32_t LinxDevice::AnalogWriteValues(uint8_t numChans, uint8_t* channels, double *values)
 {
 	int32_t status = L_OK;
-	uint32_t aoVal, resolution = ((1 << this->AoResolution) - 1);
+	uint32_t aoVal, resolution = (1 << this->AoResolution);
 	double scale = resolution / ((double)this->AoRefSet / 1000000.0);
 	for (int32_t i = 0; !status && i < numChans; i++)
 	{
 		LinxAoChannel *channelObj = (LinxAoChannel*)LookupChannel(IID_LinxAoChannel, channels[i]);
 		if (!channelObj)
 			return LERR_BADCHAN;
-		
+
 		aoVal = (uint32_t)(values[i] * scale);
 		status = channelObj->Write(aoVal);
 		channelObj->Release();
@@ -404,23 +374,25 @@ int32_t LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* 
 int32_t LinxDevice::DigitalWriteSquareWave(unsigned char channel, uint32_t freq, uint32_t duration)
 {
 	LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channel);
-	if (!channelObj)
-		return LERR_BADCHAN;
-		
-	int32_t status = channelObj->WriteSquareWave(freq, duration);
-	channelObj->Release();
-	return status;
+	if (channelObj)
+	{
+		int32_t status = channelObj->WriteSquareWave(freq, duration);
+		channelObj->Release();
+		return status;
+	}
+	return LERR_BADCHAN;
 }
 
 int32_t LinxDevice::DigitalReadPulseWidth(unsigned char channel, unsigned char stimType, unsigned char respChan, unsigned char respType, uint32_t timeout, uint32_t* width)
 {
 	LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channel);
-	if (!channelObj)
-		return LERR_BADCHAN;
-		
-	int32_t status = channelObj->ReadPulseWidth(stimType, respChan, respType, timeout, width);
-	channelObj->Release();
-	return status;
+	if (channelObj)
+	{
+		int32_t status = channelObj->ReadPulseWidth(stimType, respChan, respType, timeout, width);
+		channelObj->Release();
+		return status;
+	}
+	return LERR_BADCHAN;
 }
 
 // ---------------- PWM Functions ------------------ 
@@ -950,4 +922,52 @@ void LinxDevice::ClearChannels(int32_t type)
 		}
 	}
 	m.clear();
+}
+
+uint32_t LinxDevice::PackData(uint32_t value, uint32_t resolution, uint32_t *remaining, uint8_t *values, uint32_t offset) 
+{
+	uint32_t dataBits = resolution;
+	// Byte packed AI values in response data
+	while (dataBits > 0)
+	{
+		values[offset] |= (uint8_t)((value >> (resolution - dataBits)) << (8 - *remaining));
+
+		if (*remaining > dataBits)
+		{
+			// Current Byte Still Has Empty Bits
+			*remaining -= dataBits;
+			dataBits = 0;
+		}
+		else
+		{
+			// Current Byte Full
+			dataBits -= *remaining;
+			*remaining = 8;
+			values[++offset] = 0x00;	// Clear next response byte
+		}
+	}
+	return offset;
+}
+
+uint32_t LinxDevice::UnpackData(uint32_t resolution, uint32_t *remaining, uint8_t *values, uint32_t *offset) 
+{
+	uint32_t value = 0, dataBits = resolution;
+	while (dataBits)
+	{
+		value |= ((uint32_t)values[*offset] << (resolution - dataBits)) >> (8 - *remaining);
+		if (*remaining > dataBits)
+		{
+			// Current byte still has unused bits
+			*remaining -= dataBits;
+			dataBits = 0;
+		}
+		else
+		{
+			// Current Byte Used up
+			dataBits -= *remaining;
+			(*offset)++;
+			*remaining = 8;
+		}
+	}
+	return value;
 }

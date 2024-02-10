@@ -400,13 +400,14 @@ int32_t LinxSysfsPwmChannel::SetDutyCycle(uint8_t value)
 //------------------------------------- Unix Comm -------------------------------------
 LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, OSSocket socket) : LinxCommChannel(debug, channelName)
 {
-	m_Fd = socket;
+	m_Socket = socket;
 }
 
 LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *address, uint16_t port) : LinxCommChannel(debug, address)
 {
     struct addrinfo hints, *result, *rp;
-	char str[10];
+	char servname[10];
+	int32_t retval;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
@@ -414,13 +415,13 @@ LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned c
     hints.ai_protocol = AF_UNSPEC;
     hints.ai_flags = AI_NUMERICSERV;
 
-	sprintf(str, "%hu", port);
-	if (!getaddrinfo(address,  str, &hints, &result))
+	sprintf(servname, "%hu", port);
+	if (!getaddrinfo(address,  servname, &hints, &result))
 	{
 		for (rp = result; rp != NULL; rp = rp->ai_next)
 		{
-			m_Fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-			if (m_Fd < 0)
+			m_Socket = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+			if (!IsANetObject(m_Socket))
 				continue;
 
 			switch (rp->ai_addr->sa_family)
@@ -434,11 +435,16 @@ LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned c
 				default:
 					continue;
 			}
-            if (connect(m_Fd, rp->ai_addr, (socklen_t)rp->ai_addrlen) != -1)
-				break;
-
-			close(m_Fd);
-			m_Fd = -1;
+            retval = connect(m_Socket, rp->ai_addr, (socklen_t)rp->ai_addrlen);
+            if (retval != -1)
+			{
+				u_long nonBlocking = 1;
+				retval = ioctl(m_Socket, FIONBIO, &nonBlocking);
+				if (retval >= 0)
+					break;
+			}
+			close(m_Socket);
+			m_Socket = kInvalNetObject;
 		}
 		freeaddrinfo(result);
 		if (rp == NULL)
@@ -451,8 +457,8 @@ LinxUnixCommChannel::LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned c
 
 LinxUnixCommChannel::~LinxUnixCommChannel(void)
 {
-	if (m_Fd >= 0)
-		close(m_Fd);
+	if (m_Socket >= 0)
+		close(m_Socket);
 }
 
 int32_t LinxUnixCommChannel::Read(unsigned char* recBuffer, int32_t numBytes, uint32_t start, int32_t timeout, int32_t* numBytesRead)
@@ -464,36 +470,57 @@ int32_t LinxUnixCommChannel::Read(unsigned char* recBuffer, int32_t numBytes, ui
 		struct pollfd fds[1];
 		int32_t retval, offset = 0;
 
-		fds[0].fd = m_Fd;
+		fds[0].fd = m_Socket;
 		fds[0].events = POLLIN ;
 
 		while (*numBytesRead < numBytes)
 		{
 			retval = poll(fds, 1, timeout < 0 ? -1 : Min(timeout - (getMsTicks() - start), 0));
-			if (retval <= 0)
-				return retval ? LUART_READ_FAIL : LUART_TIMEOUT;
-
-			// Read bytes from input buffer
-			retval = read(m_Fd, recBuffer + offset, numBytes - offset);
-			if (retval < 0)
+			if (!retval)
+			{
+				return LUART_TIMEOUT;
+			}
+			else if (retval < 0)
+			{
 				return LUART_READ_FAIL;
+			}
+			// Read bytes from input buffer
+			retval = read(m_Socket, recBuffer + offset, numBytes - offset);
+			if (!retval)
+			{
+				return L_DISCONNECT;
+			}
+			else
+			{
+				return LUART_READ_FAIL;
+			}
 			*numBytesRead += retval;
 		}
 	}
 	else
 	{
 		// Check how many bytes are available
-		if (ioctl(m_Fd, FIONREAD, numBytesRead) < 0)
+		if (ioctl(m_Socket, FIONREAD, numBytesRead) < 0)
+		{
+			if (errno == EBADF)
+			{
+				return L_DISCONNECT;
+			}
 			return LUART_READ_FAIL;
+		}
 	}
 	return L_OK;
 }
 
 int32_t LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int32_t numBytes, uint32_t start, nt timeout)
 {
-	int32_t bytesSent = write(m_Fd, sendBuffer, numBytes);
+	int32_t bytesSent = write(m_Socket, sendBuffer, numBytes);
 	if (bytesSent != numBytes)
 	{
+		if (bytesSent < 0 && errno == EBADF)
+		{
+			return L_DISCONNECT;
+		}
 		return LUART_WRITE_FAIL;
 	}
 	return L_OK;
@@ -501,9 +528,9 @@ int32_t LinxUnixCommChannel::Write(const unsigned char* sendBuffer, int32_t numB
 
 int32_t LinxUnixCommChannel::Close(void)
 {
-	if (m_Fd >= 0)
-		close(m_Fd);
-	m_Fd = -1;
+	if (m_Socket >= 0)
+		close(m_Socket);
+	m_Socket = kInvalNetObject;
 	return L_OK;
 }
 
@@ -513,20 +540,20 @@ LinxUnixUartChannel::LinxUnixUartChannel(LinxFmtChannel *debug, const char *devi
 	struct termios2 options;
 
 	// Open device as read/write, no CTRL-C handling and non-blocking
-	m_Fd = open(m_ChannelName, O_RDWR | O_NOCTTY | O_NONBLOCK);
-	if (m_Fd < 0)
+	m_Socket = open(m_ChannelName, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	if (m_Socket < 0)
 	{
 		m_Debug->Write("Unix Socket Fail - Failed to open file handle - ");
 		m_Debug->Writeln(m_ChannelName);
 		return  LUART_OPEN_FAIL;
 	}
-	if (ioctl(m_Fd, TCGETS, &options) < 0)
+	if (ioctl(m_Socket, TCGETS, &options) < 0)
 		return LERR_IO;
 
 	options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // Use raw input mode
 	options.c_oflag &= ~OPOST;							// Use raw output mode
 
-	if (ioctl(m_Fd, TCSETS, &options) < 0)
+	if (ioctl(m_Socket, TCSETS, &options) < 0)
 		return LERR_IO;
 
 	return L_OK;
@@ -545,11 +572,11 @@ int32_t LinxUnixUartChannel::SetSpeed(uint32_t baudRate, uint32_t* actualBaud)
 
 	// If driver supports newer TCGETS2 ioctl call, assume that we can set arbitrary baudrates
 	// Actual used baudrate may still be different due to discrete clock generation
-	if (ioctl(m_Fd, TCGETS2, &options) < 0)
+	if (ioctl(m_Socket, TCGETS2, &options) < 0)
 	{
 		int32_t temp;
 
-		if (ioctl(m_Fd, TCGETS, &options) < 0)
+		if (ioctl(m_Socket, TCGETS, &options) < 0)
 			return LERR_IO;
 
 		// Get Closest Support Baud Rate Without Going Over
@@ -583,8 +610,8 @@ int32_t LinxUnixUartChannel::SetSpeed(uint32_t baudRate, uint32_t* actualBaud)
 	}
 
 	//Set Baud Rate
-	ioctl(m_Fd, TCFLSH, TCIFLUSH);
-	if (ioctl(m_Fd, ioctlval, &options) < 0)
+	ioctl(m_Socket, TCFLSH, TCIFLUSH);
+	if (ioctl(m_Socket, ioctlval, &options) < 0)
 		return LERR_IO;
 	return  L_OK;
 }
@@ -612,7 +639,7 @@ int32_t LinxUnixUartChannel::SetParameters(uint8_t dataBits, uint8_t stopBits, L
 		return L_OK;
 
 	struct termios options;
-	if (ioctl(m_Fd, TCGETS, &options) >= 0)
+	if (ioctl(m_Socket, TCGETS, &options) >= 0)
 	{
 		if (dataBits)
 			options.c_cflag = (options.c_cflag & ~CSIZE) | BitSizes[dataBits - BIT_SIZE_OFFSET];
@@ -634,10 +661,10 @@ int32_t LinxUnixUartChannel::SetParameters(uint8_t dataBits, uint8_t stopBits, L
 			options.c_iflag |= IGNPAR; // Ignore parity errors
 		}
 		options.c_iflag |= (INPCK | ISTRIP);
-		if (ioctl(m_Fd, TCSETS, &options) >= 0)
+		if (ioctl(m_Socket, TCSETS, &options) >= 0)
 			return  L_OK;
 
-		if (ioctl(m_Fd, TCSETS, &options) >= 0)
+		if (ioctl(m_Socket, TCSETS, &options) >= 0)
 			return  L_OK;
 	}
 	return LUART_SET_PARAM_FAIL;

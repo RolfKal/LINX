@@ -24,9 +24,9 @@
 ****************************************************************************************/
 LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 {
-	int32_t i;
+#if DEBUG
 	char sFriendlyName[32];
-
+#endif
 	//LINX API Version
 	LinxApiMajor = 2;
 	LinxApiMinor = 2;
@@ -42,10 +42,10 @@ LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 
 	//------------------------------------- AI ---------------------------------------
 	AiResolution = 12;
-	AiRefDefault = 5;
-	AiRefSet = 5;
+	AiRefDefault = 5000000;
+	AiRefSet = 5000000;
 #if DEBUG
-	for (i = 1; i <= 8; i++)
+	for (int32_t i = 1; i <= 8; i++)
 	{
 		sprintf(sFriendlyName, "AI%d", i);
 		LinxAnalogChannel *channel = new LinxAiChannel(m_Debug, (unsigned char*)sFriendlyName, AiResolution);
@@ -55,10 +55,10 @@ LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 
 	//------------------------------------- AO ---------------------------------------
 	AoResolution = 12;
-	AoRefDefault = 5;
-	AoRefSet = 5;
+	AoRefDefault = 5000000;
+	AoRefSet = 5000000;
 #if DEBUG
-	for (i = 1; i <= 4; i++)
+	for (int32_t i = 1; i <= 4; i++)
 	{
 		sprintf(sFriendlyName, "AO%d", i);
 		LinxAnalogChannel *channel = new LinxAoChannel(m_Debug, (unsigned char*)sFriendlyName, AoResolution);
@@ -68,6 +68,12 @@ LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 
 	//------------------------------------- DIO --------------------------------------
 #if DEBUG
+	for (int32_t i = 1; i <= 16; i++)
+	{
+		sprintf(sFriendlyName, "AO%d", i);
+		LinxDioChannel *channel = new LinxDioChannel(m_Debug, i, i);
+		RegisterChannel(IID_LinxDioChannel, i, channel);
+	}
 #endif
 
 	//------------------------------------- PWM --------------------------------------
@@ -86,10 +92,6 @@ LinxWindowsDevice::LinxWindowsDevice(LinxFmtChannel *debug) : LinxDevice(debug)
 	//------------------------------------- CAN -------------------------------------
 
 	//------------------------------------ SERVO ------------------------------------
-}
-
-LinxWindowsDevice::~LinxWindowsDevice(void)
-{
 }
 
 unsigned char LinxWindowsDevice::EnumerateCommPorts(const GUID *guid, DWORD dwFlags)

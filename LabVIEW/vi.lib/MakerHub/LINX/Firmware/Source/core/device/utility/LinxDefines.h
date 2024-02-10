@@ -175,6 +175,7 @@
 ****************************************************************************************/
 typedef enum LinxStatus
 {
+	L_WAITING = -1,
 	L_OK = 0,
 	L_FUNCTION_NOT_SUPPORTED,
 	L_REQUEST_RESEND,
@@ -191,6 +192,7 @@ typedef enum LinxStatus
 	LERR_LENGTH_NOT_SUPPORTED,
 	LERR_MSG_TO_LONG,
 	LERR_CLOSED_BY_PEER,
+	LERR_TIMEOUT
 } LinxStatus;
 
 typedef enum AioStatus
@@ -233,7 +235,6 @@ typedef enum UartStatus
 	LUART_READ_FAIL,
 	LUART_WRITE_FAIL,
 	LUART_CLOSE_FAIL,
-	LUART_TIMEOUT
 } UartStatus;
 
 typedef enum LinxUartParity

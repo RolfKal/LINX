@@ -26,12 +26,12 @@
 
 //------------------------------------- Constructor/Destructor -------------------------------------
 LibAPI(LinxDevice *) LinxOpenLocalClient(void);
-LibAPI(LinxDevice *) LinxOpenSerialDevice(const unsigned char *deviceName, uint32_t *baudrate, uint8_t dataBits, uint8_t stopBits, LinxUartParity parity, int32_t timeout);
+LibAPI(LinxDevice *) LinxOpenSerialClient(const unsigned char *deviceName, uint32_t *baudrate, uint8_t dataBits, uint8_t stopBits, LinxUartParity parity, int32_t timeout);
 LibAPI(LinxDevice *) LinxOpenTCPClient(const unsigned char *clientAddress, uint16_t port, int32_t timeout);
 
-LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char *deviceName, uint32_t baudRate, uint8_t dataBits, uint8_t stopBits, LinxUartParity parity, int32_t timeout, bool autostart);
-LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *interfaceAddress, uint16_t port, int32_t timeout, bool autostart);
-LibAPI(int32_t) LinxServerProcess(LinxListener *listener, bool loop);
+LibAPI(LinxListener *) LinxOpenSerialServer(LinxDevice *dev, const unsigned char *deviceName, uint32_t baudRate, uint8_t dataBits, uint8_t stopBits, LinxUartParity parity, bool autostart);
+LibAPI(LinxListener *) LinxOpenTCPServer(LinxDevice *dev, const unsigned char *interfaceAddress, uint16_t port, bool autostart);
+LibAPI(int32_t) LinxServerProcess(LinxListener *listener, int32_t timeout);
 
 LibAPI(int32_t) LinxCloseRef(LinxBase *base);
 

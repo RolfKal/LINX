@@ -30,7 +30,7 @@
 ****************************************************************************************/
 int32_t LinxSerialListener::Start(uint8_t uartChannel, uint32_t baudRate,
 			                      uint8_t dataBits, uint8_t stopBits,
-						          LinxUartParity parity, int32_t timeout)
+						          LinxUartParity parity)
 {
 	LinxUartChannel *channelObj;
 	int32_t status = m_LinxDev->UartOpen(uartChannel, &channelObj);
@@ -41,7 +41,7 @@ int32_t LinxSerialListener::Start(uint8_t uartChannel, uint32_t baudRate,
 			status = channelObj->SetParameters(dataBits, stopBits, parity);
 		if (!status)
 		{
-			status = Run(channelObj, timeout);
+			status = Run(channelObj);
 		}
 	}
 	return status;
@@ -49,7 +49,7 @@ int32_t LinxSerialListener::Start(uint8_t uartChannel, uint32_t baudRate,
 
 int32_t LinxSerialListener::Start(const unsigned char *deviceName, uint32_t baudRate,
 			                      uint8_t dataBits, uint8_t stopBits,
-						          LinxUartParity parity, int32_t timeout)
+						          LinxUartParity parity)
 {
 	LinxUartChannel *channelObj;
 	uint8_t uartChannel;
@@ -61,7 +61,7 @@ int32_t LinxSerialListener::Start(const unsigned char *deviceName, uint32_t baud
 			status = channelObj->SetParameters(dataBits, stopBits, parity);
 		if (!status)
 		{
-			status = Run(channelObj, timeout);
+			status = Run(channelObj);
 		}
 	}
 	return status;
