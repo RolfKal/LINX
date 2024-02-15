@@ -36,65 +36,66 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxClient(const unsigned char *uartDevice, unsigned int *baudrate, unsigned char dataBits, unsigned char stopBits,  LinxUartParity parity, int timeout);
-		LinxClient(const unsigned char *netAddress, unsigned short port, int timeout);
+		LinxClient(const unsigned char *uartDevice, uint32_t *baudrate, uint8_t dataBits, uint8_t stopBits,  LinxUartParity parity, int32_t timeout);
+		LinxClient(const unsigned char *netAddress, uint16_t port, int32_t timeout);
 		virtual ~LinxClient(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
-		int IsInitialized(void);
+		virtual unsigned char GetDeviceName(unsigned char *buffer, uint8_t length);
+		int32_t IsInitialized(void);
 
 		//Analog
-		virtual int AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values);		//Values Are ADC Ticks And Not Bit Packed
-		virtual int AnalogSetRef(unsigned char mode, unsigned int voltage);
-		virtual int AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned int* values);
+		virtual int32_t AnalogRead(uint8_t numChans, uint8_t* channels, uint8_t* values);
+		virtual int32_t AnalogReadNoPacking(uint8_t numChans, uint8_t* channels, uint32_t* values);		//Values Are ADC Ticks And Not Bit Packed
+		virtual int32_t AnalogReadValues(uint8_t numChans, uint8_t* channels, double* values);
+		virtual int32_t AnalogWrite(uint8_t numChans, uint8_t* channels, uint8_t* values);
+		virtual int32_t AnalogWriteValues(uint8_t numChans, uint8_t* channels, double* values);
 
 		//DIGITAL
-		virtual int DigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Values Not Bit Packed
-		virtual int DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values);
-		virtual int DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values);		//Response Not Bit Packed
-		virtual int DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration);
-		virtual int DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
+		virtual int32_t DigitalSetState(uint8_t numChans, uint8_t* channels, uint8_t* values);
+		virtual int32_t DigitalWrite(uint8_t numChans, uint8_t* channels, uint8_t* values);
+		virtual int32_t DigitalWriteNoPacking(uint8_t numChans, uint8_t* channels, uint8_t* values);		//Values Not Bit Packed
+		virtual int32_t DigitalRead(uint8_t numChans, uint8_t* channels, uint8_t* values);
+		virtual int32_t DigitalReadNoPacking(uint8_t numChans, uint8_t* channels, uint8_t* values);		//Response Not Bit Packed
+		virtual int32_t DigitalWriteSquareWave(uint8_t channel, uint32_t freq, uint32_t duration);
+		virtual int32_t DigitalReadPulseWidth(uint8_t stimChan, uint8_t stimType, uint8_t respChan, uint8_t respType, uint32_t timeout, uint32_t* width);
 
 		//PWM
-		virtual int PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values);
+		virtual int32_t PwmSetDutyCycle(uint8_t numChans, uint8_t* channels, uint8_t* values);
 
 		//SPI
-		virtual int SpiOpenMaster(unsigned char channel);
-		virtual int SpiSetBitOrder(unsigned char channel, unsigned char bitOrder);
-		virtual int SpiSetMode(unsigned char channel, unsigned char mode);
-		virtual int SpiSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed);
-		virtual int SpiWriteRead(unsigned char channel, unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer);
-		virtual int SpiCloseMaster(unsigned char channel);
+		virtual int32_t SpiOpenMaster(uint8_t channel);
+		virtual int32_t SpiSetBitOrder(uint8_t channel, uint8_t bitOrder);
+		virtual int32_t SpiSetMode(uint8_t channel, uint8_t mode);
+		virtual int32_t SpiSetSpeed(uint8_t channel, uint32_t speed, uint32_t* actualSpeed);
+		virtual int32_t SpiWriteRead(uint8_t channel, uint8_t frameSize, uint8_t numFrames, uint8_t csChan, uint8_t csLL, uint8_t* sendBuffer, uint8_t* recBuffer);
+		virtual int32_t SpiCloseMaster(uint8_t channel);
 
 		//I2C
-		virtual int I2cOpenMaster(unsigned char channel);
-		virtual int I2cSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed);
-		virtual int I2cWrite(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned char* sendBuffer);
-		virtual int I2cRead(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned int timeout, unsigned char* recBuffer);
-		virtual int I2cClose(unsigned char channel);
+		virtual int32_t I2cOpenMaster(uint8_t channel);
+		virtual int32_t I2cSetSpeed(uint8_t channel, uint32_t speed, uint32_t* actualSpeed);
+		virtual int32_t I2cWrite(uint8_t channel, uint8_t slaveAddress, uint8_t eofConfig, uint8_t numBytes, uint8_t* sendBuffer);
+		virtual int32_t I2cRead(uint8_t channel, uint8_t slaveAddress, uint8_t eofConfig, uint8_t numBytes, uint32_t timeout, uint8_t* recBuffer);
+		virtual int32_t I2cClose(uint8_t channel);
 
 		//UART
-		virtual int UartOpen(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
-		virtual int UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud);
-		virtual int UartGetBytesAvailable(unsigned char channel, unsigned int *numBytes);
-		virtual int UartRead(unsigned char channel, unsigned int numBytes, unsigned char* recBuffer, unsigned int* numBytesRead);
-		virtual int UartWrite(unsigned char channel, unsigned int numBytes, unsigned char* sendBuffer);
-		virtual int UartClose(unsigned char channel);
+		virtual int32_t UartOpen(uint8_t channel, LinxUartChannel **channelObj = NULL);
+		virtual int32_t UartOpen(const unsigned char *deviceName, uint8_t *channel, LinxUartChannel **channelObj = NULL);
 
 		//Servo
-		virtual int ServoOpen(unsigned char numChans, unsigned char* chans);
-		virtual int ServoSetPulseWidth(unsigned char numChans, unsigned char* chans, unsigned short* pulseWidths);
-		virtual int ServoClose(unsigned char numChans, unsigned char* chans);
+		virtual int32_t ServoOpen(uint8_t numChans, uint8_t* chans);
+		virtual int32_t ServoSetPulseWidth(uint8_t numChans, uint8_t* chans, uint16_t* pulseWidths);
+		virtual int32_t ServoClose(uint8_t numChans, uint8_t* chans);
 
 		// General
-		virtual void NonVolatileWrite(int address, unsigned char data);
-		virtual unsigned char NonVolatileRead(int address);
+		virtual void NonVolatileWrite(int32_t address, uint8_t data);
+		virtual uint8_t NonVolatileRead(int32_t address);
+
+		int32_t PrepareHeader(uint8_t *buffer, uint16_t command, uint32_t dataLength, uint32_t expLength, uint32_t *headerLength);
+		int32_t WriteAndRead(uint8_t *buffer, uint32_t buffLength, uint32_t *headerOffset, uint32_t dataLength, uint32_t *dataRead);
+		int32_t WriteAndRead(uint8_t *header, uint32_t headerLength, uint32_t *headerOffset, uint32_t headerData, uint8_t *dataBuffer, uint32_t dataLength, uint32_t *dataRead, uint32_t start, int32_t timeout);
 
 	protected:
 		/****************************************************************************************
@@ -104,7 +105,7 @@ class LinxClient : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Initialize(LinxCommChannel *channel);	
+		virtual int32_t Initialize(LinxCommChannel *channel, int32_t timeout);	
 
 	private:
 		/****************************************************************************************
@@ -113,24 +114,54 @@ class LinxClient : public LinxDevice
 		unsigned char *m_DeviceName;
 		LinxCommChannel *m_CommChannel;
 
-		unsigned int m_ListenerBufferSize;
-		unsigned short m_PacketNum;
-		unsigned char m_ProtocolVersion;
+		uint32_t m_ListenerBufferSize;
+		uint16_t m_PacketNum;
+		uint8_t m_ProtocolVersion;
 
-		int m_Timeout;
+		int32_t m_Timeout;
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		unsigned short GetNextPacketNum(void);
-		int PrepareHeader(unsigned char* buffer, unsigned short command, unsigned int dataLength, unsigned int expLength, unsigned int *headerLength);
-		int WriteAndRead(unsigned char *buffer, unsigned int buffLength, unsigned int *headerLength, unsigned int dataLength, unsigned int *dataRead);
-		void CopyArrayToSet(int type, unsigned char *arr, unsigned int length);
+		uint16_t GetNextPacketNum(void);
+		void CopyArrayToSet(int32_t type, uint8_t *arr, uint32_t length, LinxChannel *chan = NULL);
 
-		int GetSyncCommand(bool negotiate);
-		int GetU8Parameter(unsigned short command, unsigned char *val);
-		int GetU16Parameter(unsigned short command, unsigned short *val);
-		int GetU32Parameter(unsigned short command, unsigned int *val);
-		int GetU8ArrParameter(unsigned short command, unsigned char *val, unsigned int buffLength, unsigned char param, unsigned int *headerLength, unsigned int *dataRead);
+		int32_t GetSyncCommand(bool negotiate);
+		int32_t GetU8Parameter(uint16_t command, uint8_t *val);
+		int32_t GetU16Parameter(uint16_t command, uint16_t *val);
+		int32_t GetU32Parameter(uint16_t command, uint32_t *val);
+		int32_t GetU8ArrParameter(uint16_t command, uint8_t *val, uint32_t buffLength, uint8_t param, uint32_t *headerLength, uint32_t *dataRead);
 };
+
+class LinxClientUartChannel : public LinxUartChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxClientUartChannel(LinxFmtChannel *debug, LinxClient *client, uint8_t channel, uint8_t protVersion, const unsigned char *deviceName);
+		virtual ~LinxClientUartChannel(void);
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int32_t SetSpeed(uint32_t speed, uint32_t* actualSpeed);
+		virtual int32_t SetParameters(uint8_t dataBits, uint8_t stopBits, LinxUartParity parity);
+		virtual int32_t Read(unsigned char* recBuffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead);
+		virtual int32_t Write(const unsigned char* sendBuffer, uint32_t numBytes, uint32_t start, int32_t timeout);
+		virtual int32_t Close(void);
+
+	protected:
+
+
+	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		LinxClient *m_Client;
+		uint8_t m_Channel;
+		uint8_t m_ProtocolVersion;
+
+};
+
 #endif //LINX_CLIENT_H

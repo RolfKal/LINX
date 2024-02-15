@@ -40,7 +40,7 @@ LinxTcpListener::LinxTcpListener(LinxDevice* device, bool autoLaunch) : LinxList
 	m_ServerSocket = kInvalNetObject;
 #if Win32
 	WSADATA wsaData;
-	int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+	int32_t iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
 	if (iResult != 0)
 	{
 		m_Debug->Write("WSAStartup failed: ");
@@ -51,27 +51,28 @@ LinxTcpListener::LinxTcpListener(LinxDevice* device, bool autoLaunch) : LinxList
 
 LinxTcpListener::~LinxTcpListener(void)
 {
-	Close();
+	closesocket(m_ServerSocket);
 #if Win32
-	int iResult = WSACleanup();
+	int32_t iResult = WSACleanup();
 #endif
 }
 
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-int LinxTcpListener::Start(const unsigned char *interfaceAddress, unsigned short port, int timeout)
+int32_t LinxTcpListener::Start(const unsigned char *interfaceAddress, uint16_t port)
 {
-	char servName[10] = "";
+	char servName[10];
 	sprintf(servName, "%hu", port);
-	return Start(interfaceAddress, servName, timeout);
+	return Start(interfaceAddress, servName);
 }
 
-int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *servName, int timeout)
+int32_t LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *servName)
 {
+	const char *address = (interfaceAddress && interfaceAddress[0]) ? ((const char*)interfaceAddress) : NULL;
 	struct addrinfo hints = {0};
 	struct addrinfo *addrinfo = NULL;
-	int retval;
+	int32_t retval;
 
 	m_Debug->Write("Starting listener on TCP/IP address: ");
 	m_Debug->Write((char*)interfaceAddress);
@@ -80,7 +81,7 @@ int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *se
 
 	//Create the TCP socket
 	NetObject s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (socket < 0)
+	if (!IsANetObject(s))
 	{
 		m_Debug->Writeln("Failed to create server socket");
 		return LERR_MEMORY;
@@ -91,7 +92,7 @@ int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *se
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE;
-	retval = getaddrinfo((char*)interfaceAddress, servName, &hints, &addrinfo);
+	retval = getaddrinfo(address, servName, &hints, &addrinfo);
 	if (retval)
 	{
 		closesocket(s);
@@ -108,7 +109,11 @@ int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *se
 	}
 	
 	//Bind the server socket
-	retval = bind(s, addrinfo->ai_addr, (int)addrinfo->ai_addrlen);
+	struct addrinfo *next = addrinfo;
+	do
+	{
+		retval = bind(s, next->ai_addr, (int)next->ai_addrlen);
+	} while (retval < 0 && (next = addrinfo->ai_next) != NULL);
 	freeaddrinfo(addrinfo);
 	if (retval < 0)
 	{
@@ -133,7 +138,7 @@ int LinxTcpListener::Start(const unsigned char *interfaceAddress, const char *se
 	return L_OK;
 }
 
-int LinxTcpListener::Close(void)
+int32_t LinxTcpListener::Terminate(void)
 {
 	ControlMutex(true);
 	if (IsANetObject(m_ServerSocket))
@@ -142,42 +147,44 @@ int LinxTcpListener::Close(void)
 		m_ServerSocket = kInvalNetObject;
 	}
 	ControlMutex(false);
-	return LinxListener::Close();
+	return LinxListener::Terminate();
 }
 
 /****************************************************************************************
 **  Protected Functions
 ****************************************************************************************/
-int LinxTcpListener::WaitForConnection(void)
+int32_t LinxTcpListener::WaitForConnection(int32_t timeout)
 {
-	int status = LinxListener::WaitForConnection();
-	if (!status)
+	int32_t status = LinxListener::WaitForConnection(timeout);
+	if (status == L_WAITING)
 	{
 		struct sockaddr_storage addr;
-		int retval, clientlen = sizeof(addr);
+		struct timeval timeout_val;
+		int32_t retval, clientlen = sizeof(addr);
 		NetObject clientSocket = kInvalNetObject;
-	
+		LinxCommChannel *clientChannel;
+
 		m_Debug->Writeln("Waiting For Client Connection\n");
 
 		ControlMutex(true);
 		clientSocket = accept(m_ServerSocket, (struct sockaddr *)&addr, &clientlen);
 		ControlMutex(false);
-		if  (clientSocket < 0)
+		if  (!IsANetObject(clientSocket))
 		{
 			m_Debug->Writeln("Failed to accept client connection\n");
-			return L_DISCONNECT;
+			return L_WAITING;
 		}
 
-		retval = setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&m_TcpTimeout, sizeof(m_TcpTimeout));
+		retval = setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout_val, sizeof(timeout_val));
 		if (retval < 0)
 		{
 			m_Debug->Writeln("Failed to set socket receive time-out\n");
 			closesocket(clientSocket);
-			return L_DISCONNECT;
+			return LERR_IO;
 		}
 
 		unsigned char *buf;
-		unsigned short port;
+		uint16_t port;
 		switch (addr.ss_family)
 		{
 			case AF_INET:
@@ -199,14 +206,14 @@ int LinxTcpListener::WaitForConnection(void)
 			default:
 				m_Debug->Writeln("Invalid socket family\n");
 				closesocket(clientSocket);
-				return L_DISCONNECT;
+				return LERR_IO;
 		}
 		sprintf((char*)buf + strlen((char*)buf), ":%hd", port); 
-		LinxCommChannel *clientChannel =
+
 #if Unix
-			new LinxUnixCommChannel(m_Debug, buf, clientSocket);
+		clientChannel = new LinxUnixCommChannel(m_Debug, buf, clientSocket);
 #elif Win32
-			new LinxWindowsCommChannel(m_Debug, buf, clientSocket);
+		clientChannel =	new LinxWindowsCommChannel(m_Debug, buf, clientSocket);
 #endif
 		if (clientChannel)
 		{

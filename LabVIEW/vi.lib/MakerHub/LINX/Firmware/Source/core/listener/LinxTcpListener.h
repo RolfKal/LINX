@@ -27,7 +27,6 @@
 #include <netinet/in.h>
 #endif
 #include "utility\LinxListener.h"
-#include "LinxDevice.h"
 
 /****************************************************************************************
 **  Classes
@@ -48,22 +47,21 @@ class LinxTcpListener : public LinxListener
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Start(const unsigned char *interfaceAddress, unsigned short port = 44300, int timeout = 2000);
-		virtual int Start(const unsigned char *interfaceAddress, const char *servName, int timeout = 2000);
+		virtual int32_t Start(const unsigned char *interfaceAddress, uint16_t port = 44300);
+		virtual int32_t Start(const unsigned char *interfaceAddress, const char *servName);
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int WaitForConnection(void);
-		virtual int Close(void);
+		virtual int32_t WaitForConnection(int32_t timeout);
+		virtual int32_t Terminate(void);
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		unsigned int m_TcpUpdateTime;
-		struct timeval m_TcpTimeout;
+		uint32_t m_TcpUpdateTime;
 
 		NetObject m_ServerSocket;
 		/****************************************************************************************

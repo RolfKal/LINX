@@ -19,20 +19,20 @@
 #endif
 #include "LinxUtilities.h"
 
-int WriteU8ToBuff(unsigned char *buffer, int offset, unsigned char val)
+uint32_t WriteU8ToBuff(uint8_t *buffer, uint32_t offset, uint8_t val)
 {
 	buffer[offset++] = val;
 	return offset;
 }
 
-int WriteU16ToBuff(unsigned char *buffer, int offset, unsigned short val)
+uint32_t WriteU16ToBuff(uint8_t *buffer, uint32_t offset, uint16_t val)
 {
 	buffer[offset++] = ((val >> 8) & 0xFF);
 	buffer[offset++] = (val & 0xFF);
 	return offset;
 }
 
-int WriteU32ToBuff(unsigned char *buffer, int offset, unsigned int val)
+uint32_t WriteU32ToBuff(uint8_t *buffer, uint32_t offset, uint32_t val)
 {
 	buffer[offset++] = ((val >> 24) & 0xFF);
 	buffer[offset++] = ((val >> 16) & 0xFF);
@@ -41,69 +41,78 @@ int WriteU32ToBuff(unsigned char *buffer, int offset, unsigned int val)
 	return offset;
 }
 
-int WriteU8ArrToBuff(unsigned char *buffer, int offset, unsigned char *arr, int length)
+uint32_t WriteU8ArrToBuff(uint8_t *buffer, uint32_t offset, uint8_t *arr, int32_t length)
 {
 	if (length < 0)
-		length = (int)strlen((char*)arr);
+		length = (int32_t)strlen((char*)arr);
 	memcpy(buffer + offset, arr, length);
 	return offset + length;
 }
 
-unsigned char GetU8FromBuff(unsigned char *buffer, int offset)
+uint8_t GetU8FromBuff(uint8_t *buffer, uint32_t offset)
 {
 	return buffer[offset];
 }
 
-unsigned short GetU16FromBuff(unsigned char *buffer, int offset)
+uint16_t GetU16FromBuff(uint8_t *buffer, uint32_t offset)
 {
-	return (((unsigned short)buffer[offset + 0] << 8) |
-		    ((unsigned short)buffer[offset + 1]));
+	return (((uint16_t)buffer[offset + 0] << 8) |
+		    ((uint16_t)buffer[offset + 1]));
 }
 
-unsigned int GetU32FromBuff(unsigned char *buffer, int offset)
+uint32_t GetU32FromBuff(uint8_t *buffer, uint32_t offset)
 {
-	return (((unsigned int)buffer[offset + 0] << 24) |
-		    ((unsigned int)buffer[offset + 1] << 16) |
-			((unsigned int)buffer[offset + 2] << 8) |
-		    ((unsigned int)buffer[offset + 3]));
+	return (((uint32_t)buffer[offset + 0] << 24) |
+		    ((uint32_t)buffer[offset + 1] << 16) |
+			((uint32_t)buffer[offset + 2] << 8) |
+		    ((uint32_t)buffer[offset + 3]));
 }
 
-int ReadU8FromBuff(unsigned char *buffer, int offset, unsigned char *val)
+uint32_t ReadU8FromBuff(uint8_t *buffer, uint32_t offset, uint8_t *val)
 {
 	*val = buffer[offset++];
 	return offset;
 }
 
-int ReadU16FromBuff(unsigned char *buffer, int offset, unsigned short *val)
+uint32_t ReadU16FromBuff(uint8_t *buffer, uint32_t offset, uint16_t *val)
 {
-	*val = (((unsigned int)buffer[offset + 0] << 8) |
-		    ((unsigned int)buffer[offset + 1]));
+	*val = (((uint32_t)buffer[offset + 0] << 8) |
+		    ((uint32_t)buffer[offset + 1]));
 	return offset + 2;
 }
 
-int ReadU32FromBuff(unsigned char *buffer, int offset, unsigned int *val)
+uint32_t ReadU32FromBuff(uint8_t *buffer, uint32_t offset, uint32_t *val)
 {
-	*val = (((unsigned int)buffer[offset + 0] << 24) |
-		    ((unsigned int)buffer[offset + 1] << 16) |
-		    ((unsigned int)buffer[offset + 2] << 8) |
-		    ((unsigned int)buffer[offset + 3]));
+	*val = (((uint32_t)buffer[offset + 0] << 24) |
+		    ((uint32_t)buffer[offset + 1] << 16) |
+		    ((uint32_t)buffer[offset + 2] << 8) |
+		    ((uint32_t)buffer[offset + 3]));
 	return offset + 4;
 }
 
-int ReadU8ArrFromBuff(unsigned char *buffer, int offset, unsigned char *arr, int length)
+uint32_t ReadU8ArrFromBuff(uint8_t *buffer, uint32_t offset, uint8_t *arr, uint32_t length)
 {
 	memcpy(arr, buffer + offset, length);
 	return offset + length;
 }
 
-int ReadStringFromBuff(unsigned char *buffer, int offset, unsigned char *arr, int length)
+uint32_t ReadStringFromBuff(uint8_t *buffer, uint32_t offset, unsigned char *arr, uint32_t length)
 {
 	memcpy(arr, buffer + offset, length);
 	buffer[offset + length] = 0;
 	return offset + length;
 }
 
-unsigned char ReverseBits(unsigned char b) 
+uint8_t ComputeChecksum(uint8_t checksum, uint8_t* buffer, int32_t length)
+{
+	for (uint16_t i = 0; i < length; i++)
+	{
+		checksum += buffer[i];
+	}
+	return checksum;
+}
+
+uint8_t ReverseBits(uint8_t b) 
 {
 	b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
 	b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
@@ -111,9 +120,9 @@ unsigned char ReverseBits(unsigned char b)
 	return b;
 }
 
-void ReverseBits(unsigned char *buffer, int length) 
+void ReverseBits(unsigned char *buffer, uint32_t length) 
 {
-	for (int i = 0; i < length; i++)
+	for (uint32_t i = 0; i < length; i++)
 	{
 		buffer[i] = ReverseBits(buffer[i]);
 	}
@@ -122,8 +131,8 @@ void ReverseBits(unsigned char *buffer, int length)
 
 #if Win32
 static LARGE_INTEGER g_Frequency = {0};
-static int isAvailable = -1;
-static int initializeFrequency(void)
+static int32_t isAvailable = -1;
+static int32_t initializeFrequency(void)
 {
 	if (isAvailable < 0)
 	{
@@ -135,12 +144,34 @@ static int initializeFrequency(void)
 }
 #endif
 
-unsigned long long getMsTicks(void)
+uint64_t getUsTicks(void)
 {
 #if Unix
 	timespec mTime;
 	clock_gettime(CLOCK_MONOTONIC, &mTime);
-	return (((unsigned long long)mTime.tv_sec * 1000) + mTime.tv_nsec / 1000000);
+	return (((uint64_t)mTime.tv_sec * 1000000) + (mTime.tv_nsec / 1000));
+#elif Win32
+	if (initializeFrequency())
+	{
+		LARGE_INTEGER counter;
+		if (QueryPerformanceCounter(&counter))
+		{
+			counter.QuadPart /= g_Frequency.QuadPart / 1000;
+			return counter.QuadPart;
+		}
+	}
+	return GetTickCount64();
+#elif Arduino
+	return micros();
+#endif
+}
+
+uint32_t getMsTicks(void)
+{
+#if Unix
+	timespec mTime;
+	clock_gettime(CLOCK_MONOTONIC, &mTime);
+	return ((mTime.tv_sec * 1000) + (mTime.tv_nsec / 1000000));
 #elif Win32
 	if (initializeFrequency())
 	{
@@ -148,16 +179,16 @@ unsigned long long getMsTicks(void)
 		if (QueryPerformanceCounter(&counter))
 		{
 			counter.QuadPart /= g_Frequency.QuadPart;
-			return counter.QuadPart;
+			return (uint32_t)(counter.QuadPart & UINT_MAX);
 		}
 	}
-	return (unsigned long long)GetTickCount();
+	return GetTickCount();
 #elif Arduino
 	return millis();
 #endif
 }
 
-void delayMs(unsigned int ms)
+void delayMs(uint32_t ms)
 {
 #if Unix
 	usleep(ms * 1000);
@@ -169,7 +200,7 @@ void delayMs(unsigned int ms)
 }
 
 // Return true If file specified by path exists.
-int fileExists(const char* path)
+int32_t fileExists(const char* path)
 {
 #if Unix
 	struct stat buffer;
@@ -181,11 +212,11 @@ int fileExists(const char* path)
 #endif
 }
 
-int fileExists(const char* path, int *length)
+int32_t fileExists(const char* path, int32_t *length)
 {
 #if Unix
 	struct stat buffer;
-	int ret = stat(path, &buffer);
+	int32_t ret = stat(path, &buffer);
 	if (ret == 0 && length)
 		*length = buffer.st_size;
 	return (ret == 0);
@@ -204,22 +235,22 @@ int fileExists(const char* path, int *length)
 #endif
 }
 
-int fileExists(const char* directory, const char* fileName, unsigned int timeout)
+int32_t fileExists(const char* directory, const char* fileName, uint32_t timeout)
 {
 	char fullPath[260];
 	sprintf(fullPath, "%s%s", directory, fileName);
-	unsigned int startTime = getMilliSeconds();
+	uint32_t startTime = getMsTicks();
 	do
 	{
 		if (fileExists(fullPath))
 			return true;
 		delayMs(10);
 	}
-	while (getMilliSeconds() - startTime < timeout);
+	while (getMsTicks() - startTime < timeout);
 	return false;
 }
 
-int listDirectory(const char* path, std::list<std::string> &list)
+int32_t listDirectory(const char* path, std::list<std::string> &list)
 {
 #if Unix
 	dirent* dp;

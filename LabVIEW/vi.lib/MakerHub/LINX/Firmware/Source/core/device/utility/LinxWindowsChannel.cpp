@@ -31,11 +31,11 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsi
 	ioctlsocket(m_Socket, FIONBIO, &nonBlocking);
 }
 
-LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port) : LinxCommChannel(debug, address)
+LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *address, uint16_t port) : LinxCommChannel(debug, address)
 {
 	struct addrinfo hints, *result, *rp;
 	char servname[10];
-	int retval;
+	int32_t retval;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
@@ -50,7 +50,7 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsi
 		for (rp = result; rp != NULL; rp = rp->ai_next)
 		{
 			m_Socket = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-			if (m_Socket < 0)
+			if (!IsANetObject(m_Socket))
 				continue;
 
 			switch (rp->ai_addr->sa_family)
@@ -73,6 +73,7 @@ LinxWindowsCommChannel::LinxWindowsCommChannel(LinxFmtChannel *debug, const unsi
 					break;
 			}
 			closesocket(m_Socket);
+			m_Socket = kInvalNetObject;
 		}
 		freeaddrinfo(result);
 		if (rp == NULL)
@@ -94,16 +95,16 @@ LinxWindowsCommChannel::~LinxWindowsCommChannel(void)
 
 #define kRetryLimit 25
 
-int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead)
+int32_t LinxWindowsCommChannel::Read(uint8_t* recBuffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead)
 {
-	int retval;
+	int32_t retval;
 	
 	*numBytesRead = 0;
 
 	if (recBuffer && numBytes)
 	{
 		struct timeval tout, *pto = timeout < 0 ? NULL : &tout;
- 		int syserr;
+ 		int32_t syserr;
         fd_set readfds;     /* read sockets */
 
 		FD_ZERO(&readfds);
@@ -111,12 +112,12 @@ int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes
 
 		while (*numBytesRead < numBytes)
 		{
-			int i = 0;
+			int32_t i = 0;
 			do
 			{
 				if (pto)
 				{
-					int elapsed = (int)(getMsTicks() - start);
+					int32_t elapsed = (int32_t)(getMsTicks() - start);
 					if (elapsed < timeout)
 					{
 						elapsed = timeout - elapsed;
@@ -141,7 +142,7 @@ int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes
 			while (retval < 0);
 
 			if (!retval)
-				return LUART_TIMEOUT;
+				return LERR_TIMEOUT;
 
 			// some socket event was triggered, check which one
 			if (FD_ISSET(m_Socket, &readfds))
@@ -167,13 +168,13 @@ int LinxWindowsCommChannel::Read(unsigned char* recBuffer, unsigned int numBytes
 	return L_OK;
 }
 
-int LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout)
+int32_t LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, uint32_t numBytes, uint32_t start, int32_t timeout)
 {
 	if (sendBuffer && numBytes)
 	{
 		struct timeval tout, *pto = timeout < 0 ? NULL : &tout;
- 		unsigned int bytesSent = 0;
-		int retval, syserr;
+ 		uint32_t bytesSent = 0;
+		int32_t retval, syserr;
         fd_set writefds;     /* write sockets */
 
 		FD_ZERO(&writefds);
@@ -181,12 +182,12 @@ int LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, unsigned int 
 
 		while (bytesSent < numBytes)
 		{
-			int i = 0;
+			int32_t i = 0;
 			do
 			{
 				if (pto)
 				{
-					int elapsed = (int)(getMsTicks() - start);
+					int32_t elapsed = (int32_t)(getMsTicks() - start);
 					if (elapsed < timeout)
 					{
 						elapsed = timeout - elapsed;
@@ -211,7 +212,7 @@ int LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, unsigned int 
 			while (retval < 0);
 
 			if (!retval)
-				return LUART_TIMEOUT;
+				return LERR_TIMEOUT;
 
 			// some socket event was triggered, check which one
 			if (FD_ISSET(m_Socket, &writefds))
@@ -227,7 +228,7 @@ int LinxWindowsCommChannel::Write(const unsigned char* sendBuffer, unsigned int 
 	return L_OK;
 }
 
-int LinxWindowsCommChannel::Close(void)
+int32_t LinxWindowsCommChannel::Close(void)
 {
 	if (IsANetObject(m_Socket))
 		closesocket(m_Socket);
@@ -244,7 +245,7 @@ LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, const unsi
 {
 	m_Handle = INVALID_HANDLE_VALUE;
 	
-	int length = 0;
+	int32_t length = 0;
 	const char *sPortName = strstr((char*)deviceName, "COM");
 	if (sPortName)
 	{
@@ -255,11 +256,14 @@ LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, const unsi
 	m_DeviceName[length] = 0;
 }
 
-LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, unsigned char channel, const unsigned char *deviceName) : LinxUartChannel(debug, deviceName)
+/*
+LinxWindowsUartChannel::LinxWindowsUartChannel(LinxFmtChannel *debug, uint8_t channel) : LinxUartChannel(debug, NULL)
 {
 	m_Handle = INVALID_HANDLE_VALUE;
 	sprintf(m_DeviceName, "COM%c", channel);
+	SetName(m_DeviceName);
 }
+*/
 
 LinxWindowsUartChannel::~LinxWindowsUartChannel()
 {	
@@ -270,7 +274,7 @@ LinxWindowsUartChannel::~LinxWindowsUartChannel()
 /****************************************************************************************
 **  Functions
 ****************************************************************************************/
-int LinxWindowsUartChannel::SmartOpen(void)
+int32_t LinxWindowsUartChannel::SmartOpen(void)
 {
 	if (m_Handle == INVALID_HANDLE_VALUE)
 	{
@@ -294,9 +298,9 @@ int LinxWindowsUartChannel::SmartOpen(void)
 	return L_OK;
 }
 
-int LinxWindowsUartChannel::SetSpeed(unsigned int speed, unsigned int* actualSpeed)
+int32_t LinxWindowsUartChannel::SetSpeed(uint32_t speed, uint32_t* actualSpeed)
 {
-	int status = SmartOpen();
+	int32_t status = SmartOpen();
 	if (status)
 		return status;
 
@@ -316,9 +320,9 @@ int LinxWindowsUartChannel::SetSpeed(unsigned int speed, unsigned int* actualSpe
 
 #define NUM_PARITY_SIZES	5
 
-int LinxWindowsUartChannel::SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
+int32_t LinxWindowsUartChannel::SetParameters(uint8_t dataBits, uint8_t stopBits, LinxUartParity parity)
 {
-	int status = SmartOpen();
+	int32_t status = SmartOpen();
 	if (status)
 		return status;
 
@@ -352,9 +356,9 @@ int LinxWindowsUartChannel::SetParameters(unsigned char dataBits, unsigned char 
 	return status ? L_OK : LUART_SET_PARAM_FAIL;
 }
 
-int LinxWindowsUartChannel::Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead)
+int32_t LinxWindowsUartChannel::Read(unsigned char* recBuffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead)
 {
-	int status = SmartOpen();
+	int32_t status = SmartOpen();
 	if (status)
 		return status;
 
@@ -380,7 +384,7 @@ int LinxWindowsUartChannel::Read(unsigned char* recBuffer, unsigned int numBytes
 			{
 				status = ReadFile(m_Handle, recBuffer, numBytes, (LPDWORD)numBytesRead, NULL);
 				if (status && *numBytesRead < numBytes)
-					return LUART_TIMEOUT;
+					return LERR_TIMEOUT;
 			}
 		}
 	}
@@ -395,9 +399,9 @@ int LinxWindowsUartChannel::Read(unsigned char* recBuffer, unsigned int numBytes
 	return status ? L_OK : LERR_IO;
 }
 
-int LinxWindowsUartChannel::Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout)
+int32_t LinxWindowsUartChannel::Write(const unsigned char* sendBuffer, uint32_t numBytes, uint32_t start, int32_t timeout)
 {
-	int status = SmartOpen();
+	int32_t status = SmartOpen();
 	if (status)
 		return status;
 
@@ -413,7 +417,7 @@ int LinxWindowsUartChannel::Write(const unsigned char* sendBuffer, unsigned int 
 	return status ? L_OK : LERR_IO;
 }
 
-int LinxWindowsUartChannel::Close(void)
+int32_t LinxWindowsUartChannel::Close(void)
 {
 	if (m_Handle != INVALID_HANDLE_VALUE)
 		CloseHandle(m_Handle);

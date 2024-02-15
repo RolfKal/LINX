@@ -13,9 +13,27 @@
 #define LINX_DEFINES_H
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
-# define Win32	1
+# if defined (_DEBUG)
+#  define DEBUG 1
+# endif
+# if defined(_WIN32)
+#  define Win32   1
+# endif
 # if defined(_WIN64)
 #  define Win64   1
+# endif
+# if _MSC_VER < 1500
+   typedef signed char			int8_t;
+   typedef unsigned char		uint8_t;
+   typedef signed short			int16_t;
+   typedef unsigned short		uint16_t;
+   typedef signed int			int32_t;
+   typedef unsigned int			uint32_t;
+   typedef signed long long		int64_t;
+   typedef unsigned long long	uint64_t;
+
+# else
+#  include <stdint.h>
 # endif
 # include <winsock2.h>
 # include <ws2tcpip.h>
@@ -36,7 +54,8 @@
 #elif defined(unix) || defined(__unix) || defined(__unix__)
 # define Unix	1
 # include <errno.h>
-#  define SockErr()           errno
+# include <stdint.h>
+# define SockErr()           errno
   typedef int NetObject;
 # define IsANetObject(s)      ((s) >= 0)
 # define kInvalNetObject      (-1)
@@ -46,7 +65,8 @@
 #elif defined(__APPLE__) && defined(__MACH__)
 # define MacOSX	1
 # include <errno.h>
-#  define SockErr()           errno
+# include <stdint.h>
+# define SockErr()           errno
   typedef int NetObject;
 # define IsANetObject(s)      ((s) >= 0)
 # define kInvalNetObject      (-1)
@@ -66,8 +86,6 @@
 # define ioctlsocket(s, t, p) ioctl(s, t, p)
 #endif
 
-
-
 // Family codes
 #define LINX_FAMILY_DIGILENT	0x01
 #define LINX_FAMILY_ARDUINO		0x02
@@ -82,6 +100,7 @@
 #define GPIO_LOW		0
 #define GPIO_HIGH		1
 
+// GPIO Function Select
 #define GPIO_INPUT		0x00
 #define GPIO_OUTPUT		0x01
 #define GPIO_ALT0		0x04
@@ -90,15 +109,20 @@
 #define GPIO_ALT3		0x07
 #define GPIO_ALT4		0x03
 #define GPIO_ALT5		0x02
-
 #define GPIO_ALTMASK	0x06
+
 #define GPIO_DIRMASK	0x01
 
+#define GPIO_DIRDIRTY	0x80
+
+// GPIO pull-down/pull-up
 #define GPIO_PULLNONE	0x00
 #define GPIO_PULLDOWN	0x10
 #define GPIO_PULLUP		0x20
 #define GPIO_PULLOFF	0x30
 #define GPIO_PULLMASK	0x30
+
+#define GPIO_PULLDIRTY	0x40
 
 // SPI
 #ifndef LSBFIRST
@@ -151,6 +175,7 @@
 ****************************************************************************************/
 typedef enum LinxStatus
 {
+	L_WAITING = -1,
 	L_OK = 0,
 	L_FUNCTION_NOT_SUPPORTED,
 	L_REQUEST_RESEND,
@@ -167,17 +192,19 @@ typedef enum LinxStatus
 	LERR_LENGTH_NOT_SUPPORTED,
 	LERR_MSG_TO_LONG,
 	LERR_CLOSED_BY_PEER,
+	LERR_TIMEOUT
 } LinxStatus;
 
 typedef enum AioStatus
 {
-	LANALOG_REF_MODE_ERROR = 129,
-	LANALOG_REF_VAL_ERROR = 130
+	LANALOG_REF_MODE_ERROR = 128,
+	LANALOG_REF_VAL_ERROR = 129
 } AioStatus;
 
 typedef enum DioStatus
 {
-	LDIGITAL_PIN_DNE = 128,
+	LDIGITAL_PIN_NOCHANGE = 132,
+	LDIGITAL_PIN_NOT_AVAIL = 133,
 } DioStatus;
 
 
@@ -208,7 +235,6 @@ typedef enum UartStatus
 	LUART_READ_FAIL,
 	LUART_WRITE_FAIL,
 	LUART_CLOSE_FAIL,
-	LUART_TIMEOUT
 } UartStatus;
 
 typedef enum LinxUartParity

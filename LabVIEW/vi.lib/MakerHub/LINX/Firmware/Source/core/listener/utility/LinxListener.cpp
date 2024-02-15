@@ -34,21 +34,22 @@ LinxListener::LinxListener(LinxDevice *device, bool autoLaunch) : LinxBase()
 
 	m_Channel = NULL;
 	m_PeriodicTask = NULL;
-	for (int i = 0; i < MAX_CUSTOM_CMDS; i++)
+	for (int32_t i = 0; i < MAX_CUSTOM_CMDS; i++)
 	{
 		m_CustomCommands[i] = NULL;
 	}
 	m_ListenerBufferSize = 0;
-	m_SendBuffer = NULL;
-	m_RecBuffer = NULL;
+	m_DataBuffer = NULL;
 	m_ProtocolVersion = 0;
 
 	m_LaunchThread = autoLaunch;
 	m_Thread = 0;
-	m_Run = FALSE;
 
 	m_LinxDev = device;
+	m_LinxDev->AddRef();
+
 	m_LinxDev->GetDeviceName(buffer, 255);
+	m_Debug = m_LinxDev->GetDebug();
 	m_Debug->Write("Initializing Listener on ");
 	m_Debug->Writeln((char *)buffer);
 #if Win32
@@ -62,10 +63,9 @@ LinxListener::LinxListener(LinxDevice *device, bool autoLaunch) : LinxBase()
 
 LinxListener::~LinxListener(void)
 {
-	Close();
+	Terminate();
 	ControlMutex(true);
-	free(m_SendBuffer);
-	free(m_RecBuffer);
+	free(m_DataBuffer);
 	ControlMutex(false);
 #if Win32
 	DeleteCriticalSection(&m_Mutex);
@@ -77,13 +77,13 @@ LinxListener::~LinxListener(void)
 #if Win32
 static DWORD WINAPI ThreadFunction(LPVOID lpParam) 
 {
-    ((LinxListener *)lpParam)->ProcessLoop(TRUE);
+    ((LinxListener *)lpParam)->ProcessLoop(TIMEOUT_INFINITE);
 	return 0;
 }
 #elif Linux
 static void *ThreadFunction(void *lpParam)
 {
-    ((LinxListener *)lpParam)->ProcessLoop(TRUE);
+    ((LinxListener *)lpParam)->ProcessLoop(TIMEOUT_INFINITE);
 	pthread_exit(NULL); 
 	return NULL;
 }
@@ -93,7 +93,7 @@ static void *ThreadFunction(void *lpParam)
 /****************************************************************************************
 ** Public Functions
 ****************************************************************************************/
-int LinxListener::AttachCustomCommand(unsigned short commandNumber, CustomCommand callback)
+int32_t LinxListener::AttachCustomCommand(uint16_t commandNumber, CustomCommand callback)
 {
 	if (commandNumber < MAX_CUSTOM_CMDS)
 	{
@@ -105,7 +105,7 @@ int LinxListener::AttachCustomCommand(unsigned short commandNumber, CustomComman
 	return LERR_BADPARAM;
 }
 
-int LinxListener::AttachPeriodicTask(PeriodicTask task)
+int32_t LinxListener::AttachPeriodicTask(PeriodicTask task)
 {
 	ControlMutex(true);
 	m_PeriodicTask = task;
@@ -113,41 +113,42 @@ int LinxListener::AttachPeriodicTask(PeriodicTask task)
 	return L_OK;
 }
 
-int LinxListener::ProcessLoop(bool loop)
+int32_t LinxListener::ProcessLoop(int32_t timeout)
 {
-	int status;
+	int32_t status = L_OK;
 	do
 	{
-		status = WaitForConnection();
+		if (status == L_WAITING)
+		{
+			delayMs(50);
+		}
+		status = WaitForConnection(timeout);
 		if (!status)
 		{
-			status = CheckForCommand();
+			status = CheckForCommand(timeout);
 		}
-	} while (!status && loop);
+	} while (timeout < 0 && status <= 0);
 	return status;
 }
 
 /****************************************************************************************
 ** Protected Functions
 ****************************************************************************************/
-// Start Listener with the device to relay commands to and a debug channel
-int LinxListener::Run(LinxCommChannel *channel, int timeout, int bufferSize)
+// Start Listener with the device to relay commands to
+int32_t LinxListener::Run(LinxCommChannel *channel, int32_t bufferSize)
 {
-	int status = L_OK;
+	int32_t status = L_OK;
 	ControlMutex(true);
 	if (m_ListenerBufferSize != bufferSize)
 	{
 		m_ListenerBufferSize = bufferSize;
-		m_SendBuffer = (unsigned char*)realloc(m_SendBuffer, bufferSize);
-		m_RecBuffer = (unsigned char*)realloc(m_RecBuffer, bufferSize);
+		m_DataBuffer = (uint8_t *)realloc(m_DataBuffer, bufferSize);
 	}
-	m_Timeout = timeout;
 	if (m_Channel)
 		m_Channel->Release();
 	if (channel)
 		channel->AddRef();
 	m_Channel = channel;
-	m_Run = TRUE;
 	if (m_LaunchThread)
 	{
 #if Win32
@@ -155,14 +156,14 @@ int LinxListener::Run(LinxCommChannel *channel, int timeout, int bufferSize)
 		m_Thread = CreateThread(NULL, 0, ThreadFunction, this, 0, &dwThreadID);
 		if (!m_Thread)
 		{
-			status = L_DISCONNECT;
+			status = LERR_MEMORY;
 		}
 #elif Linux
 		int err = pthread_create(&m_Thread, NULL, ThreadFunction, this);
 		if (err)
 		{
 			m_Thread = 0;
-			status = L_DISCONNECT;
+			status = LERR_MEMORY;
 		}
 #else
 #endif
@@ -171,37 +172,14 @@ int LinxListener::Run(LinxCommChannel *channel, int timeout, int bufferSize)
 	return status;
 }
 
-int LinxListener::WaitForConnection(void)
+int32_t LinxListener::WaitForConnection(int32_t timeout)
 {
-	return m_Run ? L_OK : L_DISCONNECT;
+	return m_Channel ? L_OK : L_WAITING;
 }
 
-int LinxListener::Close(void)
+int32_t LinxListener::CloseChannel(void)
 {
 	ControlMutex(true);
-	if (m_Thread)
-	{
-		m_Run = FALSE;
-		ControlMutex(false);
-#if Win32
-		DWORD dwStatus = WaitForSingleObject(m_Thread, 2000);
-		ControlMutex(true);
-		if (dwStatus == WAIT_TIMEOUT)
-		{
-			TerminateThread(m_Thread, 1);
-		}
-		CloseHandle(m_Thread);
-#elif Linux
-		int status;
-		//status = pthread_cancel(m_Thread);
-		// Waiting for the created thread to terminate 
-		status = pthread_join(ptid, NULL);
-		ControlMutex(true);
-#else
-
-#endif
-	}
-
 	if (m_Channel)
 	{
 		m_Channel->Close();
@@ -212,7 +190,31 @@ int LinxListener::Close(void)
 	return L_OK;
 }
 
-int LinxListener::ControlMutex(bool lock)
+int32_t LinxListener::Terminate(void)
+{
+	if (m_Thread)
+	{
+#if Win32
+		DWORD dwStatus = WaitForSingleObject(m_Thread, 2000);
+		ControlMutex(true);
+		if (dwStatus == WAIT_TIMEOUT)
+		{
+			TerminateThread(m_Thread, 1);
+		}
+		CloseHandle(m_Thread);
+		ControlMutex(false);
+#elif Linux
+		//status = pthread_cancel(m_Thread);
+		// Waiting for the created thread to terminate 
+		int status = pthread_join(ptid, NULL);
+#else
+
+#endif
+	}
+	return CloseChannel();
+}
+
+int32_t LinxListener::ControlMutex(bool lock)
 {
 #if Win32
 	if (lock)
@@ -275,135 +277,139 @@ int LinxListener::ControlMutex(bool lock)
 //   7            len - 8 bytes data
 //   n - 1        checksum
 
-int LinxListener::CheckForCommand(void)
+int32_t LinxListener::CheckForCommand(int32_t timeout)
 {
-	int status = LERR_BADCHAN;
+	int32_t status = L_WAITING;
 	if (m_Channel)
 	{
-		unsigned long long start = getMsTicks();
-		unsigned int timeout = m_Timeout, dataRead = 0;
+		uint32_t start = getMsTicks(), dataRead = 0;
 
 		// Try to read first 4 bytes
-		status = m_Channel->Read(m_SendBuffer, 4, timeout, &dataRead);
+		status = ReadChannel(m_DataBuffer, 4, start, timeout, &dataRead);
 		if (!status)
 		{
-			unsigned short command;
-			int offset, msgLength, length = dataRead;
+			int32_t offset, msgLength, length = dataRead;
 			// Decode length in package
-			if (m_SendBuffer[0] == 0xFF && dataRead >= 2)
+			if (m_DataBuffer[0] == 0xFF && dataRead >= 2)
 			{
+				msgLength = m_DataBuffer[1];
 				offset = 4;
-				msgLength = m_SendBuffer[1];
 			}
-			else if (m_SendBuffer[0] == 0xFE && dataRead >= 4)
+			else if (m_DataBuffer[0] == 0xFE && dataRead >= 4)
 			{
+				msgLength = GetU32FromBuff(m_DataBuffer, 0) & 0xFFFFFF;
 				offset = 6;
-				msgLength = GetU32FromBuff(m_SendBuffer, 0) & 0xFFFFFF;
 			}
 			else
 			{
 				// invalid data frame, flush buffer and return
-				return m_Channel->Read(m_RecBuffer, m_ListenerBufferSize, 0, NULL);
+				ReadChannel(m_DataBuffer, m_ListenerBufferSize, start, 0, NULL);
+				return LERR_INVALID_FRAME;
 			}
 		
 			// if expected msgLength is greater than the data already received then read the remainder
 			while (msgLength > length)
 			{
-				if (timeout >= 0)
-				{
-					timeout = m_Timeout - (int)(getMsTicks() - start);
-					if (timeout < 0)
-						timeout = 0;
-				}
-						
-				dataRead = 0;
-				status = m_Channel->Read(m_SendBuffer + dataRead, msgLength - dataRead, timeout, &dataRead);
+				status = ReadChannel(m_DataBuffer + dataRead, msgLength - dataRead, start, timeout, &dataRead);
 				if (status)
 					return status;
 
 				length += dataRead;
 			}
 
-			if (m_LinxDev->ChecksumPassed(m_SendBuffer, length - 1))
+			if (ComputeChecksum(0, m_DataBuffer, length - 1) != m_DataBuffer[length - 1])
 			{
 				return LERR_CHECKSUM;
 			}
-			offset = ReadU16FromBuff(m_SendBuffer, offset, &command);
-			status = ProcessCommand(command, m_SendBuffer, offset, length - offset, m_RecBuffer, m_ListenerBufferSize);
+			status = ProcessCommand(m_DataBuffer, offset, length - offset, m_ListenerBufferSize, start, timeout);
 			if (m_PeriodicTask)
-				status = m_PeriodicTask(m_SendBuffer, m_RecBuffer);
+				status = m_PeriodicTask(m_DataBuffer, m_DataBuffer);
+		}
+		else if (status == L_DISCONNECT)
+		{
+			CloseChannel();
 		}
 	}
 	return status;
 }
 
-int LinxListener::PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, int dataSize,  int status)
+int32_t LinxListener::ReadChannel(uint8_t* buffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead)
 {
-	int offset = 0;
+	int32_t status = L_WAITING;
+	ControlMutex(true);
+	if (m_Channel)
+		status = m_Channel->Read(buffer, numBytes, start, timeout, numBytesRead);
+	ControlMutex(false);
+	return status;
+}
+
+int32_t LinxListener::PacketizeAndSend(uint8_t* packetBuffer, uint32_t dataSize, int32_t status, uint32_t start, int32_t timeout)
+{
+	int32_t offset = 0;
 
 	// Fill in packet size
-	if (commandPacketBuffer[0] == 0xFE)
+	if (packetBuffer[0] == 0xFE)
 	{
-		offset = WriteU32ToBuff(responsePacketBuffer, 0, dataSize + 8);
+		offset = WriteU32ToBuff(packetBuffer, 0, dataSize + 8);
+		packetBuffer[0] = 0xFE;
 	}
-	else if (commandPacketBuffer[0] == 0xFF)
+	else if (packetBuffer[0] == 0xFF)
 	{
-		responsePacketBuffer[1] = dataSize + 6;
-		offset = 2;
+		offset = WriteU8ToBuff(packetBuffer, 1, dataSize + 6);
 	}
 
-	// Set first byte to Start of Frame character
-	responsePacketBuffer[0] = commandPacketBuffer[0];
-
-	// Copy packet number from the command into our response
-	offset = WriteU16ToBuff(responsePacketBuffer, offset, GetU16FromBuff(commandPacketBuffer, offset));
+	// Skip packet number
+	offset += 2;
 
 	// Make Sure Status Is Valid
 	if (status >= 0 && status <= 255)
 	{
-		responsePacketBuffer[offset++] = (unsigned char)status;	//Status
+		packetBuffer[offset++] = (unsigned char)status;	//Status
 	}
 	else
 	{
-		responsePacketBuffer[offset++] = L_UNKNOWN_ERROR;		//Status
+		packetBuffer[offset++] = L_UNKNOWN_ERROR;		//Status
 	}
+
 	// Compute and append checksum
-	offset += dataSize;
-	responsePacketBuffer[offset] = m_LinxDev->ComputeChecksum(responsePacketBuffer, offset);
+	packetBuffer[offset + dataSize] = ComputeChecksum(0, packetBuffer, offset + dataSize);
 
 	// Send it off
-	return m_Channel->Write(responsePacketBuffer, offset + 1, m_Timeout);
+	return m_Channel->Write(packetBuffer, offset + dataSize + 1, start, timeout);
 }
 
-int LinxListener::EnumerateChannels(int type, unsigned char request, unsigned char *responsePacketBuffer, unsigned int offset, unsigned int responseLength)
+int32_t LinxListener::EnumerateChannels(int32_t type, uint8_t protVersion, uint8_t *packetBuffer, uint32_t offset, uint32_t length)
 {
 	// Command parameters
 	//  None
-	//  Response parameters
+	// Response parameters
 	//  uint8[] : array of UART channel identifiers
-	// or when request == 1
+	// or when protVersion >= 1
 	//  Response parameters
 	//  uint8 : numChans
 	//  uint8[] : array of num Chans UART channel identifiers
 	//  uint8[] : numChans of Pascal strings
 
-	if (!request)
+	if (protVersion)
+	{
+		packetBuffer[offset - 1] = m_LinxDev->EnumerateChannels(type, packetBuffer + offset, length - offset, &length); 
+		length++;
+	}
+	else
 	{
 		offset--;
+		length = m_LinxDev->EnumerateChannels(type, packetBuffer + offset, length - offset, NULL); 
 	}
-	int numChans = m_LinxDev->EnumerateChannels(type, responsePacketBuffer + offset, responseLength - offset, &responseLength); 
-	if (request)
-	{
-		responsePacketBuffer[offset - 1] = numChans;
-	}
-	return responseLength;
+	return length;
 }
 
-int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandPacketBuffer, int offset, int length, unsigned char* responsePacketBuffer, int responseLength)
+int32_t LinxListener::ProcessCommand(uint8_t* packetBuffer, uint32_t offset, uint32_t dataLength, uint32_t bufferLength, uint32_t start, int32_t timeout)
 {
 	//Store Some Local Values For Convenience
-	int status = LERR_BADPARAM;
-	bool extension = (command & LCMD_EXTENDED_FLAG) == EXTENDED_CMD_FLAG;
+	int32_t status = LERR_BADPARAM;
+	uint16_t command;
+	
+	offset = ReadU16FromBuff(packetBuffer, offset, &command);
 
 	if ((command & LCMD_EXTENDED_FLAG) == CUSTOM_CMD_PREFIX)
 	{
@@ -414,33 +420,40 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 		****************************************************************************************/
 		if (((command) < MAX_CUSTOM_CMDS) && (m_CustomCommands[command]))
 		{
-			responseLength -= offset + 1;
-			status = m_CustomCommands[command](commandPacketBuffer + offset, length - offset, responsePacketBuffer + offset - 1, &responseLength);
-			length = responseLength;
+			bufferLength -= offset + 1;
+			status = m_CustomCommands[command](packetBuffer + offset, dataLength, packetBuffer + offset - 1, &bufferLength);
+			dataLength = bufferLength;
 		}
 		else
 		{
-			length = 0;
+			dataLength = 0;
 		}
 	}
 	else		
 	{
 		//Standard Commands
-		switch (command & ~EXTENDED_CMD_FLAG)
+		switch (command)
 		{
 		/************************************************************************************
 		* SYSTEM COMMANDS
 		************************************************************************************/
 		case LCMD_SYNC: // Sync Packet
 			// Command parameters
-			// None
+			//  None
+			// or
+			//  uint8 : Protocol Version
 			// Response parameters
-			// None
-			length = Min(1, length - offset);
-			if (length)
+			//  None
+			// or
+			//  uint8 : Protocol Version
+			if (dataLength)
 			{
-				m_ProtocolVersion = Min(commandPacketBuffer[offset], PROTOCOL_VERSION);
-				responsePacketBuffer[offset - 1] = m_ProtocolVersion; 
+				m_ProtocolVersion = Min(packetBuffer[offset], PROTOCOL_VERSION);
+				packetBuffer[offset - 1] = m_ProtocolVersion; 
+			}
+			else
+			{
+				m_ProtocolVersion = 0;
 			}
 			status = L_OK;
 			break;
@@ -454,17 +467,15 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// Response parameters
 			// uint8 : device family
 			// uint8 : device id
-			if (responseLength >= offset + 1)
+			if (bufferLength >= offset + 1)
 			{
-				offset = WriteU8ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->DeviceFamily);
-				offset = WriteU8ToBuff(responsePacketBuffer, offset, m_LinxDev->DeviceId);
-				length = 2;
+				offset = WriteU8ToBuff(packetBuffer, offset - 1, m_LinxDev->DeviceFamily);
+				offset = WriteU8ToBuff(packetBuffer, offset, m_LinxDev->DeviceId);
 				status = L_OK;
+				dataLength = 2;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_API_VER: //Get LINX API Version
@@ -474,18 +485,16 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : api major version
 			// uint8 : api minor version
 			// uint8 : api subminor version
-			if (responseLength >= offset + 2)
+			if (bufferLength >= offset + 2)
 			{
-				offset = WriteU8ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->LinxApiMajor);
-				offset = WriteU8ToBuff(responsePacketBuffer, offset, m_LinxDev->LinxApiMinor);
-				offset = WriteU8ToBuff(responsePacketBuffer, offset, m_LinxDev->LinxApiSubminor);
-				length = 3;
+				offset = WriteU8ToBuff(packetBuffer, offset - 1, m_LinxDev->LinxApiMajor);
+				offset = WriteU8ToBuff(packetBuffer, offset, m_LinxDev->LinxApiMinor);
+				offset = WriteU8ToBuff(packetBuffer, offset, m_LinxDev->LinxApiSubminor);
 				status = L_OK;
+				dataLength = 3;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_UART_MAX_BAUD: //Get UART Listener Interface Max Baud
@@ -493,16 +502,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint32 : max uart baudrate
-			if (responseLength >= offset + 3)
+			if (bufferLength >= offset + 3)
 			{
-				WriteU32ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->UartMaxBaud);
-				length = 4;
+				WriteU32ToBuff(packetBuffer, offset - 1, m_LinxDev->UartMaxBaud);
+				status = L_OK;
+				dataLength = 4;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
-			status = L_OK;
+			dataLength = 0;
 			break;
 
 		// case LCMD_SET_UART_MAX_BAUD: //Set UART Listener Interface Max Baud
@@ -522,7 +529,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : array of digital channel identifiers
-			length = EnumerateChannels(IID_LinxDioChannel, extension, responsePacketBuffer, offset, responseLength); 
+			dataLength = EnumerateChannels(IID_LinxDioChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -531,7 +538,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : array of analog input channel identifiers
-			length = EnumerateChannels(IID_LinxAiChannel, extension, responsePacketBuffer, offset, responseLength);
+			dataLength = EnumerateChannels(IID_LinxAiChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -540,7 +547,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : array of analog output channel identifiers
-			length = EnumerateChannels(IID_LinxAoChannel, extension, responsePacketBuffer, offset, responseLength); 
+			dataLength = EnumerateChannels(IID_LinxAoChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -549,7 +556,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : array of pwm channel identifiers
-			length = EnumerateChannels(IID_LinxPwmChannel, extension, responsePacketBuffer, offset, responseLength); 
+			dataLength = EnumerateChannels(IID_LinxPwmChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -558,7 +565,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : array of quadrature encoder channel identifiers
-			length = EnumerateChannels(IID_LinxPwmChannel, extension, responsePacketBuffer, offset, responseLength); 
+			dataLength = EnumerateChannels(IID_LinxPwmChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -572,7 +579,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			//  uint8 : numChans
 			//  uint8[] : array of num Chans UART channel identifiers
 			//  uint8[] : numChans of Pascal strings
-			length = EnumerateChannels(IID_LinxUartChannel, extension, responsePacketBuffer, offset, responseLength); 
+			dataLength = EnumerateChannels(IID_LinxUartChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -581,7 +588,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : array of I2C channel identifiers
-			length = EnumerateChannels(IID_LinxI2cChannel, extension, responsePacketBuffer, offset, responseLength); 
+			dataLength = EnumerateChannels(IID_LinxI2cChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -590,7 +597,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : array of SPI channel identifiers
-			length = EnumerateChannels(IID_LinxSpiChannel, extension, responsePacketBuffer, offset, responseLength); 
+			dataLength = EnumerateChannels(IID_LinxSpiChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -599,7 +606,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : array of CAN channel identifiers
-			length = EnumerateChannels(IID_LinxCanChannel, extension, responsePacketBuffer, offset, responseLength); 
+			dataLength = EnumerateChannels(IID_LinxCanChannel, m_ProtocolVersion, packetBuffer, offset, bufferLength); 
 			status = L_OK;
 			break;
 
@@ -610,7 +617,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			m_Debug->Writeln("Remote Close Command");
 			status = L_DISCONNECT;
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_SET_DEVICE_USER_ID: //Set Device User Id
@@ -618,14 +625,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint16 : device user id
 			// Response parameters
 			// None
-			if (length >= 2)
+			if (dataLength >= 2)
 			{
-				m_LinxDev->userId = GetU16FromBuff(commandPacketBuffer, offset);
-				m_LinxDev->NonVolatileWrite(NVS_USERID, commandPacketBuffer[offset]);
-				m_LinxDev->NonVolatileWrite(NVS_USERID + 1, commandPacketBuffer[offset + 1]);
+				m_LinxDev->userId = GetU16FromBuff(packetBuffer, offset);
+				m_LinxDev->NonVolatileWrite(NVS_USERID, packetBuffer[offset]);
+				m_LinxDev->NonVolatileWrite(NVS_USERID + 1, packetBuffer[offset + 1]);
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_DEVICE_USER_ID: //Get Device User Id
@@ -633,9 +640,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint16 : device user id
-			WriteU16ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->userId);
-			status = L_OK;
-			length = 2;
+			if (bufferLength >= offset + 1)
+			{
+				WriteU16ToBuff(packetBuffer, offset - 1, m_LinxDev->userId);
+				status = L_OK;
+				dataLength = 2;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 
@@ -644,16 +656,16 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : ethernet IP
 			// Response parameters
 			// None
-			if (length >= 4)
+			if (dataLength >= 4)
 			{
-				m_LinxDev->ethernetIp = GetU32FromBuff(commandPacketBuffer, offset);
-				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 0, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 1, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 2, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 3, commandPacketBuffer[offset++]);
+				m_LinxDev->ethernetIp = GetU32FromBuff(packetBuffer, offset);
+				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 0, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 1, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 2, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_IP + 3, packetBuffer[offset++]);
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_ETH_ADDR: //Get Device Ethernet IP
@@ -661,9 +673,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint32 : ethernet IP
-			WriteU32ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->ethernetIp);
-			status = L_OK;
-			length = 4;
+			if (bufferLength >= offset + 3)
+			{
+				WriteU32ToBuff(packetBuffer, offset - 1, m_LinxDev->ethernetIp);
+				status = L_OK;
+				dataLength = 4;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		case LCMD_SET_ETH_PORT: //Set Device Ethernet Port
@@ -671,14 +688,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint16 : ethernet port
 			// Response parameters
 			// None
-			if (length >= 2)
+			if (dataLength >= 2)
 			{
-				m_LinxDev->ethernetPort = GetU16FromBuff(commandPacketBuffer, offset);
-				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_PORT + 0, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_PORT + 1, commandPacketBuffer[offset++]);
+				m_LinxDev->ethernetPort = GetU16FromBuff(packetBuffer, offset);
+				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_PORT + 0, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_ETHERNET_PORT + 1, packetBuffer[offset++]);
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_ETH_PORT: //Get Device Ethernet Port
@@ -686,9 +703,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint16 : ethernet port
-			WriteU16ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->ethernetPort);
-			status = L_OK;
-			length = 2;
+			if (bufferLength >= offset + 1)
+			{
+				WriteU16ToBuff(packetBuffer, offset - 1, m_LinxDev->ethernetPort);
+				status = L_OK;
+				dataLength = 2;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		case LCMD_SET_WIFI_ADDR: //Set Device WIFI IP
@@ -696,16 +718,16 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : WIFI IP
 			// Response parameters
 			// None
-			if (length >= 4)
+			if (dataLength >= 4)
 			{
-				m_LinxDev->WifiIp = GetU32FromBuff(commandPacketBuffer, offset);
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_IP + 0, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_IP + 1, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_IP + 2, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_IP + 3, commandPacketBuffer[offset++]);
+				m_LinxDev->WifiIp = GetU32FromBuff(packetBuffer, offset);
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_IP + 0, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_IP + 1, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_IP + 2, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_IP + 3, packetBuffer[offset++]);
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_WIFI_ADDR: //Get Device WIFI IP
@@ -713,9 +735,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint32 : WIFI IP
-			WriteU32ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->WifiIp);
-			status = L_OK;
-			length = 4;
+			if (bufferLength >= offset + 3)
+			{
+				WriteU32ToBuff(packetBuffer, offset - 1, m_LinxDev->WifiIp);
+				status = L_OK;
+				dataLength = 4;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		case LCMD_SET_WIFI_PORT: //Set Device WIFI Port
@@ -723,14 +750,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint16 : WIFI port
 			// Response parameters
 			// None
-			if (length >= 2)
+			if (dataLength >= 2)
 			{
-				m_LinxDev->WifiPort = GetU16FromBuff(commandPacketBuffer, offset);
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_PORT + 0, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_PORT + 1, commandPacketBuffer[offset++]);
+				m_LinxDev->WifiPort = GetU16FromBuff(packetBuffer, offset);
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_PORT + 0, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_PORT + 1, packetBuffer[offset++]);
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_WIFI_PORT: //Get Device WIFI Port
@@ -738,9 +765,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint16 : WIFI port
-			WriteU16ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->WifiPort);
-			status = L_OK;
-			length = 2;
+			if (bufferLength >= offset + 1)
+			{
+				WriteU16ToBuff(packetBuffer, offset - 1, m_LinxDev->WifiPort);
+				status = L_OK;
+				dataLength = 2;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		case LCMD_SET_WIFI_SSID: //Set Device WIFI SSID
@@ -749,26 +781,26 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[len] : WIFI SSID
 			// Response parameters
 			// None
-			if (length > commandPacketBuffer[offset])
+			if (dataLength > packetBuffer[offset])
 			{
-				unsigned char len = commandPacketBuffer[offset++];
+				uint8_t length = packetBuffer[offset++];
 				//Update Ssid Size In RAM And NVS
-				if (len > 32)
+				if (length > 32)
 				{
-					len = 32;
+					length = 32;
 				}
-				m_LinxDev->WifiSsidSize = len;
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_SSID_SIZE, len);
+				m_LinxDev->WifiSsidSize = length;
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_SSID_SIZE, length);
 
 				//Update SSID Value In RAM And NVS
-				for (int i = 0; i < len; i++, offset++)
+				for (int32_t i = 0; i < length; i++, offset++)
 				{
-					m_LinxDev->WifiSsid[i] = commandPacketBuffer[offset];
-					m_LinxDev->NonVolatileWrite(NVS_WIFI_SSID + i, commandPacketBuffer[offset]);
+					m_LinxDev->WifiSsid[i] = packetBuffer[offset];
+					m_LinxDev->NonVolatileWrite(NVS_WIFI_SSID + i, packetBuffer[offset]);
 				}
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_WIFI_SSID: //Get Device WIFI SSID
@@ -777,13 +809,13 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// Response parameters
 			// uint8 : len
 			// uint8[len] : WIFI SSID
-			responsePacketBuffer[offset - 1] = m_LinxDev->WifiSsidSize;	//SSID SIZE
-			for (int i = 0; i < m_LinxDev->WifiSsidSize; i++)
+			packetBuffer[offset - 1] = m_LinxDev->WifiSsidSize;	//SSID SIZE
+			for (int32_t i = 0; i < m_LinxDev->WifiSsidSize; i++, offset++)
 			{
-				responsePacketBuffer[offset + i] = m_LinxDev->WifiSsid[i];
+				packetBuffer[offset] = m_LinxDev->WifiSsid[i];
 			}
 			status = L_OK;
-			length = m_LinxDev->WifiSsidSize;
+			dataLength = m_LinxDev->WifiSsidSize;
 			break;
 
 		case LCMD_SET_WIFI_SEC: //Set Device WIFI Security Type
@@ -791,13 +823,13 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : WIFI Security Type
 			// Response parameters
 			// None
-			if (length)
+			if (dataLength)
 			{
-				m_LinxDev->WifiSecurity = commandPacketBuffer[offset];
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_SECURITY_TYPE, commandPacketBuffer[offset]);
+				m_LinxDev->WifiSecurity = packetBuffer[offset];
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_SECURITY_TYPE, packetBuffer[offset]);
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_WIFI_SEC: //Get Device WIFI Security Type
@@ -805,9 +837,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8 : WIFI Security Type
-			responsePacketBuffer[offset - 1] = m_LinxDev->WifiSecurity;
-			status = L_OK;
-			length = 1;
+			if (bufferLength >= offset)
+			{
+				packetBuffer[offset - 1] = m_LinxDev->WifiSecurity;
+				status = L_OK;
+				dataLength = 1;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		case LCMD_SET_WIFI_PASS: //Set Device WIFI Password
@@ -816,26 +853,26 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[len] : WIFI SSID
 			// Response parameters
 			// None
-			if (length > commandPacketBuffer[offset])
+			if (dataLength > packetBuffer[offset])
 			{
-				unsigned char len = commandPacketBuffer[offset++];
+				uint8_t length = packetBuffer[offset++];
 				//Update PW Size In RAM And NVS
-				if (len > 64)
+				if (length > 64)
 				{
-					len = 64;
+					length = 64;
 				}
-				m_LinxDev->WifiPwSize = len;
-				m_LinxDev->NonVolatileWrite(NVS_WIFI_PW_SIZE, len);
+				m_LinxDev->WifiPwSize = length;
+				m_LinxDev->NonVolatileWrite(NVS_WIFI_PW_SIZE, length);
 
 				//Update PW Value In RAM And NVS
-				for (int i = 0; i < len; i++, offset++)
+				for (int32_t i = 0; i < length; i++, offset++)
 				{
-					m_LinxDev->WifiPw[i] = commandPacketBuffer[offset];
-					m_LinxDev->NonVolatileWrite(NVS_WIFI_PW + i, commandPacketBuffer[offset]);
+					m_LinxDev->WifiPw[i] = packetBuffer[offset];
+					m_LinxDev->NonVolatileWrite(NVS_WIFI_PW + i, packetBuffer[offset]);
 				}
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		//case 0x0021: //TODO Get Device WIFI Password - Intentionally Not Implemented For Security Reasons.
@@ -845,16 +882,16 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : Device Max Baud
 			// Response parameters
 			// None
-			if (length >= 4)
+			if (dataLength >= 4)
 			{
-				m_LinxDev->UartMaxBaud = GetU32FromBuff(commandPacketBuffer, offset);
-				m_LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 0, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 1, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 2, commandPacketBuffer[offset++]);
-				m_LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 3, commandPacketBuffer[offset++]);
+				m_LinxDev->UartMaxBaud = GetU32FromBuff(packetBuffer, offset);
+				m_LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 0, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 1, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 2, packetBuffer[offset++]);
+				m_LinxDev->NonVolatileWrite(NVS_SERIAL_INTERFACE_MAX_BAUD + 3, packetBuffer[offset++]);
 				status = L_OK;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_DEV_MAX_BAUD: //Get Device Max Baud
@@ -862,8 +899,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint32 : Device Max Baud
-			WriteU32ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->UartMaxBaud);
-			status = L_OK;
+			if (bufferLength >= offset + 3)
+			{
+				WriteU32ToBuff(packetBuffer, offset - 1, m_LinxDev->UartMaxBaud);
+				status = L_OK;
+				dataLength = 4;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_DEV_NAME: // Get Device Name
@@ -871,7 +914,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8[] : Device Name
-			length = m_LinxDev->GetDeviceName(responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			dataLength = m_LinxDev->GetDeviceName(packetBuffer + offset - 1, bufferLength - offset); 
 			status = L_OK;
 			break;
 
@@ -880,7 +923,7 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint32 : Device Max Baud
-			length = m_LinxDev->EnumerateChannels(IID_LinxServoChannel, responsePacketBuffer + offset - 1, m_ListenerBufferSize - offset); 
+			dataLength = m_LinxDev->EnumerateChannels(IID_LinxServoChannel, packetBuffer + offset - 1, bufferLength - offset); 
 			status = L_OK;
 			break;
 
@@ -896,12 +939,12 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[numChans] : states
 			// Response parameters
 			// None
-			if (length > 2 * commandPacketBuffer[offset])
+			if (dataLength > 2 * (uint32_t)packetBuffer[offset])
 			{
-				int numChans = commandPacketBuffer[offset];
-				status = m_LinxDev->DigitalSetState(numChans, commandPacketBuffer + offset + 1, commandPacketBuffer + offset + 1 + numChans);
+				uint8_t numChans = packetBuffer[offset++];
+				status = m_LinxDev->DigitalSetState(numChans, packetBuffer + offset, packetBuffer + offset + numChans);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_DIGITAL_WRITE: // Digital Write
@@ -911,12 +954,12 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[numChans + 7 / 8] : packed values
 			// Response parameters
 			// None
-			if (length > (commandPacketBuffer[offset] + ((commandPacketBuffer[offset] + 7) >> 3)))
+			if (dataLength > ((uint32_t)packetBuffer[offset] + ((packetBuffer[offset] + 7) >> 3)))
 			{
-				int numChans = commandPacketBuffer[offset];
-				status = m_LinxDev->DigitalWrite(numChans, commandPacketBuffer + offset + 1, commandPacketBuffer + offset + 1 + numChans);
+				uint8_t numChans = packetBuffer[offset++];
+				status = m_LinxDev->DigitalWrite(numChans, packetBuffer + offset, packetBuffer + offset + numChans);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_DIGITAL_READ: // Digital Read
@@ -924,16 +967,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[numChans] : channels
 			// Response parameters
 			// uint8[numChans + 7 / 8] : packed values
-			if (length >= 1)
+			if (dataLength >= 1)
 			{
-				unsigned char numRespBytes = (length + 7) >> 3;
-				status = m_LinxDev->DigitalRead(length, commandPacketBuffer + offset, responsePacketBuffer + offset - 1);
-				length = numRespBytes;
+				uint8_t numRespBytes = (dataLength + 7) >> 3;
+				status = m_LinxDev->DigitalRead(dataLength, packetBuffer + offset, packetBuffer + offset - 1);
+				dataLength = numRespBytes;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_SET_SQUARE_WAVE: //Write Square Wave
@@ -943,14 +984,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : duration
 			// Response parameters
 			// None
-			if (length >= 8)
+			if (dataLength >= 9)
 			{
-				unsigned int freq, duration;
-				ReadU32FromBuff(commandPacketBuffer, offset + 1, &freq);	
-				ReadU32FromBuff(commandPacketBuffer, offset + 5, &duration);	
-				status = m_LinxDev->DigitalWriteSquareWave(commandPacketBuffer[offset], freq, duration);
+				uint32_t freq, duration;
+				ReadU32FromBuff(packetBuffer, offset + 1, &freq);	
+				ReadU32FromBuff(packetBuffer, offset + 5, &duration);	
+				status = m_LinxDev->DigitalWriteSquareWave(packetBuffer[offset], freq, duration);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_PULSE_WIDTH: //Read Pulse Width
@@ -962,22 +1003,20 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : timeout
 			// Response parameters
 			// uint32 : pulse width
-			if (length >= 8)
+			if (dataLength >= 8)
 			{
-				unsigned int timeout, width;
-				ReadU32FromBuff(commandPacketBuffer, offset + 4, &timeout);	
+				uint32_t timeout, width;
+				ReadU32FromBuff(packetBuffer, offset + 4, &timeout);	
 
 				//LinxDev->DebugPrint("Timeout = ");
 				//LinxDev->DebugPrintln(timeout, DEC);
 
-				status = m_LinxDev->DigitalReadPulseWidth(commandPacketBuffer[offset + 1], commandPacketBuffer[offset + 2], commandPacketBuffer[offset], commandPacketBuffer[offset + 3], timeout, &width);
-				WriteU32ToBuff(responsePacketBuffer, offset - 1, width);
-				length = 4;
+				status = m_LinxDev->DigitalReadPulseWidth(packetBuffer[offset + 1], packetBuffer[offset + 2], packetBuffer[offset], packetBuffer[offset + 3], timeout, &width);
+				WriteU32ToBuff(packetBuffer, offset - 1, width);
+				dataLength = 4;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		//---0x0045 to 0x005F Reserved---
@@ -991,13 +1030,13 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : reference voltage
 			// Response parameters
 			// None
-			if (length >= 5)
+			if (dataLength >= 5)
 			{
-				unsigned int voltage;
-				ReadU32FromBuff(commandPacketBuffer, offset + 1, &voltage);	
-				status =  m_LinxDev->AnalogSetRef(commandPacketBuffer[offset], voltage);
+				uint32_t voltage;
+				ReadU32FromBuff(packetBuffer, offset + 1, &voltage);	
+				status =  m_LinxDev->AnalogSetRef(packetBuffer[offset], voltage);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_GET_AI_REF_VOLT: // Get AI Reference Voltage
@@ -1005,21 +1044,31 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint32 : reference voltage
-			WriteU32ToBuff(responsePacketBuffer, offset - 1, m_LinxDev->AiRefSet);
-			status = L_OK;
-			length = 4;
+			if (bufferLength >= offset + 3)
+			{
+				WriteU32ToBuff(packetBuffer, offset - 1, m_LinxDev->AiRefSet);
+				status = L_OK;
+				dataLength = 4;
+				break;
+			}
+			dataLength = 0;
 			break;
 
-		//case LCMD_SET_AI_RESOLUTION;	// Get AI Resolution
+		//case LCMD_SET_AI_RESOLUTION;	// Set AI Resolution
 
 		case LCMD_GET_AI_RESOLUTION:	// Get AI Resolution
 			// Command parameters
 			// None
 			// Response parameters
 			// uint8 : analog input resolution
-			responsePacketBuffer[offset - 1] = m_LinxDev->AiResolution;
-			status = L_OK;
-			length = 1;
+			if (bufferLength >= offset + 3)
+			{
+				packetBuffer[offset - 1] = m_LinxDev->AiResolution;
+				status = L_OK;
+				dataLength = 1;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		case LCMD_ANALOG_READ: // Analog Read
@@ -1028,9 +1077,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// Response parameters
 			// uint8 : analog input resolution
 			// uint8[] : analog values, bit-packed with resolution bits per channel
-			responsePacketBuffer[offset - 1] = m_LinxDev->AiResolution;
-			status = m_LinxDev->AnalogRead(length, commandPacketBuffer + offset, responsePacketBuffer + offset);
-			length = ((length * m_LinxDev->AiResolution + 7) / 8);
+			if (dataLength >= bufferLength)
+			{
+				status = m_LinxDev->AnalogRead(dataLength, packetBuffer + offset, packetBuffer + offset);
+				packetBuffer[offset - 1] = m_LinxDev->AiResolution;
+				dataLength = ((dataLength * m_LinxDev->AiResolution + 7) / 8);
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		//case LCMD_GET_AO_RESOLUTION: // Get AO Resolution
@@ -1040,9 +1094,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// None
 			// Response parameters
 			// uint8 : analog output resolution
-			responsePacketBuffer[offset - 1] = m_LinxDev->AoResolution;
-			status = L_OK;
-			length = 1;
+			if (bufferLength >= offset)
+			{
+				packetBuffer[offset - 1] = m_LinxDev->AoResolution;
+				status = L_OK;
+				dataLength = 1;
+				break;
+			}
+			dataLength = 0;
 			break;
 
 		case LCMD_ANALOG_WRITE: // Analog Write
@@ -1053,13 +1112,13 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[] : analog values, bit-packed with resolution bits per channel
 			// Response parameters
 			// None
-			if (length >= (2 + commandPacketBuffer[offset] + ((commandPacketBuffer[offset] * m_LinxDev->AoResolution + 7) / 8)) &&
-				commandPacketBuffer[offset + 1] == m_LinxDev->AoResolution)
+			if (dataLength >= (2 + (uint32_t)packetBuffer[offset] + (((uint32_t)packetBuffer[offset] * m_LinxDev->AoResolution + 7) / 8)) &&
+				packetBuffer[offset + 1] == m_LinxDev->AoResolution)
 			{
-				unsigned char numChans = commandPacketBuffer[offset];
-				status = m_LinxDev->AnalogWrite(numChans, commandPacketBuffer + offset + 2, commandPacketBuffer + offset + 2 + numChans);
+				uint8_t numChans = packetBuffer[offset];
+				status = m_LinxDev->AnalogWrite(numChans, packetBuffer + offset + 2, packetBuffer + offset + 2 + numChans);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		//---0x0066 to 0x007F Reserved---
@@ -1079,12 +1138,12 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[numChans] : pwm values
 			// Response parameters
 			// None
-			if (length > 2 * (int)commandPacketBuffer[offset])
+			if (dataLength > 2 * (uint32_t)packetBuffer[offset])
 			{
-				unsigned char numChans = commandPacketBuffer[offset];
-				status = m_LinxDev->PwmSetDutyCycle(numChans, commandPacketBuffer + offset + 1, commandPacketBuffer + offset + 1 + numChans);
+				uint8_t numChans = packetBuffer[offset++];
+				status = m_LinxDev->PwmSetDutyCycle(numChans, packetBuffer + offset, packetBuffer + offset + numChans);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		//case LCMD_PWM_CLOSE: //TODO PWM Close
@@ -1105,19 +1164,19 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : baudrate
 			// Response parameters
 			// uint32 : actual baudrate
-			if (length >= 5)
+			if (dataLength >= 5)
 			{
-				status = m_LinxDev->UartOpen(commandPacketBuffer[offset]);
+				status = m_LinxDev->UartOpen(packetBuffer[offset]);
 				if (!status)
 				{
-					unsigned int actualBaud = 0;
-					status = m_LinxDev->UartSetBaudRate(commandPacketBuffer[offset], GetU32FromBuff(commandPacketBuffer, offset + 1), &actualBaud);
-					WriteU32ToBuff(responsePacketBuffer, offset - 1, actualBaud); 
-					length = 4;
+					uint32_t actualBaud = 0;
+					status = m_LinxDev->UartSetBaudRate(packetBuffer[offset], GetU32FromBuff(packetBuffer, offset + 1), &actualBaud);
+					WriteU32ToBuff(packetBuffer, offset - 1, actualBaud); 
+					dataLength = 4;
 					break;
 				}
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_UART_OPEN_BY_NAME: // UART Open by Name
@@ -1125,14 +1184,14 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[] : device name
 			// Response parameters
 			// uint8 : assigned channel
-			if (length >= 3)
+			if (dataLength >= bufferLength - offset)
 			{
-				commandPacketBuffer[offset + length] = 0;
-				status = m_LinxDev->UartOpen(commandPacketBuffer + offset, responsePacketBuffer + offset - 1);
-				length = 1;
+				packetBuffer[offset + dataLength] = 0;
+				status = m_LinxDev->UartOpen(packetBuffer + offset, packetBuffer + offset - 1);
+				dataLength = 1;
 				break;
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_UART_SET_BAUD: // UART Set Baud Rate
@@ -1141,18 +1200,17 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : baudrate
 			// Response parameters
 			// uint32 : actual baudrate
-			if (length >= 5)
+			if (dataLength >= 5)
 			{
-				unsigned int actualBaud = 0;
-				status = m_LinxDev->UartSetBaudRate(commandPacketBuffer[offset], GetU32FromBuff(commandPacketBuffer, offset + 1), &actualBaud);
-				WriteU32ToBuff(responsePacketBuffer, 5, actualBaud);
-				length = 4;
+				uint32_t actualBaud = 0;
+				status = m_LinxDev->UartSetBaudRate(packetBuffer[offset], GetU32FromBuff(packetBuffer, offset + 1), &actualBaud);
+				WriteU32ToBuff(packetBuffer, offset - 1, actualBaud);
+				dataLength = 4;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
+
 		case LCMD_UART_SET_ATTRIBUTE: // UART Set Parameters
 			// Command parameters
 			// uint8 : channel
@@ -1161,35 +1219,39 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : parity
 			// Response parameters
 			// None
-			if (length >= 4)
+			if (dataLength >= 4)
 			{
-				status = m_LinxDev->UartSetParameters(commandPacketBuffer[offset], commandPacketBuffer[offset + 1], commandPacketBuffer[offset + 2], (LinxUartParity)commandPacketBuffer[offset + 3]);
-				length = 0;
+				status = m_LinxDev->UartSetParameters(packetBuffer[offset], packetBuffer[offset + 1], packetBuffer[offset + 2], (LinxUartParity)packetBuffer[offset + 3]);
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 		case LCMD_UART_GET_BYTES: // UART Get Bytes Available
 			// Command parameters
 			// uint8 : channel
 			// Response parameters
-			// uint32 : available bytes
-			if (length >= 1)
+			//  uint8 : available bytes
+			// or
+			//  uint32 : available bytes
+			if (dataLength >= 1)
 			{
-				unsigned int bytes;
-				status = m_LinxDev->UartGetBytesAvailable(commandPacketBuffer[offset], &bytes);
+				uint32_t numBytes;
+				status = m_LinxDev->UartGetBytesAvailable(packetBuffer[offset], &numBytes);
 				if (!status)
 				{
-					responsePacketBuffer[offset - 1] = (unsigned char)bytes;
+					if (m_ProtocolVersion)
+					{
+						WriteU32ToBuff(packetBuffer, offset - 1, numBytes);
+						dataLength = 4;
+					}
+					else
+					{
+						WriteU8ToBuff(packetBuffer, offset - 1, numBytes);
+						dataLength = 1;
+					}
 				}
-				length = 1;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_UART_READ: // UART Read
@@ -1205,24 +1267,25 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// end
 			// Response parameters
 			// uint8[] : read bytes
-			if (length >= 2)
+			if (dataLength >= 2)
 			{
-				unsigned char channel = commandPacketBuffer[offset];
-				int timeout = TIMEOUT_INFINITE;
-				unsigned int numBytes = commandPacketBuffer[offset + 1];
-				if (length >= 10)
+				uint8_t channel = packetBuffer[offset];
+				int32_t timeout = TIMEOUT_INFINITE;
+				uint32_t numBytes = packetBuffer[offset + 1];
+				if (dataLength >= 10)
 				{
-					channel = commandPacketBuffer[offset + 1];
-					timeout = GetU32FromBuff(commandPacketBuffer, offset + 2);
-					numBytes = Min(numBytes, GetU32FromBuff(commandPacketBuffer, offset + 6));
+					channel = packetBuffer[offset + 1];
+					timeout = GetU32FromBuff(packetBuffer, offset + 2);
+					numBytes = GetU32FromBuff(packetBuffer, offset + 6);
 				}
-				status = m_LinxDev->UartRead(channel, numBytes, responsePacketBuffer + offset - 1, timeout, &numBytes);
-				length = numBytes;
+				if (numBytes > (uint32_t)(bufferLength - offset))
+					numBytes = bufferLength - offset;
+
+				status = m_LinxDev->UartRead(channel, numBytes, packetBuffer + offset - 1, timeout, &numBytes);
+				dataLength = numBytes;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_UART_WRITE: // UART Write
@@ -1238,22 +1301,22 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[] : bytes to write
 			// Response parameters
 			// None
-			if (length >= 1)
+			if (dataLength >= 1)
 			{
-				unsigned char channel = commandPacketBuffer[offset++];
-				unsigned int numBytes = length - 1;
-				int timeout = TIMEOUT_INFINITE;
-				if (!channel && length > 10)
+				uint8_t channel = packetBuffer[offset++];
+				uint32_t numBytes = dataLength - 1;
+				int32_t timeout = TIMEOUT_INFINITE;
+				if (!channel && dataLength > 10)
 				{
-					channel = commandPacketBuffer[offset];
-					timeout = GetU32FromBuff(commandPacketBuffer, offset + 1);
-					numBytes = length - 10;
-					numBytes = Min(numBytes, GetU32FromBuff(commandPacketBuffer, offset + 5));
+					channel = packetBuffer[offset];
+					timeout = GetU32FromBuff(packetBuffer, offset + 1);
+					numBytes = dataLength - 10;
+					numBytes = Min(numBytes, GetU32FromBuff(packetBuffer, offset + 5));
 					offset += 9;
 				}
-				status = m_LinxDev->UartWrite(channel, numBytes, commandPacketBuffer + offset, timeout);
+				status = m_LinxDev->UartWrite(channel, numBytes, packetBuffer + offset, timeout);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_UART_CLOSE: // UART Close
@@ -1261,11 +1324,11 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : channel
 			// Response parameters
 			// None
-			if (length >= 1)
+			if (dataLength >= 1)
 			{
-				status = m_LinxDev->UartClose(commandPacketBuffer[offset]);
+				status = m_LinxDev->UartClose(packetBuffer[offset]);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		//---0x00C6 to 0x00DF Reserved---
@@ -1278,11 +1341,11 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : channel
 			// Response parameters
 			// None
-			if (length >= 1)
+			if (dataLength >= 1)
 			{
-				status = m_LinxDev->I2cOpenMaster(commandPacketBuffer[offset]);
+				status = m_LinxDev->I2cOpenMaster(packetBuffer[offset]);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_I2C_SPEED: // I2C Set Speed
@@ -1291,19 +1354,17 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : speed
 			// Response parameters
 			// uint32 : actual speed
-			if (length >= 5)
+			if (dataLength >= 5)
 			{
-				unsigned int actualSpeed = 0;
-				status = m_LinxDev->I2cSetSpeed(commandPacketBuffer[offset], GetU32FromBuff(commandPacketBuffer, offset + 1), &actualSpeed);
+				uint32_t actualSpeed = 0;
+				status = m_LinxDev->I2cSetSpeed(packetBuffer[offset], GetU32FromBuff(packetBuffer, offset + 1), &actualSpeed);
 
 				//Build Response Packet
-				WriteU32ToBuff(responsePacketBuffer, offset - 1, actualSpeed);
-				length = 4;
+				WriteU32ToBuff(packetBuffer, offset - 1, actualSpeed);
+				dataLength = 4;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_I2C_WRITE: // I2C Write
@@ -1314,11 +1375,11 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[] : data bytes to write
 			// Response parameters
 			// None
-			if (length >= 3)
+			if (dataLength >= 3)
 			{
-				status = m_LinxDev->I2cWrite(commandPacketBuffer[offset], commandPacketBuffer[offset + 1], commandPacketBuffer[offset + 2], (unsigned char)length - 3, commandPacketBuffer + offset + 3);
+				status = m_LinxDev->I2cWrite(packetBuffer[offset], packetBuffer[offset + 1], packetBuffer[offset + 2], (uint8_t)dataLength - 3, packetBuffer + offset + 3);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_I2C_READ: // I2C Read
@@ -1330,15 +1391,13 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : I2C eof config
 			// Response parameters
 			// uint8[] : num bytes data
-			if (length >= 6)
+			if (dataLength >= 6)
 			{
-				status = m_LinxDev->I2cRead(commandPacketBuffer[offset], commandPacketBuffer[offset + 1], commandPacketBuffer[offset + 5], commandPacketBuffer[offset + 2], GetU16FromBuff(commandPacketBuffer, offset + 3), responsePacketBuffer + offset - 1);
-				length = commandPacketBuffer[offset + 2];
+				status = m_LinxDev->I2cRead(packetBuffer[offset], packetBuffer[offset + 1], packetBuffer[offset + 5], packetBuffer[offset + 2], GetU16FromBuff(packetBuffer, offset + 3), packetBuffer + offset - 1);
+				dataLength = packetBuffer[offset + 2];
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_I2C_CLOSE: // I2C Close
@@ -1346,11 +1405,11 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : I2C channel
 			// Response parameters
 			// None
-			if (length >= 1)
+			if (dataLength >= 1)
 			{
-				status = m_LinxDev->I2cClose((commandPacketBuffer[offset]));
+				status = m_LinxDev->I2cClose((packetBuffer[offset]));
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		//---0x00E5 to 0x00FF Reserved---
@@ -1363,11 +1422,11 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : SPI channel
 			// Response parameters
 			// None
-			if (length >= 1)
+			if (dataLength >= 1)
 			{
-				status = m_LinxDev->SpiOpenMaster(commandPacketBuffer[offset]);
+				status = m_LinxDev->SpiOpenMaster(packetBuffer[offset]);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_SPI_SET_ORDER: // SPI Set Bit Order
@@ -1376,11 +1435,11 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : SPI bit order
 			// Response parameters
 			// None
-			if (length >= 2)
+			if (dataLength >= 2)
 			{
-				status = m_LinxDev->SpiSetBitOrder(commandPacketBuffer[offset], commandPacketBuffer[offset + 1]);
+				status = m_LinxDev->SpiSetBitOrder(packetBuffer[offset], packetBuffer[offset + 1]);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_SPI_SET_FREQ: // SPI Set Clock Frequency
@@ -1389,19 +1448,17 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint32 : clock frequency
 			// Response parameters
 			// None
-			if (length >= 5)
+			if (dataLength >= 5)
 			{
-				unsigned int actualSpeed = 0;
-				status = m_LinxDev->SpiSetSpeed(commandPacketBuffer[offset], GetU32FromBuff(commandPacketBuffer, offset + 1), &actualSpeed);
+				uint32_t actualSpeed = 0;
+				status = m_LinxDev->SpiSetSpeed(packetBuffer[offset], GetU32FromBuff(packetBuffer, offset + 1), &actualSpeed);
 
 				//Build Response Packet
-				WriteU32ToBuff(responsePacketBuffer, offset - 1, actualSpeed);
-				length = 4;
+				WriteU32ToBuff(packetBuffer, offset - 1, actualSpeed);
+				dataLength = 4;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_SPI_SET_MODE: // SPI Set Mode
@@ -1410,11 +1467,11 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8 : SPI mode
 			// Response parameters
 			// None
-			if (length >= 2)
+			if (dataLength >= 2)
 			{
-				status = m_LinxDev->SpiSetMode(commandPacketBuffer[offset], commandPacketBuffer[offset + 1]);
+				status = m_LinxDev->SpiSetMode(packetBuffer[offset], packetBuffer[offset + 1]);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		//case 0x0104: //LEGACY - SPI Set Frame Size
@@ -1430,26 +1487,24 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 			// uint8[] : num frames * frame size data bytes 
 			// Response parameters
 			// uint8[] : num frames * frame size data bytes
-			if (length > 4)
+			if (dataLength > 4)
 			{
-				unsigned char frameSize = commandPacketBuffer[offset + 1], 
-							  numFrames = (length - 4) / frameSize,
+				uint8_t frameSize = packetBuffer[offset + 1], 
+						numFrames = (dataLength - 4) / frameSize,
 
-				status = m_LinxDev->SpiWriteRead(commandPacketBuffer[offset], frameSize, numFrames, commandPacketBuffer[offset + 2], commandPacketBuffer[offset + 3], commandPacketBuffer + offset + 4, responsePacketBuffer + offset - 1);
-				length -= 5;
+				status = m_LinxDev->SpiWriteRead(packetBuffer[offset], frameSize, numFrames, packetBuffer[offset + 2], packetBuffer[offset + 3], packetBuffer + offset + 4, packetBuffer + offset - 1);
+				dataLength -= 5;
+				break;
 			}
-			else
-			{
-				length = 0;
-			}
+			dataLength = 0;
 			break;
 
 		case LCMD_SPI_CLOSE: // SPI Close
-			if (length >= 1)
+			if (dataLength >= 1)
 			{
-				status = m_LinxDev->SpiCloseMaster(commandPacketBuffer[offset]);
+				status = m_LinxDev->SpiCloseMaster(packetBuffer[offset]);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		//---0x0085 to 0x009F Reserved---
@@ -1465,74 +1520,74 @@ int LinxListener::ProcessCommand(unsigned short command, unsigned char* commandP
 		****************************************************************************************/
 		case LCMD_SERVO_INIT: // Servo Init
 			//LinxDev->DebugPrintln("Opening Servo");
-			status = m_LinxDev->ServoOpen((unsigned char)length, commandPacketBuffer + offset);
-			length = 0;
+			status = m_LinxDev->ServoOpen((uint8_t)dataLength, packetBuffer + offset);
+			dataLength = 0;
 			//LinxDev->DebugPrintln("Done Creating Servos...");
 			break;
 
 		case LCMD_SERVO_SET_PULSE: // Servo Set Pulse Width
-			if (length >= 1)
+			if (dataLength >= 1)
 			{
-				unsigned char numChans = commandPacketBuffer[offset];
+				uint8_t numChans = packetBuffer[offset];
 				// Convert Big Endian packet to platform endianess (uC)
 				// Temporary in place array pointer to store endianess corrected value
-				unsigned char *tempPtr = commandPacketBuffer + offset + 1 + numChans;
-				unsigned short *tempVals = (unsigned short *)tempPtr;
+				uint8_t *tempPtr = packetBuffer + offset + 1 + numChans;
+				uint16_t *tempVals = (uint16_t *)tempPtr;
 
-				for (int i = 0; i < numChans; i++)
+				for (int32_t i = 0; i < numChans; i++)
 				{
-					// Create unsigned short from big endian byte array
+					// Create uint16_t from big endian byte array
 					tempVals[i] = GetU16FromBuff(tempPtr, 2 * i);			
 				}
 
 				//TODO REMOVE DEBUG PRINT
 				m_Debug->Writeln("::tempVals::");
-				for (int i = 0; i < numChans; i++)
+				for (int32_t i = 0; i < numChans; i++)
 				{
 					m_Debug->Writeln(tempVals[i], DEC);
 				}
-				status = m_LinxDev->ServoSetPulseWidth(numChans, commandPacketBuffer + offset + 1, tempVals);
+				status = m_LinxDev->ServoSetPulseWidth(numChans, packetBuffer + offset + 1, tempVals);
 			}
-			length = 0;
+			dataLength = 0;
 			break;
 
 		case LCMD_SERVE_CLOSE: // Servo Close
-			status = m_LinxDev->ServoClose((unsigned char)length, commandPacketBuffer + offset);
-			length = 0;
+			status = m_LinxDev->ServoClose((uint8_t)dataLength, packetBuffer + offset);
+			dataLength = 0;
 			break;
 
 		/****************************************************************************************
 		** WS2812
 		****************************************************************************************/
 		case 0x0160: // WS2812 Open
-			status = m_LinxDev->Ws2812Open(GetU16FromBuff(commandPacketBuffer, offset), commandPacketBuffer[offset + 2]);
-			length = 0;
+			status = m_LinxDev->Ws2812Open(GetU16FromBuff(packetBuffer, offset), packetBuffer[offset + 2]);
+			dataLength = 0;
 			break;
 		case 0x0161: // WS2812 Write One Pixel
-			status = m_LinxDev->Ws2812WriteOnePixel(GetU16FromBuff(commandPacketBuffer, offset), commandPacketBuffer[offset + 2], commandPacketBuffer[offset + 3], commandPacketBuffer[offset + 4], commandPacketBuffer[offset + 5]);
-			length = 0;
+			status = m_LinxDev->Ws2812WriteOnePixel(GetU16FromBuff(packetBuffer, offset), packetBuffer[offset + 2], packetBuffer[offset + 3], packetBuffer[offset + 4], packetBuffer[offset + 5]);
+			dataLength = 0;
 			break;
 		case 0x0162: // WS2812 Write N Pixels
-			status = m_LinxDev->Ws2812WriteNPixels(GetU16FromBuff(commandPacketBuffer, offset), GetU16FromBuff(commandPacketBuffer, offset), commandPacketBuffer + offset + 5, commandPacketBuffer[offset + 4]);
-			length = 0;
+			status = m_LinxDev->Ws2812WriteNPixels(GetU16FromBuff(packetBuffer, offset), GetU16FromBuff(packetBuffer, offset), packetBuffer + offset + 5, packetBuffer[offset + 4]);
+			dataLength = 0;
 			break;
 		case 0x0163: // WS2812 Refresh
 			status = m_LinxDev->Ws2812Refresh();
-			length = 0;
+			dataLength = 0;
 			break;
 		case 0x0164: // WS2812 Close
 			status = m_LinxDev->Ws2812Close();
-			length = 0;
+			dataLength = 0;
 			break;
 
 		/****************************************************************************************
 		** Default
 		****************************************************************************************/
 		default: //Default Case
-			length = 0;
+			dataLength = 0;
 			status = L_FUNCTION_NOT_SUPPORTED;
 			break;
 		}
 	}
-	return PacketizeAndSend(commandPacketBuffer, responsePacketBuffer, length, status);
+	return PacketizeAndSend(packetBuffer, dataLength, status, start, timeout);
 }

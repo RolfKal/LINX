@@ -64,7 +64,7 @@
 ****************************************************************************************/
 static void ShortWait(void)
 {
-    for (int i = 0; i < 150; i++)
+    for (int32_t i = 0; i < 150; i++)
 	{
 		// wait 150 cycles
 		__nop();
@@ -75,210 +75,176 @@ static void ShortWait(void)
 **  Digital Channels
 ****************************************************************************************/
 // Raspberry Pi GPIO memory map pointer
-static volatile unsigned int *gpio_map = (volatile unsigned int*)MAP_FAILED;
+static volatile uint32_t *gpio_map = (volatile uint32_t*)MAP_FAILED;
 
 // Raspberry Pi GPIO pins
-static const unsigned char g_LinxDioChans[NUM_DIGITAL_CHANS] = {3,  5,  7,  8, 10, 11, 12, 13, 15, 16, 18, 19, 21, 22, 23, 24, 26, 29, 31, 32, 33, 35, 36, 37, 38, 40};
-static const unsigned char g_GpioDioChans[NUM_DIGITAL_CHANS] = {2,  3,  4, 14, 15, 17, 18, 27, 22, 23, 24, 10,  9, 25, 11,  8,  7,  5,  6, 12, 13, 19, 16, 26, 20, 21};
-static const unsigned char g_EnabDioChans[NUM_DIGITAL_CHANS] = {2,  2,  0,  1,  1,  0,  8,  0,  0,  0,  0,  4,  4,  0,  4,  4,  4,  0,  0, 16, 16,  8,  0,  0,  8,  8};
+static const uint8_t g_LinxDioChans[NUM_DIGITAL_CHANS] = {3,  5,  7,  8, 10, 11, 12, 13, 15, 16, 18, 19, 21, 22, 23, 24, 26, 29, 31, 32, 33, 35, 36, 37, 38, 40};
+static const uint8_t g_GpioDioChans[NUM_DIGITAL_CHANS] = {2,  3,  4, 14, 15, 17, 18, 27, 22, 23, 24, 10,  9, 25, 11,  8,  7,  5,  6, 12, 13, 19, 16, 26, 20, 21};
+static const uint8_t g_EnabDioChans[NUM_DIGITAL_CHANS] = {2,  2,  0,  1,  1,  0,  8,  0,  0,  0,  0,  4,  4,  0,  4,  4,  4,  0,  0, 16, 16,  8,  0,  0,  8,  8};
 /* Enab values: 1: uart pins, 2: I2C pins, 4: SPI pins, 8, PCM pins, 16: PWM pins */
 
 
-int LinxRaspiDioChannel::LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin, unsigned char cpuModel) : LinxSysfsDioChannel(debug, linxPin, gpioPin)
+int32_t LinxRaspiDioChannel::LinxRaspiDioChannel(LinxFmtChannel *debug, uint16_t linxPin, uint16_t gpioPin, uint8_t cpuModel) : LinxSysfsDioChannel(debug, linxPin, gpioPin)
 {
 	m_CpuModel = cpuModel;
 }
 
-int LinxRaspiDioChannel::SetState(unsigned char state)
+int32_t LinxRaspiDioChannel::setDirection(uint8_t dir)
 {
-	if (gpio_map != MAP_FAILED)
+	int32_t status = LinxDIOChannel::setDirection(dir);
+	if (!status)
 	{
-		// Set direction and pull-up/down
-		return setState(state);
-	}
-	return LinxSysfsDioChannel::SetState(state);
-}
-
-int LinxRaspiDioChannel::Write(unsigned char value)
-{
-	if (gpio_map != MAP_FAILED)
-	{
-		// Set direction
-		if ((m_State & GPIO_DIRMASK) != GPIO_OUTPUT)
-		{
-			if (setDirection(GPIO_OUTPUT))
-				return LDIGITAL_PIN_DNE
-		}
-		
+		dir &= GPIO_DIRMASK;
 		if (m_CpuModel >= CPU_MODEL_BCM2712)
 		{
 
 		}
 		else
 		{
-			int offset = (m_GpioChan / 32) + (value ? SET_OFFSET : CLR_OFFSET);
-			unsigned int mask = (1 << (m_GpioChan % 32));
+			int32_t offset = FSEL_OFFSET + (m_GpioChan / 10);
+			uint32_t shift = (m_GpioChan % 10) * 3;
+			uint32_t value = *(gpio_map + offset); 
 
-			*(gpio_map + offset) = mask;
+			// if the according pin is set as alternate function, abort
+			if (value &	(GPIO_ALTMASK << shift))
+				return LDIGITAL_PIN_NOT_AVAIL;
+
+			if (direction == GPIO_OUTPUT)
+			{
+				*(gpio_map + offset) = value | (1 << shift);
+			}
+			else
+			{
+				*(gpio_map + offset) = value & ~(1 << shift);
+			}
 		}
+	}
+	else if (status == LDIGITAL_PIN_NOCHANGE)
+	{
 		return L_OK;
 	}
-	return LinxSysfsDioChannel::Write(value);
+	return status;
 }
 
-int LinxRaspiDioChannel::Read(unsigned char *value)
+int32_t LinxRaspiDioChannel::setPull(uint8_t pud)
 {
-	if (gpio_map != MAP_FAILED)
+	int32_t status = LinxDIOChannel::setPull(pud);
+	if (!status)
 	{
-		// Set direction
-		if ((m_State & GPIO_DIRMASK) != GPIO_INPUT)
+		pud &= GPIO_PULLMASK;
+
+		// Check GPIO register
+		switch (m_CpuModel)
 		{
-			if (setDirection(GPIO_INPUT))
-				return LDIGITAL_PIN_DNE
-		}
+			case CPU_MODEL_BCM2712:
+			{
+				// Pi 5 Pull-up/down method
 
-		if (m_CpuModel >= CPU_MODEL_BCM2712)
-		{
-
-		}
-		else
-		{
-			int offset = PINLEVEL_OFFSET + (m_GpioChan / 32);
-			unsigned int mask = 1 << (m_GpioChan % 32);
-
-			*value = *(gpio_map + offset) & mask;
-		}
-		return L_OK;
-	}
-	return LinxSysfsDioChannel::Read(value);
-}
-
-int LinxRaspiDioChannel::setPull(unsigned char pud)
-{
-	pud &= GPIO_PULLMASK;
-
-	// Check GPIO register
-	switch (m_CpuModel)
-	{
-		case CPU_MODEL_BCM2712:
-		{
-			// Pi 5 Pull-up/down method
-
-			break;
-		}
-		case CPU_MODEL_BCM2711:
-		{
-			// Pi 4 Pull-up/down method
-			int pullreg = PULLUPDN_OFFSET_2711_0 + (m_GpioChan >> 4);
-			int pullshift = (m_GpioChan & 0xf) << 1;
-			unsigned int pullbits = *(gpio_map + pullreg), pull = 0;
+				break;
+			}
+			case CPU_MODEL_BCM2711:
+			{
+				// Pi 4 Pull-up/down method
+				int32_t pullreg = PULLUPDN_OFFSET_2711_0 + (m_GpioChan >> 4);
+				int32_t pullshift = (m_GpioChan & 0xf) << 1;
+				uint32_t pullbits = *(gpio_map + pullreg), pull = 0;
 		
-			switch (pud)
-			{
-				case GPIO_PULLUP:
-					pull = 1;
-					break;
-				case GPIO_PULLDOWN:
-					pull = 2;
-					break;
-				default:
-					pull = 0;
-					break;
-			}
+				switch (pud)
+				{
+					case GPIO_PULLUP:
+						pull = 1;
+						break;
+					case GPIO_PULLDOWN:
+						pull = 2;
+						break;
+					default:
+						pull = 0;
+						break;
+				}
 
-			pullbits &= ~(3 << pullshift);
-			pullbits |= (pull << pullshift);
+				pullbits &= ~(3 << pullshift);
+				pullbits |= (pull << pullshift);
 			
-			*(gpio_map + pullreg) = pullbits;
-			break;
-		}
-		default:
-		{
-			// Legacy Pull-up/down method
-			int clk_offset = PULLUPDNCLK_OFFSET + (m_GpioChan / 32);
-			unsigned int bitval = (1 << (m_GpioChan % 32));
-			
-			switch (pud)
-			{
-				case GPIO_PULLUP:
-					*(gpio_map + PULLUPDN_OFFSET) = 0x02;
-					break;
-				case GPIO_PULLDOWN:
-					*(gpio_map + PULLUPDN_OFFSET) = 0x01;
-					break;
-				default:
-					*(gpio_map + PULLUPDN_OFFSET) = 0x00;
-					break;
+				*(gpio_map + pullreg) = pullbits;
+				break;
 			}
+			default:
+			{
+				// Legacy Pull-up/down method
+				int32_t clk_offset = PULLUPDNCLK_OFFSET + (m_GpioChan / 32);
+				uint32_t bitval = (1 << (m_GpioChan % 32));
+				
+				switch (pud)
+				{
+					case GPIO_PULLUP:
+						*(gpio_map + PULLUPDN_OFFSET) = 0x02;
+						break;
+					case GPIO_PULLDOWN:
+						*(gpio_map + PULLUPDN_OFFSET) = 0x01;
+						break;
+					default:
+						*(gpio_map + PULLUPDN_OFFSET) = 0x00;
+						break;
+				}
 
-			ShortWait();
-			*(gpio_map + clk_offset) = bitval;
-			ShortWait();
-			*(gpio_map + PULLUPDN_OFFSET) = 0;
-			*(gpio_map + clk_offset) = 0;
-			break;
+				ShortWait();
+				*(gpio_map + clk_offset) = bitval;
+				ShortWait();
+				*(gpio_map + PULLUPDN_OFFSET) = 0;
+				*(gpio_map + clk_offset) = 0;
+				break;
+			}
 		}
 	}
-	m_State = ((m_State & ~GPIO_PULLMASK) | pud);
-	return L_OK;
+	else if (status == LDIGITAL_PIN_NOCHANGE)
+	{
+		return L_OK;
+	}
+	return status;
 }
 
-int LinxRaspiDioChannel::setDirection(unsigned char direction)
+int32_t LinxRaspiDioChannel::setValue(uint8_t value)
 {
-	direction &= GPIO_DIRMASK;
 	if (m_CpuModel >= CPU_MODEL_BCM2712)
 	{
 
 	}
 	else
 	{
-		int offset = FSEL_OFFSET + (m_GpioChan / 10);
-		unsigned int shift = (m_GpioChan % 10) * 3;
-		unsigned int value = *(gpio_map + offset); 
+		int32_t offset = (m_GpioChan / 32) + (value ? SET_OFFSET : CLR_OFFSET);
+		uint32_t mask = (1 << (m_GpioChan % 32));
 
-		// if the according pin is set as alternate function, abort
-		if (value &	(GPIO_ALTMASK << shift))
-			return LDIGITAL_PIN_DNE;
-
-		if (direction == GPIO_OUTPUT)
-		{
-			*(gpio_map + offset) = value | (1 << shift);
-		}
-		else
-		{
-			*(gpio_map + offset) = value & ~(1 << shift);
-		}
+		*(gpio_map + offset) = mask;
 	}
-	m_State = ((m_State & ~GPIO_DIRMASK) | direction);
 	return L_OK;
 }
-int LinxRaspiDioChannel::setState(unsigned char state)
-{
-	unsigned char pud = state & GPIO_PULLMASK;
-	if (state & GPIO_DIRMASK != (m_State & GPIO_DIRMASK))
-	{
-		if (setDirection(state))
-			return LDIGITAL_PIN_DNE;
-	}
 
-	if (pud && (pud != (m_State & GPIO_PULLMASK)))
+int32_t LinxRaspiDioChannel::getValue(uint8_t *value)
+{
+	if (m_CpuModel >= CPU_MODEL_BCM2712)
 	{
-		setPull(pud); 
+	}
+	else
+	{
+		int32_t offset = PINLEVEL_OFFSET + (m_GpioChan / 32);
+		uint32_t mask = 1 << (m_GpioChan % 32);
+
+		*value = *(gpio_map + offset) & mask;
 	}
 	return L_OK;
 }
 
 //SPI
-static unsigned char g_SpiChans[NUM_SPI_CHANS] = {0, 1, 2, 3, 4};
+static uint8_t g_SpiChans[NUM_SPI_CHANS] = {0, 1, 2, 3, 4};
 static const char * g_SpiPaths[NUM_SPI_CHANS] = {"/dev/spidev0.0", "/dev/spidev0.1", "/dev/spidev1.0", "/dev/spidev1.1", "/dev/spidev1.2"};
-static int g_SpiDefaultSpeed = 3900000;
+static int32_t g_SpiDefaultSpeed = 3900000;
 
 //I2C
-static unsigned char g_I2cChans[NUM_I2C_CHANS] = {1};
+static uint8_t g_I2cChans[NUM_I2C_CHANS] = {1};
 static const char * g_I2cPaths[NUM_I2C_CHANS] = {"/dev/i2c-1"};
 
 //UART
-static unsigned char g_UartChans[NUM_UART_CHANS] = {0};
+static uint8_t g_UartChans[NUM_UART_CHANS] = {0};
 static const char * g_UartPaths[NUM_UART_CHANS] = {"/dev/serial0"};
 
 
@@ -299,27 +265,22 @@ LinxRaspberryPi::LinxRaspberryPi(LinxFmtChannel *debug) : LinxDevice(debug)
 	m_DeviceCode = 0;
 	m_SerialNum = 0;
 
-	unsigned char CpuModel;
+	uint8_t CpuModel;
+	char buffer[256];
+	int32_t model;
+
 	FILE *fp = fopen("/proc/device-tree/serial-number", "r");
 	if (fp)
 	{
-		if (fread(&m_SerialNum, sizeof(m_SerialNum), fp))
+		if (fscanf(fp, "%" SCNu64, &m_SerialNum))
 		{
 		}
 		fclose(fp);
 	}
 
-	if (fp = fopen("/proc/device-tree/revision", "r"))
+	if (fp = fopen("/proc/device-tree/system/linux,revision", "r"))
 	{
-		if (fread(&m_DeviceCode, sizeof(m_DeviceCode), fp))
-		{
-			m_DeviceCode = ntohl(m_DeviceCode);
-		}
-		fclose(fp);
-	}
-	else if (fp = fopen("/proc/device-tree/system/linux,revision", "r"))
-	{
-		if (fread(&m_DeviceCode, sizeof(m_DeviceCode), fp))
+		if (fread(&m_DeviceCode, sizeof(m_DeviceCode), 1, fp))
 		{
 			m_DeviceCode = ntohl(m_DeviceCode);
 		}
@@ -327,34 +288,36 @@ LinxRaspberryPi::LinxRaspberryPi(LinxFmtChannel *debug) : LinxDevice(debug)
 	}
 	else if ((fp = fopen("/proc/cpuinfo", "r")))
 	{
-		char buffer[1024];
 		while (!feof(fp) && fgets(buffer, sizeof(buffer), fp))
 		{
-			sscanf(buffer, "Hardware	: %s", hardware);
-			if (strcmp(hardware, "BCM2708") == 0 ||
-                strcmp(hardware, "BCM2709") == 0 ||
-                strcmp(hardware, "BCM2835") == 0 ||
-                strcmp(hardware, "BCM2836") == 0 ||
-                strcmp(hardware, "BCM2837") == 0 )
+			if (sscanf(buffer, "Hardware	: BCM%d", &model) != 1)
 			{
-				sscanf(buffer, "Revision	: %x", m_DeviceCode);
+				model = 0;
 			}
+			else if (sscanf(buffer, "Revision	: %x", m_DeviceCode) == 1)
+			{
+				if (model == 2708 || model == 2709 || model == 2835 || model == 2836 || model == 2837)
+				{
+					break;
+				}
+			}
+			m_DeviceCode = 0;
 		}
 		fclose(fp);
 	}
 	if (m_DeviceCode))
 	{
-		DeviceId = (m_DeviceCode & 0x8000000) ? (unsigned char)((m_DeviceCode & 0xFF0) >> 4) : 0;
-		CpuModel = (m_DeviceCode & 0x8000000) ? (unsigned char)((m_DeviceCode & 0xF000) >> 12) : 0;
+		DeviceId = (m_DeviceCode & 0x8000000) ? (uint8_t)((m_DeviceCode & 0xFF0) >> 4) : 0;
+		CpuModel = (m_DeviceCode & 0x8000000) ? (uint8_t)((m_DeviceCode & 0xF000) >> 12) : 0;
 	}
 
-	int fd = open("/proc/device-tree/model", O_RDONLY);
+	int32_t fd = open("/proc/device-tree/model", O_RDONLY);
 	if (fd >= 0)
 	{
 		struct stat buf;
 		if (fstat(fd, &buf) == 0)
 		{
-			int len = read(fd, m_DeviceName, Min(buf.st_size, (off_t)(DEVICE_NAME_MAX - 1)));
+			int32_t len = read(fd, m_DeviceName, Min(buf.st_size, (off_t)(DEVICE_NAME_MAX - 1)));
 			if (len > 0)
 			{
 				m_DeviceName[len] = 0;
@@ -384,14 +347,14 @@ LinxRaspberryPi::LinxRaspberryPi(LinxFmtChannel *debug) : LinxDevice(debug)
     // try /dev/gpiomem first - this does not require root privilegs
 	if (gpio_map == MAP_FAILED)
 	{
-		int mem_fd = open("/dev/gpiomem", O_RDWR | O_SYNC);
+		int32_t mem_fd = open("/dev/gpiomem", O_RDWR | O_SYNC);
 		if (mem_fd > 0)
-			gpio_map = (int*)mmap(NULL, BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, 0);
+			gpio_map = (int32_t*)mmap(NULL, BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, 0);
 		close(mem_fd);
     }
 		
 	// Initialize the digital lookup map
-	for (int i = 0; i < NUM_DIGITAL_CHANS; i++)
+	for (int32_t i = 0; i < NUM_DIGITAL_CHANS; i++)
 	{
 		LinxChannel *channel;
 		if (gpio_map == MAP_FAILED)
@@ -408,7 +371,7 @@ LinxRaspberryPi::LinxRaspberryPi(LinxFmtChannel *debug) : LinxDevice(debug)
 
 	//------------------------------------- UART -------------------------------------
 	// Store Uart channels in the registry map
-	for (int i = 0; i < NUM_UART_CHANS; i++)
+	for (int32_t i = 0; i < NUM_UART_CHANS; i++)
 	{
 		LinxChannel *channel = new LinxUnixUartChannel(m_Debug, g_UartPaths[i]);
 		if (channel)
@@ -417,7 +380,7 @@ LinxRaspberryPi::LinxRaspberryPi(LinxFmtChannel *debug) : LinxDevice(debug)
 
 	//------------------------------------- I2C -------------------------------------
 	// Store I2C master channels in the registry map
-	for (int i = 0; i < NUM_I2C_CHANS; i++)
+	for (int32_t i = 0; i < NUM_I2C_CHANS; i++)
 	{
 		LinxChannel *channel = new LinxSysfsI2cChannel(g_I2cPaths[i], m_Debug);
 		if (channel)
@@ -426,7 +389,7 @@ LinxRaspberryPi::LinxRaspberryPi(LinxFmtChannel *debug) : LinxDevice(debug)
 
 	//------------------------------------- SPI -------------------------------------
 	// Store SPI channels in the registry map
-	for (int i = 0; i < NUM_SPI_CHANS; i++)
+	for (int32_t i = 0; i < NUM_SPI_CHANS; i++)
 	{
 		if (fileExists(g_SpiPaths[i]))
 		{
@@ -452,7 +415,7 @@ LinxRaspberryPi::~LinxRaspberryPi(void)
 	if (gpio_map != MAP_FAILED)
 	{
 		munmap((void *)gpio_map, BLOCK_SIZE);
-		gpio_map = (volatile int*)MAP_FAILED;
+		gpio_map = (volatile int32_t*)MAP_FAILED;
 	}
 }
 
@@ -467,8 +430,8 @@ LinxRaspberryPi::~LinxRaspberryPi(void)
 /****************************************************************************************
 **  Public Functions
 ****************************************************************************************/
-unsigned char LinxRaspberryPi::GetDeviceName(unsigned char *buffer, unsigned char length)
+uint8_t LinxRaspberryPi::GetDeviceName(unsigned char *buffer, uint8_t length)
 {
 	strncpy((char*)buffer, m_DeviceName, length);
-	return (unsigned char)strlen(m_DeviceName);
+	return (uint8_t)strlen(m_DeviceName);
 }

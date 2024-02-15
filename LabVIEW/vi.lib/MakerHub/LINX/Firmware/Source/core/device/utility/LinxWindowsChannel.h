@@ -32,15 +32,15 @@ class LinxWindowsCommChannel : public LinxCommChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, NetObject socket);
-		LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port);
+		LinxWindowsCommChannel(LinxFmtChannel *debug, const unsigned char *address, uint16_t port);
 		~LinxWindowsCommChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead);
-		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout);
-		virtual int Close(void);
+		virtual int32_t Read(unsigned char* recBuffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead);
+		virtual int32_t Write(const unsigned char* sendBuffer, uint32_t numBytes, uint32_t start, int32_t timeout);
+		virtual int32_t Close(void);
 
 	protected:
 		/****************************************************************************************
@@ -61,23 +61,22 @@ class LinxWindowsUartChannel : public LinxUartChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxWindowsUartChannel(LinxFmtChannel *debug, const unsigned char *deviceName);
-		LinxWindowsUartChannel(LinxFmtChannel *debug, unsigned char channel, const unsigned char *deviceName);
 		~LinxWindowsUartChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
-		virtual int SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
-		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, unsigned long long start, int timeout, unsigned int* numBytesRead);
-		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, unsigned long long start, int timeout);
-		virtual int Close(void);
+		virtual int32_t SetSpeed(uint32_t speed, uint32_t* actualSpeed);
+		virtual int32_t SetParameters(uint8_t dataBits, uint8_t stopBits, LinxUartParity parity);
+		virtual int32_t Read(unsigned char* recBuffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead);
+		virtual int32_t Write(const unsigned char* sendBuffer, uint32_t numBytes, uint32_t start, int32_t timeout);
+		virtual int32_t Close(void);
 
 	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SmartOpen(void);
+		virtual int32_t SmartOpen(void);
 
 	private:
 		/****************************************************************************************
@@ -94,15 +93,15 @@ class LinxWindowsSocketChannel : public LinxCommChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxWindowsSocketChannel(LinxFmtChannel *debug, const char *name, NetObject socket);
-		LinxWindowsSocketChannel(LinxFmtChannel *debug, const char *address, unsigned short port);
+		LinxWindowsSocketChannel(LinxFmtChannel *debug, const char *address, uint16_t port);
 		~LinxWindowsSocketChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Read(unsigned char* recBuffer, int numBytes, int timeout, int* numBytesRead);
-		virtual int Write(unsigned char* sendBuffer, int numBytes, int timeout);
-		virtual int Close(void);
+		virtual int32_t Read(unsigned char* recBuffer, int32_t numBytes, int32_t timeout, int32_t* numBytesRead);
+		virtual int32_t Write(unsigned char* sendBuffer, int32_t numBytes, int32_t timeout);
+		virtual int32_t Close(void);
 
 	protected:
 		/****************************************************************************************

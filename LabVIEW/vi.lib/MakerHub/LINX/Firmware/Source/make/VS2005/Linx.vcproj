@@ -555,6 +555,10 @@
 				RelativePath="..\..\core\listener\LinxTcpListener.h"
 				>
 			</File>
+			<File
+				RelativePath="..\..\core\device\utility\LinxWiringDevice.h"
+				>
+			</File>
 			<Filter
 				Name="Device"
 				>
@@ -600,10 +604,6 @@
 				</File>
 				<File
 					RelativePath="..\..\core\device\utility\LinxWindowsDevice.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\core\device\utility\LinxWiringDevice.h"
 					>
 				</File>
 			</Filter>

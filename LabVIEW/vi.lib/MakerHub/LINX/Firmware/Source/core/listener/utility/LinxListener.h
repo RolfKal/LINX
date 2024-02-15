@@ -16,6 +16,7 @@
 ** Includes
 ****************************************************************************************/
 #include "LinxDevice.h"
+#include "LinxChannel.h"
 
 /****************************************************************************************
 ** Defines
@@ -26,8 +27,8 @@
 /****************************************************************************************
 ** Typedefs
 ****************************************************************************************/
-typedef int (*CustomCommand)(unsigned char* commandPacketBuffer, int length, unsigned char* responsePacketBuffer, int* responseLength);
-typedef int (*PeriodicTask)(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer);
+typedef int32_t (*CustomCommand)(uint8_t* commandPacketBuffer, uint32_t length, uint8_t* responsePacketBuffer, uint32_t* responseLength);
+typedef int32_t (*PeriodicTask)(uint8_t* commandPacketBuffer, uint8_t* responsePacketBuffer);
 
 class LinxListener : public LinxBase
 {
@@ -44,10 +45,10 @@ class LinxListener : public LinxBase
 		// Attach a custom command callback function. The class allows up to MAX_CUSTOM_CMDS to be installed and
 		// any message with the command word being 0xFCxx whit xx being the command number between 0 and 15 is then
 		// forwarded to this callback function to be processed
-		int AttachCustomCommand(unsigned short commandNumber, CustomCommand callback);
-		int AttachPeriodicTask(PeriodicTask task);
+		int32_t AttachCustomCommand(uint16_t commandNumber, CustomCommand callback);
+		int32_t AttachPeriodicTask(PeriodicTask task);
 
-		int ProcessLoop(bool loop = false);
+		int32_t ProcessLoop(int32_t timeout);
 	protected:
 		/****************************************************************************************
 		**  Variables
@@ -59,19 +60,19 @@ class LinxListener : public LinxBase
 		** Functions
 		****************************************************************************************/
 		// Start Listener with the device to relay commands to
-		int Run(LinxCommChannel *channel,		// Channel to use for listening for messages
-			    int timeout,                    // Communication timeout
-				int bufferSize = 255);			// maximum buffer size for messages
-		virtual int WaitForConnection(void);	// Wait for incoming connection
-		virtual int Close(void);
+		int32_t Run(LinxCommChannel *channel,		// Channel to use for listening for messages
+				int32_t bufferSize = 255);			// maximum buffer size for messages
+		virtual int32_t WaitForConnection(int32_t timeout);	// Wait for incoming connection
+		virtual int32_t CloseChannel(void);
+		virtual int32_t Terminate(void);
 
-		int ControlMutex(bool lock);
+		int32_t ControlMutex(bool lock);
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		LinxCommChannel *m_Channel;
+		LinxCommChannel *m_Channel;					// channel to remote device
 		CustomCommand m_CustomCommands[MAX_CUSTOM_CMDS];
 		PeriodicTask m_PeriodicTask;
 		bool m_LaunchThread;
@@ -83,20 +84,18 @@ class LinxListener : public LinxBase
 		pthread_mutex_t m_Mutex;
 #else
 #endif
-		int m_ListenerBufferSize;
-		unsigned char* m_RecBuffer;
-		unsigned char* m_SendBuffer;
-		unsigned char m_ProtocolVersion;
-		int m_Run;
-		int m_Timeout;
+		int32_t m_ListenerBufferSize;
+		uint8_t* m_DataBuffer;
+		uint8_t m_ProtocolVersion;
 
 		/****************************************************************************************
 		** Functions
 		****************************************************************************************/
-		int CheckForCommand(void);	// Check for next command and decode it to relay it to the device
+		int32_t CheckForCommand(int32_t timeout);	// Check for next command and decode it to relay it to the device
+		int32_t ReadChannel(uint8_t* buffer, uint32_t numBytes, uint32_t start, int32_t timeout, uint32_t* numBytesRead);
 		
-		int EnumerateChannels(int type, unsigned char request, unsigned char *responseBuffer, unsigned int offset, unsigned int responseLength);
-		int PacketizeAndSend(unsigned char* commandPacketBuffer, unsigned char* responsePacketBuffer, int dataSize, int status);
-		int ProcessCommand(unsigned short command, unsigned char* commandPacketBuffer, int offset, int length, unsigned char* responsePacketBuffer, int responseLength);
+		int32_t EnumerateChannels(int32_t type, uint8_t request, uint8_t *dataBuffer, uint32_t offset, uint32_t bufferLength);
+		int32_t PacketizeAndSend(uint8_t* packetBuffer, uint32_t dataLength, int32_t status, uint32_t start, int32_t timeout);
+		int32_t ProcessCommand(uint8_t* packetBuffer, uint32_t offset, uint32_t dataLength, uint32_t bufferLength, uint32_t start, int32_t timeout);
 };
 #endif //LINX_LISTENER_H

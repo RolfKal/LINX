@@ -33,21 +33,20 @@ class LinxSysfsAiChannel : public LinxAiChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName);
+		LinxSysfsAiChannel(LinxFmtChannel *debug, const char *channelName, uint8_t resolution);
 		virtual ~LinxSysfsAiChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Read(unsigned int *value);
+		virtual int32_t Read(uint32_t *value);
 
 	protected:
-//		char m_State;			// Current DIO Direction and Pull-State
 
 	private:
 		FILE *m_ValHandle;	// File Handles For Digital Pin Value
 
-		int SmartOpen(void);
+		int32_t SmartOpen(void);
 };
 
 class LinxSysfsAoChannel : public LinxAoChannel
@@ -56,21 +55,20 @@ class LinxSysfsAoChannel : public LinxAoChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsAoChannel(LinxFmtChannel *debug, const char *channelName);
+		LinxSysfsAoChannel(LinxFmtChannel *debug, const char *channelName, uint8_t resolution);
 		virtual ~LinxSysfsAoChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Write(unsigned int value);
+		virtual int32_t Write(uint32_t value);
 
 	protected:
-//		char m_State;			// Current DIO Direction and Pull-State
 
 	private:
 		FILE *m_ValHandle;	// File Handles For Digital Pin Value
 
-		int SmartOpen(void);
+		int32_t SmartOpen(void);
 };
 
 class LinxSysfsDioChannel : public LinxDioChannel
@@ -79,29 +77,58 @@ class LinxSysfsDioChannel : public LinxDioChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin);
+		LinxSysfsDioChannel(LinxFmtChannel *debug, uint16_t linxPin, uint16_t gpioPin);
 		virtual ~LinxSysfsDioChannel(void);
 
+	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SetState(unsigned char state);		// direction and pull-up/down
-		virtual int Write(unsigned char value);
-		virtual int Read(unsigned char *value);
-		virtual int WriteSquareWave(unsigned int freq, unsigned int duration);
-		virtual int ReadPulseWidth(unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
-
-	protected:
-		short m_GpioChan;		// Maps LINX DIO Channel Number To GPIO Channel
-		short m_LinxChan;		// Maps LINX DIO Channel Number To GPIO Channel
-		char m_State;			// Current DIO Direction and Pull-State
+		virtual int32_t setDirection(uint8_t dir);	// direction
+		virtual int32_t setPull(uint8_t pud);			// pull-up/down
+		virtual int32_t setValue(uint8_t value);
+		virtual int32_t getValue(uint8_t *value);
 
 	private:
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
 		FILE *m_ValHandle;	// File Handles For Digital Pin Value
 		FILE *m_DirHandle;	// File Handles For Digital Pin Direction
 		FILE *m_EdgeHandle;	// File Handles For Digital Pin Edge
 
-		int SmartOpen(void);
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		int32_t SmartOpen(void);
+};
+
+class LinxGPIODioChannel : public LinxDioChannel
+{
+	public:
+		/****************************************************************************************
+		**  Constructors
+		****************************************************************************************/
+		LinxGPIODioChannel(LinxFmtChannel *debug, uint16_t linxPin, uint16_t gpioPin);
+		virtual ~LinxGPIODioChannel(void);
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int32_t setDirection(uint8_t dir);	// direction
+		virtual int32_t setPull(uint8_t pud);			// pull-up/down
+		virtual int32_t setValue(uint8_t value);
+		virtual int32_t getValue(uint8_t *value);
+
+	private:
+		/****************************************************************************************
+		**  Variables
+
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		int32_t SmartOpen(void);
 };
 
 class LinxSysfsPwmChannel : public LinxPwmChannel
@@ -110,14 +137,14 @@ class LinxSysfsPwmChannel : public LinxPwmChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableFileName, const char *periodName, const char *dutyCycleName, unsigned int defaultPeriod);
+		LinxSysfsPwmChannel(LinxFmtChannel *debug, const char *deviceName, const char *enableFileName, const char *periodName, const char *dutyCycleName, uint32_t defaultPeriod);
 		virtual ~LinxSysfsPwmChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SetDutyCycle(unsigned char values);
-		virtual int SetFrequency(unsigned int values);
+		virtual int32_t SetDutyCycle(uint8_t values);
+		virtual int32_t SetFrequency(uint32_t values);
 
 	private:
 		/****************************************************************************************
@@ -128,13 +155,13 @@ class LinxSysfsPwmChannel : public LinxPwmChannel
 		const char *m_EnableFileName; 
 		const char *m_PeriodFileName;
 		const char *m_DutyCycleFileName;
-		unsigned int m_DefaultPeriod;
-		unsigned int m_Period;
+		uint32_t m_DefaultPeriod;
+		uint32_t m_Period;
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		int SmartOpen(void);
+		int32_t SmartOpen(void);
 };
 
 class LinxUnixCommChannel : public LinxCommChannel
@@ -144,18 +171,25 @@ class LinxUnixCommChannel : public LinxCommChannel
 		**  Constructors
 		****************************************************************************************/
 		LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *channelName, NetObject socket);
-		LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *address, unsigned short port);
+		LinxUnixCommChannel(LinxFmtChannel *debug, const unsigned char *address, uint16_t port);
 		virtual ~LinxUnixCommChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Read(unsigned char* recBuffer, int numBytes, unsigned long long start, int timeout, int* numBytesRead);
-		virtual int Write(const unsigned char* sendBuffer, int numBytes, unsigned long long start, int timeout);
-		virtual int Close(void);
+		virtual int32_t Read(unsigned char* recBuffer, int32_t numBytes, uint32_t start, int32_t timeout, int32_t* numBytesRead);
+		virtual int32_t Write(const unsigned char* sendBuffer, int32_t numBytes, uint32_t start, int32_t timeout);
+		virtual int32_t Close(void);
+
+	protected:
+		/****************************************************************************************
+		**  Functions
+		****************************************************************************************/
+		virtual int32_t SmartOpen(void);
+		int32_t m_Socket;
 
 	private:
-		NetObject m_Socket;
+
 }
 
 class LinxUnixUartChannel : public LinxUartChannel
@@ -170,20 +204,11 @@ class LinxUnixUartChannel : public LinxUartChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
-		virtual int SetParameters(unsigned char dataBits, unsigned char stopBits, LinxUartParity parity);
-		virtual int Read(unsigned char* recBuffer, unsigned int numBytes, int timeout, unsigned int* numBytesRead);
-		virtual int Write(const unsigned char* sendBuffer, unsigned int numBytes, int timeout);
-		virtual int Close(void);
-
-	protected:
-		/****************************************************************************************
-		**  Functions
-		****************************************************************************************/
-		virtual int SmartOpen(void);
+		virtual int32_t SetSpeed(uint32_t speed, uint32_t* actualSpeed);
+		virtual int32_t SetParameters(uint8_t dataBits, uint8_t stopBits, LinxUartParity parity);
 
 private:
-		int m_Fd;
+
 };
 
 class LinxSysfsI2cChannel : public LinxI2cChannel
@@ -198,12 +223,12 @@ class LinxSysfsI2cChannel : public LinxI2cChannel
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open(void);
-		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
-		virtual int Read(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned int timeout, unsigned char* recBuffer);
-		virtual int Write(unsigned char slaveAddress, unsigned char eofConfig, int numBytes, unsigned char* sendBuffer);
-		virtual int Transfer(unsigned char slaveAddress, int numFrames, int *flags, int *numBytes, unsigned int timeout, unsigned char* sendBuffer, unsigned char* recBuffer);
-		virtual int Close(void);
+		virtual int32_t Open(void);
+		virtual int32_t SetSpeed(uint32_t speed, uint32_t* actualSpeed);
+		virtual int32_t Read(uint8_t slaveAddress, uint8_t eofConfig, int32_t numBytes, uint32_t timeout, unsigned char* recBuffer);
+		virtual int32_t Write(uint8_t slaveAddress, uint8_t eofConfig, int32_t numBytes, unsigned char* sendBuffer);
+		virtual int32_t Transfer(uint8_t slaveAddress, int32_t numFrames, int32_t *flags, int32_t *numBytes, uint32_t timeout, unsigned char* sendBuffer, unsigned char* recBuffer);
+		virtual int32_t Close(void);
 
 	protected:
 		/****************************************************************************************
@@ -214,7 +239,7 @@ class LinxSysfsI2cChannel : public LinxI2cChannel
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		int m_Fd;
+		int32_t m_Fd;
 		unsigned long m_Funcs;
 };
 
@@ -228,18 +253,18 @@ class LinxSysfsSpiChannel : public LinxSpiChannel
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxSysfsSpiChannel(LinxFmtChannel *debug, LinxDevice *device, const char *channelName, unsigned int maxSpeed);
+		LinxSysfsSpiChannel(LinxFmtChannel *debug, LinxDevice *device, const char *channelName, uint32_t maxSpeed);
 		virtual ~LinxSysfsSpiChannel(void);
 
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int Open(void);
-		virtual int SetBitOrder(unsigned char bitOrder);
-		virtual int SetMode(unsigned char mode);
-		virtual int SetSpeed(unsigned int speed, unsigned int* actualSpeed);
-		virtual int WriteRead(unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer);
-		virtual int Close(void);
+		virtual int32_t Open(void);
+		virtual int32_t SetBitOrder(uint8_t bitOrder);
+		virtual int32_t SetMode(uint8_t mode);
+		virtual int32_t SetSpeed(uint32_t speed, uint32_t* actualSpeed);
+		virtual int32_t WriteRead(uint8_t frameSize, uint8_t numFrames, uint8_t csChan, uint8_t csLL, unsigned char* sendBuffer, unsigned char* recBuffer);
+		virtual int32_t Close(void);
 
 	protected:
 		/****************************************************************************************
@@ -249,20 +274,20 @@ class LinxSysfsSpiChannel : public LinxSpiChannel
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
-		unsigned char m_NumSpiSpeeds;								//Number Of Supported SPI Speeds
-		unsigned int* m_SpiSupportedSpeeds;						//Supported SPI Clock Frequencies
-		int* m_SpiSpeedCodes;										//SPI Speed Values (Clock Divider Macros In Wiring Case)
+		uint8_t m_NumSpiSpeeds;								//Number Of Supported SPI Speeds
+		uint32_t* m_SpiSupportedSpeeds;						//Supported SPI Clock Frequencies
+		int32_t* m_SpiSpeedCodes;										//SPI Speed Values (Clock Divider Macros In Wiring Case)
 
 	private:
 		/****************************************************************************************
 		**  Variables
 		****************************************************************************************/
 //		LinxDevice *m_Device;
-		int m_Fd;
+		int32_t m_Fd;
 		LinxDevice *m_Device;
-		unsigned char m_BitOrder;
-		unsigned int m_CurrentSpeed;
-		unsigned int m_MaxSpeed;
+		uint8_t m_BitOrder;
+		uint32_t m_CurrentSpeed;
+		uint32_t m_MaxSpeed;
 
 };
 #endif // LINX_LINUX_CHANNEL_H

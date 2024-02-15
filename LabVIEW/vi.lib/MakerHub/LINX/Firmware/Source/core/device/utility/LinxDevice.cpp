@@ -126,7 +126,7 @@ void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* 
 		m_Debug->Write("Sending  :: ");
 	}
 		
-	for (int i = 0; i<packetBuffer[1]; i++)
+	for (int32_t i = 0; i < packetBuffer[1]; i++)
 	{
 		m_Debug->Write("[");
 		m_Debug->Write(packetBuffer[i], HEX);
@@ -141,171 +141,196 @@ void LinxDevice::DebugPrintPacket(unsigned char direction, const unsigned char* 
 	}
 }
 
+void LinxDevice::DebugEnable(LinxCommChannel *channel)
+{
+	m_Debug->SetDebugChannel(channel);
+}
+
+void LinxDevice::DebugDisable(void)
+{
+	m_Debug->SetDebugChannel(NULL);
+}
+
+LinxFmtChannel* LinxDevice::GetDebug(void)
+{
+	m_Debug->AddRef();
+	return m_Debug;
+}
 
 //--------------------------------------------------------Analog-------------------------------------------------------
-int LinxDevice::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int32_t LinxDevice::AnalogRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	int status = L_OK;
-	unsigned char responseByteOffset = 0;
-	unsigned char responseBitsRemaining = 8;
-	unsigned char dataBitsRemaining;
+	int32_t status = L_OK;
+	uint32_t aiVal, offset = 0, remaining = 8;
 
-	values[responseByteOffset] = 0x00;				// Clear next response byte
-	for (int i = 0; i < numChans; i++)
+	values[offset] = 0x00;				// Clear next response byte
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxAiChannel *chan = (LinxAiChannel*)LookupChannel(IID_LinxAiChannel, channels[i]);
-		if (!chan)
+		LinxAiChannel *channelObj = (LinxAiChannel*)LookupChannel(IID_LinxAiChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 
 		// Acquire AI Sample
-		unsigned int aiVal = 0;
-		status = chan->Read(&aiVal);
-		if (status)
-			return status;
-
-		dataBitsRemaining = AiResolution;
-		// Byte packed AI values in response data
-		while (dataBitsRemaining > 0)
+		status = channelObj->Read(&aiVal);
+		if (!status)
 		{
-			*(values + responseByteOffset) |= (unsigned char)((aiVal >> (AiResolution - dataBitsRemaining)) << (8 - responseBitsRemaining));
-
-			if (responseBitsRemaining > dataBitsRemaining)
-			{
-				// Current Byte Still Has Empty Bits
-				responseBitsRemaining -= dataBitsRemaining;
-				dataBitsRemaining = 0;
-			}
-			else
-			{
-				// Current Byte Full
-				dataBitsRemaining -= responseBitsRemaining;
-				responseByteOffset++;
-				responseBitsRemaining = 8;
-				values[responseByteOffset] = 0x00;	// Clear next response byte
-			}
+			offset = PackData(aiVal, this->AiResolution, &remaining, values, offset);
 		}
-		chan->Release();
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned int* values)
+int32_t LinxDevice::AnalogReadNoPacking(unsigned char numChans, unsigned char* channels, uint32_t* values)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxAiChannel *chan = (LinxAiChannel*)LookupChannel(IID_LinxAiChannel, channels[i]);
-		if (!chan)
+		LinxAiChannel *channelObj = (LinxAiChannel*)LookupChannel(IID_LinxAiChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 		
-		status = chan->Read(values + i);
-		chan->Release();
+		status = channelObj->Read(values + i);
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::AnalogSetRef(unsigned char mode, unsigned int voltage)
+int32_t LinxDevice::AnalogReadValues(uint8_t numChans, uint8_t* channels, double* values)
 {
-	int status = L_FUNCTION_NOT_SUPPORTED;
-
+	int32_t status = L_OK;
+	uint32_t aiVal;
+	double scale = ((double)this->AiRefSet / 1000000.0) / (1 << this->AiResolution);
+	for (int32_t i = 0; !status && i < numChans; i++)
+	{
+		LinxAiChannel *channelObj = (LinxAiChannel*)LookupChannel(IID_LinxAiChannel, channels[i]);
+		if (!channelObj)
+			return LERR_BADCHAN;
+		
+		status = channelObj->Read(&aiVal);
+		if (!status)
+		{
+			values[i] = scale * aiVal;
+		}
+		channelObj->Release();
+	}
 	return status;
 }
 
-int LinxDevice::AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int32_t LinxDevice::AnalogSetRef(unsigned char mode, uint32_t voltage)
 {
-	int status = L_OK;
-	unsigned int aoVal = 0;
-	unsigned char sourceByteOffset = 0;
-	unsigned char sourceBitsRemaining = 8;
-	unsigned char dataBitsRemaining;
-	for (int i = 0; !status && i < numChans; i++)
+	uint32_t num = EnumerateChannels(IID_LinxAiChannel);
+	if (!num)
+		return LANALOG_REF_VAL_ERROR;
+
+	switch (mode)
 	{
-		LinxAoChannel *chan = (LinxAoChannel*)LookupChannel(IID_LinxAoChannel, channels[i]);
-		if (!chan)
+		case 0: //Default
+			this->AiRefSet = this->AiRefDefault;
+			break;
+		case 1: //Internal
+		case 2: //External
+			this->AiRefSet = voltage;
+			break;
+		default:
+			return LANALOG_REF_MODE_ERROR;
+	}
+	return L_OK;
+}
+
+int32_t LinxDevice::AnalogWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
+{
+	int32_t status = L_OK;
+	uint32_t aoVal = 0, offset = 0, remaining = 8;
+
+	for (int32_t i = 0; !status && i < numChans; i++)
+	{
+		LinxAoChannel *channelObj = (LinxAoChannel*)LookupChannel(IID_LinxAoChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 
-		dataBitsRemaining = AoResolution;
-		aoVal = 0;
-		while (dataBitsRemaining)
-		{
-			aoVal |= ((unsigned int)*(values + sourceByteOffset) << (AoResolution - dataBitsRemaining)) >> (8 - sourceBitsRemaining);
-			if (sourceBitsRemaining > dataBitsRemaining)
-			{
-				// Current byte still has unused bits
-				sourceBitsRemaining -= dataBitsRemaining;
-				dataBitsRemaining = 0;
-			}
-			else
-			{
-				// Current Byte Used up
-				dataBitsRemaining -= sourceBitsRemaining;
-				sourceByteOffset++;
-				sourceBitsRemaining = 8;
-			}
-		}
-		status = chan->Write(aoVal);
-		chan->Release();
+		aoVal = UnpackData(this->AoResolution, &remaining, values, &offset);
+		status = channelObj->Write(aoVal);
+		channelObj->Release();
+	}
+	return status;
+}
+
+int32_t LinxDevice::AnalogWriteValues(uint8_t numChans, uint8_t* channels, double *values)
+{
+	int32_t status = L_OK;
+	uint32_t aoVal, resolution = (1 << this->AoResolution);
+	double scale = resolution / ((double)this->AoRefSet / 1000000.0);
+	for (int32_t i = 0; !status && i < numChans; i++)
+	{
+		LinxAoChannel *channelObj = (LinxAoChannel*)LookupChannel(IID_LinxAoChannel, channels[i]);
+		if (!channelObj)
+			return LERR_BADCHAN;
+
+		aoVal = (uint32_t)(values[i] * scale);
+		status = channelObj->Write(aoVal);
+		channelObj->Release();
 	}
 	return status;
 }
 
 //--------------------------------------------------------Digital-------------------------------------------------------
-int LinxDevice::DigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char* states)
+int32_t LinxDevice::DigitalSetState(unsigned char numChans, unsigned char* channels, unsigned char* states)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxDioChannel *chan = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
-		if (!chan)
+		LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 		
-		status = chan->SetState(states[i]);
-		chan->Release();
+		status = channelObj->SetState(states[i]);
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int32_t LinxDevice::DigitalWrite(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxDioChannel *chan = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
-		if (!chan)
+		LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 		
-		status = chan->Write((values[i / 8] >> (i % 8)) & 0x01);
-		chan->Release();
+		status = channelObj->Write((values[i / 8] >> (i % 8)) & 0x01);
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int32_t LinxDevice::DigitalWriteNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxDioChannel *chan = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
-		if (!chan)
+		LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 		
-		status = chan->Write(values[i]);
-		chan->Release();
+		status = channelObj->Write(values[i]);
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int32_t LinxDevice::DigitalRead(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
 	unsigned char bitOffset = 8;
 	unsigned char byteOffset = 0;
 	unsigned char retVal = 0;
 	unsigned char diVal = 0;
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxDioChannel *chan = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
-		if (!chan)
+		LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 
 		//If bitOffset is 0 we have to start a new byte, store old byte and increment offset
@@ -321,449 +346,448 @@ int LinxDevice::DigitalRead(unsigned char numChans, unsigned char* channels, uns
 		{
 			bitOffset--;
 		}
-		status = chan->Read(&diVal);
+		status = channelObj->Read(&diVal);
 		if (!status)
 			retVal |= (diVal << bitOffset);	//Read pin and insert value into retVal
-		chan->Release();
+		channelObj->Release();
 	}
 	//Store Last Byte
 	values[byteOffset] = retVal;
 	return status;
 }
 
-int LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int32_t LinxDevice::DigitalReadNoPacking(unsigned char numChans, unsigned char* channels, unsigned char* values)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxDioChannel *chan = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
-		if (!chan)
+		LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 		
-		status = chan->Read(&values[i]);
-		chan->Release();
+		status = channelObj->Read(&values[i]);
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::DigitalWriteSquareWave(unsigned char channel, unsigned int freq, unsigned int duration)
+int32_t LinxDevice::DigitalWriteSquareWave(unsigned char channel, uint32_t freq, uint32_t duration)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channel);
+	if (channelObj)
+	{
+		int32_t status = channelObj->WriteSquareWave(freq, duration);
+		channelObj->Release();
+		return status;
+	}
+	return LERR_BADCHAN;
 }
 
-int LinxDevice::DigitalReadPulseWidth(unsigned char stimChan, unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width)
+int32_t LinxDevice::DigitalReadPulseWidth(unsigned char channel, unsigned char stimType, unsigned char respChan, unsigned char respType, uint32_t timeout, uint32_t* width)
 {
-	return L_FUNCTION_NOT_SUPPORTED;
+	LinxDioChannel *channelObj = (LinxDioChannel*)LookupChannel(IID_LinxDioChannel, channel);
+	if (channelObj)
+	{
+		int32_t status = channelObj->ReadPulseWidth(stimType, respChan, respType, timeout, width);
+		channelObj->Release();
+		return status;
+	}
+	return LERR_BADCHAN;
 }
 
 // ---------------- PWM Functions ------------------ 
-int LinxDevice::PwmSetDutyCycle(unsigned char numChans, unsigned char* channels, unsigned char* values)
+int32_t LinxDevice::PwmSetDutyCycle(uint8_t numChans, uint8_t* channels, uint8_t* values)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxPwmChannel *chan = (LinxPwmChannel*)LookupChannel(IID_LinxPwmChannel, channels[i]);
-		if (!chan)
+		LinxPwmChannel *channelObj = (LinxPwmChannel*)LookupChannel(IID_LinxPwmChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 		
-		status = chan->SetDutyCycle(values[i]);
-		chan->Release();
+		status = channelObj->SetDutyCycle(values[i]);
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::PwmSetFrequency(unsigned char numChans, unsigned char* channels, unsigned int* values)
+int32_t LinxDevice::PwmSetFrequency(uint8_t numChans, uint8_t* channels, uint32_t* values)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxPwmChannel *chan = (LinxPwmChannel*)LookupChannel(IID_LinxPwmChannel, channels[i]);
-		if (!chan)
+		LinxPwmChannel *channelObj = (LinxPwmChannel*)LookupChannel(IID_LinxPwmChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADCHAN;
 		
-		status = chan->SetFrequency(values[i]);
-		chan->Release();
+		status = channelObj->SetFrequency(values[i]);
+		channelObj->Release();
 	}
 	return status;
 }
 
 // ---------------- SPI Functions ------------------ 
-int LinxDevice::SpiOpenMaster(unsigned char channel)
+int32_t LinxDevice::SpiOpenMaster(uint8_t channel)
 {
-	LinxSpiChannel *chan = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
-	if (chan)
+	LinxSpiChannel *channelObj = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Open();
-		chan->Release();
+		int32_t status = channelObj->Open();
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 
 }
 
-int LinxDevice::SpiSetBitOrder(unsigned char channel, unsigned char bitOrder)
+int32_t LinxDevice::SpiSetBitOrder(uint8_t channel, uint8_t bitOrder)
 {
-	LinxSpiChannel *chan = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
-	if (chan)
+	LinxSpiChannel *channelObj = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->SetBitOrder(bitOrder);
-		chan->Release();
+		int32_t status = channelObj->SetBitOrder(bitOrder);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::SpiSetMode(unsigned char channel, unsigned char mode)
+int32_t LinxDevice::SpiSetMode(uint8_t channel, uint8_t mode)
 {
-	LinxSpiChannel *chan = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
-	if (chan)
+	LinxSpiChannel *channelObj = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->SetMode(mode);
-		chan->Release();
+		int32_t status = channelObj->SetMode(mode);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::SpiSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed)
+int32_t LinxDevice::SpiSetSpeed(uint8_t channel, uint32_t speed, uint32_t* actualSpeed)
 {
-	LinxSpiChannel *chan = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
-	if (chan)
+	LinxSpiChannel *channelObj = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->SetSpeed(speed, actualSpeed);
-		chan->Release();
+		int32_t status = channelObj->SetSpeed(speed, actualSpeed);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::SpiWriteRead(unsigned char channel, unsigned char frameSize, unsigned char numFrames, unsigned char csChan, unsigned char csLL, unsigned char* sendBuffer, unsigned char* recBuffer)
+int32_t LinxDevice::SpiWriteRead(uint8_t channel, uint8_t frameSize, uint8_t numFrames, uint8_t csChan, uint8_t csLL, unsigned char* sendBuffer, unsigned char* recBuffer)
 {
-	LinxSpiChannel *chan = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
-	if (chan)
+	LinxSpiChannel *channelObj = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->WriteRead(frameSize, numFrames, csChan, csLL, sendBuffer, recBuffer);
-		chan->Release();
+		int32_t status = channelObj->WriteRead(frameSize, numFrames, csChan, csLL, sendBuffer, recBuffer);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::SpiCloseMaster(unsigned char channel)
+int32_t LinxDevice::SpiCloseMaster(uint8_t channel)
 {
-	LinxSpiChannel *chan = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
-	if (chan)
+	LinxSpiChannel *channelObj = (LinxSpiChannel*)LookupChannel(IID_LinxSpiChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Close();
-		chan->Release();
+		int32_t status = channelObj->Close();
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
 // ---------------- I2C Functions ------------------ 
-int LinxDevice::I2cOpenMaster(unsigned char channel)
+int32_t LinxDevice::I2cOpenMaster(uint8_t channel)
 {
-	LinxI2cChannel *chan = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
-	if (chan)
+	LinxI2cChannel *channelObj = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Open();
-		chan->Release();
+		int32_t status = channelObj->Open();
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::I2cSetSpeed(unsigned char channel, unsigned int speed, unsigned int* actualSpeed)
+int32_t LinxDevice::I2cSetSpeed(uint8_t channel, uint32_t speed, uint32_t* actualSpeed)
 {
-	LinxI2cChannel *chan = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
-	if (chan)
+	LinxI2cChannel *channelObj = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->SetSpeed(speed, actualSpeed);
-		chan->Release();
+		int32_t status = channelObj->SetSpeed(speed, actualSpeed);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::I2cWrite(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned char* sendBuffer)
+int32_t LinxDevice::I2cWrite(uint8_t channel, uint8_t slaveAddress, uint8_t eofConfig, uint8_t numBytes, unsigned char* sendBuffer)
 {
-	LinxI2cChannel *chan = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
-	if (chan)
+	LinxI2cChannel *channelObj = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Write(slaveAddress, eofConfig, numBytes, sendBuffer);
-		chan->Release();
+		int32_t status = channelObj->Write(slaveAddress, eofConfig, numBytes, sendBuffer);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::I2cRead(unsigned char channel, unsigned char slaveAddress, unsigned char eofConfig, unsigned char numBytes, unsigned int timeout, unsigned char* recBuffer)
+int32_t LinxDevice::I2cRead(uint8_t channel, uint8_t slaveAddress, uint8_t eofConfig, uint8_t numBytes, uint32_t timeout, unsigned char* recBuffer)
 {
-	LinxI2cChannel *chan = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
-	if (chan)
+	LinxI2cChannel *channelObj = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Read(slaveAddress, eofConfig, numBytes, timeout, recBuffer);
-		chan->Release();
+		int32_t status = channelObj->Read(slaveAddress, eofConfig, numBytes, timeout, recBuffer);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::I2cTransfer(unsigned char channel, unsigned char slaveAddress, int numFrames, int *flags, int *numBytes, unsigned int timeout, unsigned char* sendBuffer, unsigned char* recBuffer)
+int32_t LinxDevice::I2cTransfer(uint8_t channel, uint8_t slaveAddress, int32_t numFrames, int32_t *flags, int32_t *numBytes, uint32_t timeout, unsigned char* sendBuffer, unsigned char* recBuffer)
 {
-	LinxI2cChannel *chan = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
-	if (chan)
+	LinxI2cChannel *channelObj = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Transfer(slaveAddress, numFrames, flags, numBytes, timeout, sendBuffer, recBuffer);
-		chan->Release();
+		int32_t status = channelObj->Transfer(slaveAddress, numFrames, flags, numBytes, timeout, sendBuffer, recBuffer);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::I2cClose(unsigned char channel)
+int32_t LinxDevice::I2cClose(uint8_t channel)
 {
-	LinxI2cChannel *chan = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
-	if (chan)
+	LinxI2cChannel *channelObj = (LinxI2cChannel*)LookupChannel(IID_LinxI2cChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Close();
-		chan->Release();
+		int32_t status = channelObj->Close();
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
 // ---------------- UART Functions ------------------ 
-int LinxDevice::UartOpen(unsigned char channel, LinxUartChannel **pChan)
+int32_t LinxDevice::UartOpen(uint8_t channel, LinxUartChannel **comm)
 {
-	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
-	if (chan)
+	LinxUartChannel *channelObj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
+	if (channelObj)
 	{
-		if (pChan)
-			*pChan = chan;
+		if (comm)
+			*comm = channelObj;
 		else
-			chan->Release();
+			channelObj->Release();
 		return L_OK;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartOpen(const unsigned char *deviceName, unsigned char *channel, LinxUartChannel **channelObj)
+int32_t LinxDevice::UartOpen(const unsigned char *deviceName, uint8_t *channel, LinxUartChannel **comm)
 {
-	LinxUartChannel* obj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, deviceName, channel);
-	if (!obj)
+	LinxUartChannel *channelObj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, deviceName, channel);
+	if (!channelObj)
 	{
 #if Unix
-		obj = new LinxUnixUartChannel(m_Debug, deviceName);
+		channelObj = new LinxUnixUartChannel(m_Debug, deviceName);
 #elif Win32
-		obj = new LinxWindowsUartChannel(m_Debug, *channel, deviceName);
+		channelObj = new LinxWindowsUartChannel(m_Debug, deviceName);
 #endif
-		if (!obj)
+		if (!channelObj)
 			return LERR_BADPARAM;
 
-		*channel = RegisterChannel(IID_LinxUartChannel, obj);
+		*channel = RegisterChannel(IID_LinxUartChannel, channelObj);
 	}
-	if (channelObj)
-		*channelObj = obj;
+	if (comm)
+		*comm = channelObj;
 	else
-		obj->Release();
+		channelObj->Release();
 	return L_OK;
 }
 
-int LinxDevice::UartSetBaudRate(unsigned char channel, unsigned int baudRate, unsigned int* actualBaud)
+int32_t LinxDevice::UartSetBaudRate(unsigned char channel, uint32_t baudRate, uint32_t* actualBaud)
 {
-	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
-	if (chan)
+	LinxUartChannel *channelObj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->SetSpeed(baudRate, actualBaud);
-		chan->Release();
+		int32_t status = channelObj->SetSpeed(baudRate, actualBaud);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartSetParameters(unsigned char channel, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
+int32_t LinxDevice::UartSetParameters(unsigned char channel, unsigned char dataBits, unsigned char stopBits, LinxUartParity parity)
 {
-	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
-	if (chan)
+	LinxUartChannel *channelObj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->SetParameters(dataBits, stopBits, parity);
-		chan->Release();
+		int32_t status = channelObj->SetParameters(dataBits, stopBits, parity);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartGetBytesAvailable(unsigned char channel, unsigned int *numBytes)
+int32_t LinxDevice::UartGetBytesAvailable(unsigned char channel, uint32_t *numBytes)
 {
-	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
-	if (chan)
+	LinxUartChannel *channelObj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Read(NULL, 0, 0, numBytes);
-		chan->Release();
+		int32_t status = channelObj->Read(NULL, 0, 0, numBytes);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartRead(unsigned char channel, unsigned int numBytes, unsigned char* recBuffer, int timeout, unsigned int* numBytesRead)
+int32_t LinxDevice::UartRead(unsigned char channel, uint32_t numBytes, unsigned char* recBuffer, int32_t timeout, uint32_t* numBytesRead)
 {
-	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
-	if (chan)
+	LinxUartChannel *channelObj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Read(recBuffer, numBytes, timeout, numBytesRead);
-		chan->Release();
+		int32_t status = channelObj->Read(recBuffer, numBytes, timeout, numBytesRead);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartWrite(unsigned char channel, unsigned int numBytes, unsigned char* sendBuffer, int timeout)
+int32_t LinxDevice::UartWrite(unsigned char channel, uint32_t numBytes, unsigned char* sendBuffer, int32_t timeout)
 {
-	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
-	if (chan)
+	LinxUartChannel *channelObj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Write(sendBuffer, numBytes, timeout);
-		chan->Release();
+		int32_t status = channelObj->Write(sendBuffer, numBytes, timeout);
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
-int LinxDevice::UartClose(unsigned char channel)
+int32_t LinxDevice::UartClose(unsigned char channel)
 {
-	LinxUartChannel *chan = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
-	if (chan)
+	LinxUartChannel *channelObj = (LinxUartChannel*)LookupChannel(IID_LinxUartChannel, channel);
+	if (channelObj)
 	{
-		int status = chan->Close();
-		chan->Release();
+		int32_t status = channelObj->Close();
+		channelObj->Release();
 		return status;
 	}
 	return LERR_BADPARAM;
 }
 
 //------------------------------------- Servo -------------------------------------
-int LinxDevice::ServoOpen(unsigned char numChans, unsigned char* channels)
+int32_t LinxDevice::ServoOpen(unsigned char numChans, unsigned char* channels)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxServoChannel *chan = (LinxServoChannel*)LookupChannel(IID_LinxServoChannel, channels[i]);
-		if (!chan)
+		LinxServoChannel *channelObj = (LinxServoChannel*)LookupChannel(IID_LinxServoChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADPARAM;
-		chan->Release();
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::ServoSetPulseWidth(unsigned char numChans, unsigned char* channels, unsigned short* pulseWidths)
+int32_t LinxDevice::ServoSetPulseWidth(unsigned char numChans, unsigned char* channels, uint16_t* pulseWidths)
 {
-	int status = L_OK;
-	for (int i = 0; !status && i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; !status && i < numChans; i++)
 	{
-		LinxServoChannel *chan = (LinxServoChannel*)LookupChannel(IID_LinxServoChannel, channels[i]);
-		if (!chan)
+		LinxServoChannel *channelObj = (LinxServoChannel*)LookupChannel(IID_LinxServoChannel, channels[i]);
+		if (!channelObj)
 			return LERR_BADPARAM;
 
-		status = chan->SetPulseWidth(pulseWidths[i]);
-		chan->Release();
+		status = channelObj->SetPulseWidth(pulseWidths[i]);
+		channelObj->Release();
 	}
 	return status;
 }
 
-int LinxDevice::ServoClose(unsigned char numChans, unsigned char* channels)
+int32_t LinxDevice::ServoClose(unsigned char numChans, unsigned char* channels)
 {
-	int status = L_OK;
-	for (int i = 0; i < numChans; i++)
+	int32_t status = L_OK;
+	for (int32_t i = 0; i < numChans; i++)
 	{
-		LinxServoChannel *chan = (LinxServoChannel*)LookupChannel(IID_LinxServoChannel, channels[i]);
+		LinxServoChannel *channelObj = (LinxServoChannel*)LookupChannel(IID_LinxServoChannel, channels[i]);
 		// don't abort loop on errors on close
-		if (chan)
+		if (channelObj)
 		{
-			status = chan->Close();
-			chan->Release();
+			status = channelObj->Close();
+			channelObj->Release();
 		}
 	}
 	return status;
 }
 
 //----------------- WS2812 Functions -----------------------------
-int LinxDevice::Ws2812Open(unsigned short numLeds, unsigned char dataChan)
+int32_t LinxDevice::Ws2812Open(uint16_t numLeds, unsigned char dataChan)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxDevice::Ws2812WriteOnePixel(unsigned short pixelIndex, unsigned char red, unsigned char green, unsigned char blue, unsigned char refresh)
+int32_t LinxDevice::Ws2812WriteOnePixel(uint16_t pixelIndex, unsigned char red, unsigned char green, unsigned char blue, unsigned char refresh)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxDevice::Ws2812WriteNPixels(unsigned short startPixel, unsigned short numPixels, unsigned char* data, unsigned char refresh)
+int32_t LinxDevice::Ws2812WriteNPixels(uint16_t startPixel, uint16_t numPixels, unsigned char* data, unsigned char refresh)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxDevice::Ws2812Refresh(void)
+int32_t LinxDevice::Ws2812Refresh(void)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
-int LinxDevice::Ws2812Close(void)
+int32_t LinxDevice::Ws2812Close(void)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
 //----------------- Nonvolatile Functions -----------------------------
-void LinxDevice::NonVolatileWrite(int address, unsigned char data)
+void LinxDevice::NonVolatileWrite(int32_t address, unsigned char data)
 {
 
 }
 
-unsigned char LinxDevice::NonVolatileRead(int address)
+unsigned char LinxDevice::NonVolatileRead(int32_t address)
 {
 	return L_FUNCTION_NOT_SUPPORTED;
 }
 
 
 //----------------- Support Functions -----------------------------
-unsigned int LinxDevice::GetMilliSeconds(void)
+uint32_t LinxDevice::GetMilliSeconds(void)
 {
-	return getMilliSeconds();
+	return getMsTicks();
 }
 
-unsigned int LinxDevice::GetSeconds(void)
+uint32_t LinxDevice::GetSeconds(void)
 {
 	return getSeconds();
 }
 
-void LinxDevice::DelayMs(unsigned int ms)
+void LinxDevice::DelayMs(uint32_t ms)
 {
 	delayMs(ms);	
-}
-
-bool LinxDevice::ChecksumPassed(unsigned char* buffer, int length)
-{
-	return ComputeChecksum(buffer, length) == buffer[length];
-}
-
-unsigned char LinxDevice::ComputeChecksum(unsigned char* buffer, int length)
-{
-	unsigned char checksum = 0;
-	for (unsigned short i = 0; i < length; i++)
-	{
-		checksum += buffer[i];
-	}
-	return checksum;
 }
 
 /****************************************************************************************
 **  Public Channel Registry Functions
 ****************************************************************************************/
-int LinxDevice::EnumerateChannels(int type, unsigned char *buffer, unsigned int length, unsigned int *reqLen)
+int32_t LinxDevice::EnumerateChannels(int32_t type, uint8_t *buffer, uint32_t length, uint32_t *reqLen)
 {
 	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	unsigned int i = 0, off = 0, num = (unsigned int)m.size();
+	uint32_t i = 0, off = 0, num = (uint32_t)m.size();
 	if (num)
 	{
 		off = num;
@@ -773,13 +797,13 @@ int LinxDevice::EnumerateChannels(int type, unsigned char *buffer, unsigned int 
 			{
 				if (i < length)
 					buffer[i] = it->first;
-				if (reqLen && off < length + 1)
+				if (it->second && reqLen && off < length + 1)
 				{
 					buffer[off] = Min(it->second->GetName(buffer + off + 1, length - off - 1), length - off - 1);
-					off += buffer[off];
+					off += buffer[off] + 1;
 				}
 			}
-			else
+			else if (it->second)
 			{
 				off += it->second->GetName(buffer, length) + 1;
 			}
@@ -793,26 +817,26 @@ int LinxDevice::EnumerateChannels(int type, unsigned char *buffer, unsigned int 
 /****************************************************************************************
 **  Protected Channel Registry Functions
 ****************************************************************************************/
-unsigned char LinxDevice::RegisterChannel(int type, LinxChannel *channelObj)
+unsigned char LinxDevice::RegisterChannel(int32_t type, LinxChannel *channelObj)
 {
-	unsigned char channel = 0;
-	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin(); it != m.end(); it++)
+	uint8_t channel = 0;
+	std::map<uint8_t, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	for (std::map<uint8_t, LinxChannel*>::iterator it = m.begin(); it != m.end(); it++)
 	{
 		if (it->first != channel)
 			break;
 
 		channel = it->first + 1;
 	}
-	m.insert(std::pair<unsigned char, LinxChannel*>(channel, channelObj));
+	m.insert(std::pair<uint8_t, LinxChannel*>(channel, channelObj));
 	m_ChannelRegistry[type - 1] = m;
 	return channel;
 }
 
-void LinxDevice::RegisterChannel(int type, unsigned char channel, LinxChannel *channelObj)
+void LinxDevice::RegisterChannel(int32_t type, uint8_t channel, LinxChannel *channelObj)
 {
-	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	std::pair<std::map<unsigned char, LinxChannel*>::iterator, bool> result = m.insert(std::pair<unsigned char, LinxChannel*>(channel, channelObj));
+	std::map<uint8_t, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	std::pair<std::map<uint8_t, LinxChannel*>::iterator, bool> result = m.insert(std::pair<uint8_t, LinxChannel*>(channel, channelObj));
 	if (!result.second)
 	{
 		result.first->second->Release();
@@ -822,61 +846,128 @@ void LinxDevice::RegisterChannel(int type, unsigned char channel, LinxChannel *c
 	m_ChannelRegistry[type - 1] = m;
 }
 
-LinxChannel* LinxDevice::LookupChannel(int type, unsigned char channel)
+LinxChannel* LinxDevice::LookupChannel(int32_t type, uint8_t channel)
 {
-	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	std::map<unsigned char, LinxChannel*>::iterator it = m.find(channel);
+	std::map<uint8_t, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	std::map<uint8_t, LinxChannel*>::iterator it = m.find(channel);
 	if (it != m.end())
 	{
-		it->second->AddRef();
-		return it->second;
+		if (it->second)
+		{
+			it->second->AddRef();
+			return it->second;
+		}
 	}
 	return NULL;
 }
 
-LinxChannel* LinxDevice::LookupChannel(int type, const unsigned char *channelName, unsigned char *channel)
+LinxChannel* LinxDevice::LookupChannel(int32_t type, const unsigned char *channelName, uint8_t *channel)
 {
-	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	int num = (int)m.size();
+	std::map<uint8_t, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	int32_t num = (int32_t)m.size();
 	if (num)
 	{
-		unsigned char buffer[32];
-		for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin();  it != m.end(); ++it)
+		unsigned char buffer[64];
+		for (std::map<uint8_t, LinxChannel*>::iterator it = m.begin();  it != m.end(); ++it)
 		{
-			it->second->GetName(buffer, 32);
-			if (!strcmp((char*)channelName, (char*)buffer))
+			if (it->second)
 			{
-				if (channel)
-					*channel = it->first;
-				it->second->AddRef();
-				return it->second;
+				it->second->GetName(buffer, 64);
+				if (!strcmp((char*)channelName, (char*)buffer))
+				{
+					if (channel)
+						*channel = it->first;
+					it->second->AddRef();
+					return it->second;
+				}
 			}
 		}
 	}
 	return NULL;
 }
 
-void LinxDevice::RemoveChannel(int type, unsigned char channel)
+int32_t LinxDevice::VerifyChannels(int32_t type, uint8_t numChans, uint8_t *channel)
 {
-	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	std::map<unsigned char, LinxChannel*>::iterator it = m.find(channel);
+	std::map<uint8_t, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	for (uint8_t i = 0; i < numChans; i++)
+	{
+		std::map<uint8_t, LinxChannel*>::iterator it = m.find(channel[i]);
+		if (it == m.end())
+			return LERR_BADCHAN;
+	}
+	return L_OK;
+}
+
+void LinxDevice::RemoveChannel(int32_t type, uint8_t channel)
+{
+	std::map<uint8_t, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	std::map<uint8_t, LinxChannel*>::iterator it = m.find(channel);
 	if (it != m.end())
 	{
-		it->second->Release();
+		if (it->second)
+			it->second->Release();
 		m.erase(it);
 	}
 }
 
-void LinxDevice::ClearChannels(int type)
+void LinxDevice::ClearChannels(int32_t type)
 {
-	std::map<unsigned char, LinxChannel*> m = m_ChannelRegistry[type - 1];
-	for (std::map<unsigned char, LinxChannel*>::iterator it = m.begin(); it != m.end(); it++)
+	std::map<uint8_t, LinxChannel*> m = m_ChannelRegistry[type - 1];
+	for (std::map<uint8_t, LinxChannel*>::iterator it = m.begin(); it != m.end(); it++)
 	{
-		int count = it->second->Release();
+		int32_t count = it->second ? it->second->Release() : 0;
 		if (count)
 		{
 			m_Debug->Write("Channel not released! Bad refcount");
 		}
 	}
 	m.clear();
+}
+
+uint32_t LinxDevice::PackData(uint32_t value, uint32_t resolution, uint32_t *remaining, uint8_t *values, uint32_t offset) 
+{
+	uint32_t dataBits = resolution;
+	// Byte packed AI values in response data
+	while (dataBits > 0)
+	{
+		values[offset] |= (uint8_t)((value >> (resolution - dataBits)) << (8 - *remaining));
+
+		if (*remaining > dataBits)
+		{
+			// Current Byte Still Has Empty Bits
+			*remaining -= dataBits;
+			dataBits = 0;
+		}
+		else
+		{
+			// Current Byte Full
+			dataBits -= *remaining;
+			*remaining = 8;
+			values[++offset] = 0x00;	// Clear next response byte
+		}
+	}
+	return offset;
+}
+
+uint32_t LinxDevice::UnpackData(uint32_t resolution, uint32_t *remaining, uint8_t *values, uint32_t *offset) 
+{
+	uint32_t value = 0, dataBits = resolution;
+	while (dataBits)
+	{
+		value |= ((uint32_t)values[*offset] << (resolution - dataBits)) >> (8 - *remaining);
+		if (*remaining > dataBits)
+		{
+			// Current byte still has unused bits
+			*remaining -= dataBits;
+			dataBits = 0;
+		}
+		else
+		{
+			// Current Byte Used up
+			dataBits -= *remaining;
+			(*offset)++;
+			*remaining = 8;
+		}
+	}
+	return value;
 }

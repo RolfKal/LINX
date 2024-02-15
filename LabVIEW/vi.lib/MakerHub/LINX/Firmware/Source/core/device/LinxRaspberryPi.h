@@ -45,30 +45,29 @@
 #include "LinxDevice.h"
 #include "LinxLinuxChannel.h"
 
-class LinxRaspiDioChannel : public LinxSysfsDioChannel
+class LinxRaspiDioChannel : public LinxDioChannel
 {
 	public:
 		/****************************************************************************************
 		**  Constructors
 		****************************************************************************************/
-		LinxRaspiDioChannel(LinxFmtChannel *debug, unsigned char linxPin, unsigned char gpioPin, , unsigned char cpuModell);
+		LinxRaspiDioChannel(LinxFmtChannel *debug, uint16_t linxPin, uint16_t gpioPin, uint8_t cpuModell);
 		virtual ~LinxRaspiDioChannel(void) {};
 
+	protected:
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual int SetState(unsigned char state);		// direction and pull-up/down
-		virtual int Write(unsigned char value);
-		virtual int Read(unsigned char *value);
-		virtual int WriteSquareWave(unsigned int freq, unsigned int duration);
-		virtual int ReadPulseWidth(unsigned char stimType, unsigned char respChan, unsigned char respType, unsigned int timeout, unsigned int* width);
+		virtual int32_t setDirection(uint8_t dir);
+		virtual int32_t setPull(uint8_t pud);
+		virtual int32_t setValue(uint8_t value);
+		virtual int32_t getValue(uint8_t *value);
 
 	private:
-		int setState(unsigned char state);
-		int setPull(unsigned char pud);
-		int setDirection(unsigned char direction);
-
-		static unsigned char m_CpuModel;
+		/****************************************************************************************
+		**  Variables
+		****************************************************************************************/
+		static uint8_t m_CpuModel;
 };
 
 using namespace std;
@@ -76,10 +75,6 @@ using namespace std;
 class LinxRaspberryPi : public LinxDevice
 {
 	public:
-		/****************************************************************************************
-		**  Variables
-		****************************************************************************************/
-
 		/****************************************************************************************
 		**  Constructors /  Destructor
 		****************************************************************************************/
@@ -89,7 +84,7 @@ class LinxRaspberryPi : public LinxDevice
 		/****************************************************************************************
 		**  Functions
 		****************************************************************************************/
-		virtual unsigned char GetDeviceName(unsigned char *buffer, unsigned char length);
+		virtual uint8_t GetDeviceName(unsigned char *buffer, uint8_t length);
 
 	protected:
 
@@ -99,11 +94,8 @@ class LinxRaspberryPi : public LinxDevice
 		****************************************************************************************/
 		//System
 		static char m_DeviceName[DEVICE_NAME_MAX];
-		static unsigned int m_DeviceCode;
-		static unsigned int m_SerialNum;
+		static uint32_t m_DeviceCode;
+		static uint64 m_SerialNum;
 		
-		/****************************************************************************************
-		**  Functions
-		****************************************************************************************/
 };
 #endif //LINX_RASPBERRYPI2B
